@@ -13,6 +13,7 @@ import requests
 # create click command group with 4 global options
 @click.group()
 @click.option(
+    '-k',
     '--apikey',
     help='Provide your apikey manually, if not through environment variable',
     type=click.STRING,
@@ -69,7 +70,7 @@ def cli(ctx, apikey, url, force, json_output):
         'SRV',
         'TXT',
     ],))
-@click.argument('content', type=click.STRING, nargs=-1)
+@click.argument('content', type=click.STRING)
 @click.option(
     '-d',
     '--disabled',
@@ -80,7 +81,7 @@ def cli(ctx, apikey, url, force, json_output):
 @click.option('--ttl', default=3600, type=click.INT,
               help='Set default time to live')
 @click.pass_context
-def add_record(
+def add_single_record(
     ctx,
     name,
     record_type,
@@ -90,21 +91,20 @@ def add_record(
     ttl,
 ):
     """
-    Add new DNS records
-    Create new DNS records of different types. Use @ if you want to enter a
+    Adds a new DNS record of different types. Use @ if you want to enter a
     record for the top level.
 
     A record:
-    powerdns-cli add_records test01 exmaple.org A 10.0.0.1
+    powerdns-cli add_single_record test01 exmaple.org A 10.0.0.1
     MX record:
-    powerdns-cli add_records mail example.org MX "10 10.0.0.1"
+    powerdns-cli add_single_record mail example.org MX "10 10.0.0.1"
     CNAME record:
-    powerdns-cli add_records test02 exmaple.org CNAME test01.example.org
+    powerdns-cli add_single_record test02 example.org CNAME test01.example.org
     """
     if not zone.endswith('.'):
         zone += '.'
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-    zone_check(uri, zone, ctx)
+
     # Define FQDN
     if name == '@':
         dns_record = f"{zone}"
@@ -115,19 +115,25 @@ def add_record(
         'type': record_type,
         'ttl': ttl,
         'changetype': 'REPLACE',
-        'records': [],
+        'records': [
+            {
+            'content': content,
+            'disabled': disabled
+            }
+        ],
     }
-    for item in content:
-        record['records'].append({'content': item, 'disabled': disabled})
     if not check_for_record(uri, record, ctx):
-        payload = {'rrsets': [record]}
+        payload = {
+            'rrsets': [
+                record,
+            ]
+        }
 
         r = requests.patch(uri, json=payload, headers=ctx.obj['auth_header'])
 
         if r.status_code in (200, 204):
             print_output(
                 {
-                    'status': 'success',
                     'message': f"Added {payload}",
                     'statuscode': r.status_code,
                     'content': r.text,
@@ -201,7 +207,7 @@ def edit_record(
     if not zone.endswith('.'):
         zone += '.'
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-    zone_check(uri, zone, ctx)
+
     # Define FQDN
     if name == '@':
         dns_record = f"{zone}"
@@ -291,7 +297,7 @@ def edit_record(
     if not zone.endswith('.'):
         zone += '.'
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-    zone_check(uri, zone, ctx)
+
     # Define FQDN
     if name == '@':
         dns_record = f"{zone}"
@@ -371,7 +377,7 @@ def delete_record(ctx, name, record_type, zone, content):
         zone += '.'
     dns_record = f"{name}.{zone}"
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-    zone_check(uri, zone, ctx)
+
     # Get entries in the zone
     r = requests.get(uri, headers=ctx.obj['auth_header'])
     existing_record = None
@@ -601,7 +607,7 @@ def delete_zone(ctx, zone):
     if not zone.endswith('.'):
         zone += '.'
     uri = f"{ctx.obj['apihost']}/api/v1/servers/" f"localhost/zones/{zone}"
-    zone_check(uri, zone, ctx)
+
     confirm(
         f"!!!! WARNING !!!!!\n"
         f"You are attempting to delete {zone}\n"
@@ -717,7 +723,6 @@ def query_zone(ctx, zone):
         if not zone.endswith('.'):
             zone += '.'
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-        zone_check(uri, zone, ctx)
     r = requests.get(uri, headers=ctx.obj['auth_header'])
     if r.status_code == 200:
         print_output(
@@ -824,12 +829,7 @@ def export(ctx, zone):
     """Export zone in BIND format"""
     if not zone.endswith('.'):
         zone += '.'
-    zone_check(
-        f"{ctx.obj['apihost']}/api/v1/servers/" f"localhost/zones/{zone}",
-        zone,
-        ctx,
-    )
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/" f"localhost/zones/{zone}/export"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
     r = requests.get(
         uri,
         headers=ctx.obj['auth_header'],
@@ -866,19 +866,6 @@ def __setup_api_key__(ctx):
         print('No API-KEY given. Set key through environment or through flags')
         sys.exit(1)
     ctx.obj['auth_header'] = {'X-API-Key': true_key}
-    test_api_endpoint = requests.get(
-        f"{ctx.obj['apihost']}/api/v1/servers",
-        headers=ctx.obj['auth_header'],
-    )
-    if test_api_endpoint.status_code == 401:
-        print('Apikey not valid')
-        sys.exit(1)
-    elif test_api_endpoint.status_code == 200:
-        pass
-    else:
-        print('An unknown error occurred checking the apikey. Exiting')
-        sys.exit(1)
-
 
 def print_output(content: dict, ctx):
     """Helper function to print a message in the appropriate format.
@@ -927,23 +914,6 @@ def print_output(content: dict, ctx):
             click.echo(json.dumps(content.get('message')))
 
 
-def zone_check(uri: str, zone: str, ctx):
-    """Helper function to check if a desired zone is
-    existing on the dns server."""
-    r = requests.get(uri, headers=ctx.obj['auth_header'])
-    if r.status_code != 200:
-        print_output(
-            {
-                'status': 'error',
-                'message': f"DNS Zone '{zone}' does not exist.",
-                'statuscode': r.status_code,
-                'content': r.text,
-            },
-            ctx,
-        )
-        sys.exit(1)
-
-
 def check_for_record(uri: str, new_record: dict, ctx) -> bool:
     """Helper function to check if rrset is already existing."""
     r = requests.get(uri, headers=ctx.obj['auth_header'])
@@ -969,6 +939,7 @@ def check_for_record(uri: str, new_record: dict, ctx) -> bool:
     #         "ttl": 3600,
     #         "type": "A"
     #     },
+    # ]
 
     # passed as rrset
     # {       'name': dns_record,
