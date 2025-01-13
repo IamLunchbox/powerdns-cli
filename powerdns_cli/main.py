@@ -13,30 +13,30 @@ import requests
 # create click command group with 4 global options
 @click.group()
 @click.option(
-    '-k',
-    '--apikey',
-    help='Provide your apikey manually, if not through environment variable',
+    "-k",
+    "--apikey",
+    help="Provide your apikey manually, if not through environment variable",
     type=click.STRING,
     default=None,
 )
 @click.option(
-    '-u',
-    '--url',
-    help='DNS servers api url',
+    "-u",
+    "--url",
+    help="DNS servers api url",
     type=click.STRING,
 )
 @click.option(
-    '-f',
-    '--force',
-    help='Force execution and skip confirmations',
+    "-f",
+    "--force",
+    help="Force execution and skip confirmations",
     is_flag=True,
     default=False,
     show_default=True,
 )
 @click.option(
-    '-j',
-    '--json-output',
-    help='Print json output',
+    "-j",
+    "--json-output",
+    help="Print json output",
     is_flag=True,
     show_default=True,
     default=False,
@@ -47,41 +47,44 @@ def cli(ctx, apikey, url, force, json_output):
     Checks apikey through  __setup_api_key__
     and lets the given function do the rest"""
     ctx.ensure_object(dict)
-    ctx.obj['apihost'] = url
-    ctx.obj['key'] = apikey
-    ctx.obj['force'] = force
-    ctx.obj['json'] = json_output
+    ctx.obj["apihost"] = url
+    ctx.obj["key"] = apikey
+    ctx.obj["force"] = force
+    ctx.obj["json"] = json_output
     __setup_api_key__(ctx)
 
 
 # Add record
 @cli.command()
-@click.argument('name', type=click.STRING)
-@click.argument('zone', type=click.STRING)
-@click.argument('record-type', type=click.Choice(
-    [
-        'A',
-        'AAAA',
-        'CNAME',
-        'MX',
-        'NS',
-        'PTR',
-        'SOA',
-        'SRV',
-        'TXT',
-    ],))
-@click.argument('content', type=click.STRING)
+@click.argument("name", type=click.STRING)
+@click.argument("zone", type=click.STRING)
+@click.argument(
+    "record-type",
+    type=click.Choice(
+        [
+            "A",
+            "AAAA",
+            "CNAME",
+            "MX",
+            "NS",
+            "PTR",
+            "SOA",
+            "SRV",
+            "TXT",
+        ],
+    ),
+)
+@click.argument("content", type=click.STRING)
 @click.option(
-    '-d',
-    '--disabled',
-    help='Disable the record',
+    "-d",
+    "--disabled",
+    help="Disable the record",
     is_flag=True,
     default=False,
 )
-@click.option('--ttl', default=3600, type=click.INT,
-              help='Set default time to live')
+@click.option("--ttl", default=3600, type=click.INT, help="Set default time to live")
 @click.pass_context
-def add_single_record(
+def add_record(
     ctx,
     name,
     record_type,
@@ -101,42 +104,37 @@ def add_single_record(
     CNAME record:
     powerdns-cli add_single_record test02 example.org CNAME test01.example.org
     """
-    if not zone.endswith('.'):
-        zone += '.'
+    if not zone.endswith("."):
+        zone += "."
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     # Define FQDN
-    if name == '@':
+    if name == "@":
         dns_record = f"{zone}"
     else:
         dns_record = f"{name}.{zone}"
     record = {
-        'name': dns_record,
-        'type': record_type,
-        'ttl': ttl,
-        'changetype': 'REPLACE',
-        'records': [
-            {
-            'content': content,
-            'disabled': disabled
-            }
-        ],
+        "name": dns_record,
+        "type": record_type,
+        "ttl": ttl,
+        "changetype": "REPLACE",
+        "records": [{"content": content, "disabled": disabled}],
     }
     if not check_for_record(uri, record, ctx):
         payload = {
-            'rrsets': [
+            "rrsets": [
                 record,
             ]
         }
 
-        r = requests.patch(uri, json=payload, headers=ctx.obj['auth_header'])
+        r = requests.patch(uri, json=payload, headers=ctx.obj["auth_header"])
 
         if r.status_code in (200, 204):
             print_output(
                 {
-                    'message': f"Added {payload}",
-                    'statuscode': r.status_code,
-                    'content': r.text,
+                    "message": f"Added {payload}",
+                    "statuscode": r.status_code,
+                    "content": r.text,
                 },
                 ctx,
             )
@@ -145,43 +143,47 @@ def add_single_record(
         else:
             print_output(
                 {
-                    'status': 'error',
-                    'message': f"Adding {payload} failed",
-                    'statuscode': r.status_code,
-                    'content': r.text,
+                    "status": "error",
+                    "message": f"Adding {payload} failed",
+                    "statuscode": r.status_code,
+                    "content": r.text,
                 },
                 ctx,
             )
             sys.exit(1)
     else:
-        print('The record is already present.')
+        print("The record is already present.")
 
 
 # Extend record
 @cli.command()
-@click.argument('name', type=click.STRING)
-@click.argument('zone', type=click.STRING)
-@click.argument('record-type', type=click.Choice(
-    [
-        'A',
-        'AAAA',
-        'CNAME',
-        'MX',
-        'NS',
-        'PTR',
-        'SOA',
-        'SRV',
-        'TXT',
-    ],))
-@click.argument('content', type=click.STRING, nargs=-1)
+@click.argument("name", type=click.STRING)
+@click.argument("zone", type=click.STRING)
+@click.argument(
+    "record-type",
+    type=click.Choice(
+        [
+            "A",
+            "AAAA",
+            "CNAME",
+            "MX",
+            "NS",
+            "PTR",
+            "SOA",
+            "SRV",
+            "TXT",
+        ],
+    ),
+)
+@click.argument("content", type=click.STRING, nargs=-1)
 @click.option(
-    '-d',
-    '--disabled',
-    help='Disable the record',
+    "-d",
+    "--disabled",
+    help="Disable the record",
     is_flag=True,
     default=False,
 )
-@click.option('--ttl', default=3600, type=click.INT, help='Set time to live')
+@click.option("--ttl", default=3600, type=click.INT, help="Set time to live")
 @click.pass_context
 def edit_record(
     ctx,
@@ -204,36 +206,36 @@ def edit_record(
     CNAME record:
     powerdns-cli add_records test02 exmaple.org CNAME test01.example.org
     """
-    if not zone.endswith('.'):
-        zone += '.'
+    if not zone.endswith("."):
+        zone += "."
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     # Define FQDN
-    if name == '@':
+    if name == "@":
         dns_record = f"{zone}"
     else:
         dns_record = f"{name}.{zone}"
     record = {
-        'name': dns_record,
-        'type': record_type,
-        'ttl': ttl,
-        'changetype': 'REPLACE',
-        'records': [],
+        "name": dns_record,
+        "type": record_type,
+        "ttl": ttl,
+        "changetype": "REPLACE",
+        "records": [],
     }
     for item in content:
-        record['records'].append({'content': item, 'disabled': disabled})
+        record["records"].append({"content": item, "disabled": disabled})
     if not check_for_record(uri, record, ctx):
-        payload = {'rrsets': [record]}
+        payload = {"rrsets": [record]}
 
-        r = requests.patch(uri, json=payload, headers=ctx.obj['auth_header'])
+        r = requests.patch(uri, json=payload, headers=ctx.obj["auth_header"])
 
         if r.status_code in (200, 204):
             print_output(
                 {
-                    'status': 'success',
-                    'message': f"Added {payload}",
-                    'statuscode': r.status_code,
-                    'content': r.text,
+                    "status": "success",
+                    "message": f"Added {payload}",
+                    "statuscode": r.status_code,
+                    "content": r.text,
                 },
                 ctx,
             )
@@ -242,36 +244,40 @@ def edit_record(
         else:
             print_output(
                 {
-                    'status': 'error',
-                    'message': f"Adding {payload} failed",
-                    'statuscode': r.status_code,
-                    'content': r.text,
+                    "status": "error",
+                    "message": f"Adding {payload} failed",
+                    "statuscode": r.status_code,
+                    "content": r.text,
                 },
                 ctx,
             )
             sys.exit(1)
     else:
-        print('The record is already present.')
+        print("The record is already present.")
 
 
 # Reduce record
 @cli.command()
-@click.argument('name', type=click.STRING)
-@click.argument('zone', type=click.STRING)
-@click.argument('record-type', type=click.Choice(
-    [
-        'A',
-        'AAAA',
-        'CNAME',
-        'MX',
-        'NS',
-        'PTR',
-        'SOA',
-        'SRV',
-        'TXT',
-    ],))
-@click.argument('content', type=click.STRING, nargs=-1)
-@click.option('--ttl', default=3600, type=click.INT, help='Set time to live')
+@click.argument("name", type=click.STRING)
+@click.argument("zone", type=click.STRING)
+@click.argument(
+    "record-type",
+    type=click.Choice(
+        [
+            "A",
+            "AAAA",
+            "CNAME",
+            "MX",
+            "NS",
+            "PTR",
+            "SOA",
+            "SRV",
+            "TXT",
+        ],
+    ),
+)
+@click.argument("content", type=click.STRING, nargs=-1)
+@click.option("--ttl", default=3600, type=click.INT, help="Set time to live")
 @click.pass_context
 def edit_record(
     ctx,
@@ -294,36 +300,36 @@ def edit_record(
     CNAME record:
     powerdns-cli add_records test02 exmaple.org CNAME test01.example.org
     """
-    if not zone.endswith('.'):
-        zone += '.'
+    if not zone.endswith("."):
+        zone += "."
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     # Define FQDN
-    if name == '@':
+    if name == "@":
         dns_record = f"{zone}"
     else:
         dns_record = f"{name}.{zone}"
     record = {
-        'name': dns_record,
-        'type': record_type,
-        'ttl': ttl,
-        'changetype': 'REPLACE',
-        'records': [],
+        "name": dns_record,
+        "type": record_type,
+        "ttl": ttl,
+        "changetype": "REPLACE",
+        "records": [],
     }
     for item in content:
-        record['records'].append({'content': item, 'disabled': disabled})
+        record["records"].append({"content": item, "disabled": disabled})
     if not check_for_record(uri, record, ctx):
-        payload = {'rrsets': [record]}
+        payload = {"rrsets": [record]}
 
-        r = requests.patch(uri, json=payload, headers=ctx.obj['auth_header'])
+        r = requests.patch(uri, json=payload, headers=ctx.obj["auth_header"])
 
         if r.status_code in (200, 204):
             print_output(
                 {
-                    'status': 'success',
-                    'message': f"Added {payload}",
-                    'statuscode': r.status_code,
-                    'content': r.text,
+                    "status": "success",
+                    "message": f"Added {payload}",
+                    "statuscode": r.status_code,
+                    "content": r.text,
                 },
                 ctx,
             )
@@ -332,39 +338,39 @@ def edit_record(
         else:
             print_output(
                 {
-                    'status': 'error',
-                    'message': f"Adding {payload} failed",
-                    'statuscode': r.status_code,
-                    'content': r.text,
+                    "status": "error",
+                    "message": f"Adding {payload} failed",
+                    "statuscode": r.status_code,
+                    "content": r.text,
                 },
                 ctx,
             )
             sys.exit(1)
     else:
-        print('The record is already present.')
+        print("The record is already present.")
 
 
 @cli.command()
-@click.argument('name', type=click.STRING)
-@click.argument('zone')
+@click.argument("name", type=click.STRING)
+@click.argument("zone")
 @click.argument(
-    'record-type',
+    "record-type",
     type=click.Choice(
         [
-            'A',
-            'AAAA',
-            'CNAME',
-            'MX',
-            'NS',
-            'PTR',
-            'SOA',
-            'SRV',
-            'TXT',
+            "A",
+            "AAAA",
+            "CNAME",
+            "MX",
+            "NS",
+            "PTR",
+            "SOA",
+            "SRV",
+            "TXT",
         ],
         case_sensitive=False,
     ),
 )
-@click.argument('content', type=click.STRING)
+@click.argument("content", type=click.STRING)
 @click.pass_context
 def delete_record(ctx, name, record_type, zone, content):
     """
@@ -373,27 +379,27 @@ def delete_record(ctx, name, record_type, zone, content):
     Example:
     powerdns-cli delete_records mail exmaple.org A 10.0.0.1
     """
-    if not zone.endswith('.'):
-        zone += '.'
+    if not zone.endswith("."):
+        zone += "."
     dns_record = f"{name}.{zone}"
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     # Get entries in the zone
-    r = requests.get(uri, headers=ctx.obj['auth_header'])
+    r = requests.get(uri, headers=ctx.obj["auth_header"])
     existing_record = None
     if r.status_code == 200:
-        for record in r.json()['rrsets']:
-            if record['name'] == dns_record and record['type'] == record_type:
-                for entry in record['records']:
-                    if entry['content'] == content:
+        for record in r.json()["rrsets"]:
+            if record["name"] == dns_record and record["type"] == record_type:
+                for entry in record["records"]:
+                    if entry["content"] == content:
                         existing_record = record
     else:
         print_output(
             {
-                'status': 'error',
-                'message': f"Could not query for {dns_record}",
-                'statuscode': r.status_code,
-                'content': r.text,
+                "status": "error",
+                "message": f"Could not query for {dns_record}",
+                "statuscode": r.status_code,
+                "content": r.text,
             },
             ctx,
         )
@@ -401,10 +407,10 @@ def delete_record(ctx, name, record_type, zone, content):
     if not existing_record:
         print_output(
             {
-                'status': 'success',
-                'message': f"{dns_record} does not exist",
-                'statuscode': r.status_code,
-                'content': r.text,
+                "status": "success",
+                "message": f"{dns_record} does not exist",
+                "statuscode": r.status_code,
+                "content": r.text,
             },
             ctx,
         )
@@ -415,30 +421,29 @@ def delete_record(ctx, name, record_type, zone, content):
         ctx,
     )
     payload = {
-        'rrsets': [
+        "rrsets": [
             {
-                'name': dns_record,
-                'type': record_type,
-                'changetype': 'DELETE',
-                'records': [
+                "name": dns_record,
+                "type": record_type,
+                "changetype": "DELETE",
+                "records": [
                     {
-                        'content': content,
+                        "content": content,
                     }
                 ],
             }
         ]
     }
 
-    r = requests.patch(uri, data=json.dumps(payload),
-                       headers=ctx.obj['auth_header'])
+    r = requests.patch(uri, data=json.dumps(payload), headers=ctx.obj["auth_header"])
 
     if r.status_code not in (200, 204):
         print_output(
             {
-                'status': 'error',
-                'message': f"Deleting rrset {payload} failed",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "error",
+                "message": f"Deleting rrset {payload} failed",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -447,10 +452,10 @@ def delete_record(ctx, name, record_type, zone, content):
     else:
         print_output(
             {
-                'status': 'success',
-                'message': f"Deleting rrset {payload} succeeded",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": f"Deleting rrset {payload} succeeded",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -458,20 +463,19 @@ def delete_record(ctx, name, record_type, zone, content):
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
-@click.argument('nameserver', type=click.STRING)
+@click.argument("zone", type=click.STRING)
+@click.argument("nameserver", type=click.STRING)
 # TODO
 @click.argument(
-    'master',
-    type=click.Choice(['10.10.100.53']),
-    metavar='ZONE-MASTER',
+    "master",
+    type=click.Choice(["10.10.100.53"]),
+    metavar="ZONE-MASTER",
 )
 @click.argument(
-    'zonetype',
-    type=click.Choice(['MASTER', 'NATIVE', 'SLAVE'], case_sensitive=False),
+    "zonetype",
+    type=click.Choice(["MASTER", "NATIVE", "SLAVE"], case_sensitive=False),
 )
-@click.option('--ttl', default=3600, type=click.INT,
-              help='Set default priority')
+@click.option("--ttl", default=3600, type=click.INT, help="Set default priority")
 @click.pass_context
 def add_zone(ctx, zone, nameserver, master, zonetype, ttl):
     """
@@ -482,26 +486,26 @@ def add_zone(ctx, zone, nameserver, master, zonetype, ttl):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     masters = []
     nameservers = []
-    if not zone.endswith('.'):
-        zone += '.'
+    if not zone.endswith("."):
+        zone += "."
     if master:
-        for master in master.split(','):
+        for master in master.split(","):
             masters.append(master)
     if nameserver:
-        for server in nameserver.split(','):
-            if not server.endswith('.'):
-                server += '.'
+        for server in nameserver.split(","):
+            if not server.endswith("."):
+                server += "."
             nameservers.append(server)
     zonetype.capitalize()
-    if zonetype == 'MASTER':
+    if zonetype == "MASTER":
         payload = {
-            'name': zone,
-            'kind': zonetype,
-            'masters': [],
-            'nameservers': nameservers,
+            "name": zone,
+            "kind": zonetype,
+            "masters": [],
+            "nameservers": nameservers,
         }
-    elif zonetype == 'NATIVE':
-        click.echo('Native entries are not supported right now')
+    elif zonetype == "NATIVE":
+        click.echo("Native entries are not supported right now")
         sys.exit(1)
         # payload = {
         #     "name": zone,
@@ -510,7 +514,7 @@ def add_zone(ctx, zone, nameserver, master, zonetype, ttl):
         #     "nameservers": nameservers,
         # }
     else:
-        click.echo('Slave entries are not supported right now')
+        click.echo("Slave entries are not supported right now")
         sys.exit(1)
         # payload = {
         #     "name": zone,
@@ -520,59 +524,56 @@ def add_zone(ctx, zone, nameserver, master, zonetype, ttl):
         # }
     zone_exist_check = requests.get(
         f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}",
-        headers=ctx.obj['auth_header'],
+        headers=ctx.obj["auth_header"],
     )
     if zone_exist_check.status_code == 200:
         print_output(
             {
-                'status': 'error',
-                'message': f"DNS zone {zone} already exist.",
-                'statuscode': zone_exist_check.status_code,
-                'content': zone_exist_check.text,
+                "status": "error",
+                "message": f"DNS zone {zone} already exist.",
+                "statuscode": zone_exist_check.status_code,
+                "content": zone_exist_check.text,
             },
             ctx,
         )
         sys.exit(1)
-    r = requests.post(uri, json=payload, headers=ctx.obj['auth_header'])
+    r = requests.post(uri, json=payload, headers=ctx.obj["auth_header"])
     if r.status_code not in (200, 201, 204):
         print_output(
             {
-                'status': 'error',
-                'message': f"DNS zone {zone} could not be added",
-                'statuscode': r.status_code,
-                'content': r.text,
+                "status": "error",
+                "message": f"DNS zone {zone} could not be added",
+                "statuscode": r.status_code,
+                "content": r.text,
             },
             ctx,
         ),
         sys.exit(1)
     payload = {
-        'rrsets': [
+        "rrsets": [
             {
-                'name': zone,
-                'type': 'SOA',
-                'ttl': ttl,
-                'changetype': 'REPLACE',
-                'records': [
+                "name": zone,
+                "type": "SOA",
+                "ttl": ttl,
+                "changetype": "REPLACE",
+                "records": [
                     # todo
                     {
-                        'content': '. . 0 10800 3600 604800 3600',
-                        'disabled': False,
+                        "content": ". . 0 10800 3600 604800 3600",
+                        "disabled": False,
                     }
                 ],
             }
         ]
     }
-    r = requests.patch(
-        uri + '/' + zone,
-        json=payload,
-        headers=ctx.obj['auth_header'])
+    r = requests.patch(uri + "/" + zone, json=payload, headers=ctx.obj["auth_header"])
     if r.status_code in (200, 204):
         print_output(
             {
-                'status': 'success',
-                'message': f"{zone} is set up",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": f"{zone} is set up",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -580,10 +581,10 @@ def add_zone(ctx, zone, nameserver, master, zonetype, ttl):
     else:
         print_output(
             {
-                'status': 'error',
-                'message': f"Error fixing the SOA Record",
-                'statuscode': r.status_code,
-                'content': r.text,
+                "status": "error",
+                "message": f"Error fixing the SOA Record",
+                "statuscode": r.status_code,
+                "content": r.text,
             },
             ctx,
         )
@@ -591,21 +592,21 @@ def add_zone(ctx, zone, nameserver, master, zonetype, ttl):
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
+@click.argument("zone", type=click.STRING)
 @click.pass_context
 def list_zone(ctx, zone):
     pass
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
+@click.argument("zone", type=click.STRING)
 @click.pass_context
 def delete_zone(ctx, zone):
     """
     Delete DNS Zones
     """
-    if not zone.endswith('.'):
-        zone += '.'
+    if not zone.endswith("."):
+        zone += "."
     uri = f"{ctx.obj['apihost']}/api/v1/servers/" f"localhost/zones/{zone}"
 
     confirm(
@@ -616,25 +617,25 @@ def delete_zone(ctx, zone):
     )
     r = requests.delete(
         uri,
-        headers=ctx.obj['auth_header'],
+        headers=ctx.obj["auth_header"],
     )
     if r.status_code not in (200, 204):
         print_output(
             {
-                'status': 'error',
-                'message': f"Deleting {zone} failed. " f"Status was: {r.status_code}",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "error",
+                "message": f"Deleting {zone} failed. " f"Status was: {r.status_code}",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
         sys.exit(1)
     print_output(
         {
-            'status': 'success',
-            'message': f"Deleted {zone}",
-            'content': r.text,
-            'statuscode': r.status_code,
+            "status": "success",
+            "message": f"Deleted {zone}",
+            "content": r.text,
+            "statuscode": r.status_code,
         },
         ctx,
     )
@@ -648,14 +649,14 @@ def query_config(ctx):
     Query PDNS Config
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
-    r = requests.get(uri, headers=ctx.obj['auth_header'])
+    r = requests.get(uri, headers=ctx.obj["auth_header"])
     if r.status_code == 200:
         print_output(
             {
-                'status': 'success',
-                'message': r.text,
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": r.text,
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -663,10 +664,10 @@ def query_config(ctx):
     else:
         print_output(
             {
-                'status': 'error',
-                'message': 'Querying config failed',
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "error",
+                "message": "Querying config failed",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -680,14 +681,14 @@ def query_stats(ctx):
     Query DNS Stats
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
-    r = requests.get(uri, headers=ctx.obj['auth_header'])
+    r = requests.get(uri, headers=ctx.obj["auth_header"])
     if r.status_code == 200:
         print_output(
             {
-                'status': 'success',
-                'message': r.text,
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": r.text,
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -695,10 +696,10 @@ def query_stats(ctx):
     else:
         print_output(
             {
-                'status': 'error',
-                'message': f"Querying stats failed",
-                'statuscode': r.status_code,
-                'content': r.text,
+                "status": "error",
+                "message": f"Querying stats failed",
+                "statuscode": r.status_code,
+                "content": r.text,
             },
             ctx,
         )
@@ -707,7 +708,7 @@ def query_stats(ctx):
 
 @cli.command()
 @click.argument(
-    'zone',
+    "zone",
     type=click.STRING,
 )
 @click.pass_context
@@ -720,17 +721,17 @@ def query_zone(ctx, zone):
     if zone is None:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     else:
-        if not zone.endswith('.'):
-            zone += '.'
+        if not zone.endswith("."):
+            zone += "."
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-    r = requests.get(uri, headers=ctx.obj['auth_header'])
+    r = requests.get(uri, headers=ctx.obj["auth_header"])
     if r.status_code == 200:
         print_output(
             {
-                'status': 'success',
-                'message': r.text,
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": r.text,
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -738,10 +739,10 @@ def query_zone(ctx, zone):
     else:
         print_output(
             {
-                'status': 'error',
-                'message': f"An unknown error occurred.",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "error",
+                "message": f"An unknown error occurred.",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -755,14 +756,14 @@ def get_zones(ctx):
     Get all zones of dns server
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
-    r = requests.get(uri, headers=ctx.obj['auth_header'])
+    r = requests.get(uri, headers=ctx.obj["auth_header"])
     if r.status_code == 200:
         print_output(
             {
-                'status': 'success',
-                'message': r.text,
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": r.text,
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -770,10 +771,10 @@ def get_zones(ctx):
     else:
         print_output(
             {
-                'status': 'error',
-                'message': f"An unknown error occurred",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "error",
+                "message": f"An unknown error occurred",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -785,26 +786,26 @@ def get_zones(ctx):
 def import_file(ctx):
     pass
 
+
 @cli.command()
-@click.argument('search-string')
-@click.option('--count', help='Number of items to output',
-              default=5, type=click.INT)
+@click.argument("search-string")
+@click.option("--count", help="Number of items to output", default=5, type=click.INT)
 @click.pass_context
 def search(ctx, search_string, count):
     """Do fulltext search in dns database"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/search-data"
     r = requests.get(
         uri,
-        headers=ctx.obj['auth_header'],
-        params={'q': f"*{search_string}*", 'max': count},
+        headers=ctx.obj["auth_header"],
+        params={"q": f"*{search_string}*", "max": count},
     )
     if r.status_code == 200:
         print_output(
             {
-                'status': 'success',
-                'message': r.text,
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": r.text,
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -812,10 +813,10 @@ def search(ctx, search_string, count):
     else:
         print_output(
             {
-                'status': 'error',
-                'message': f"Export failed",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "error",
+                "message": f"Export failed",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -823,34 +824,34 @@ def search(ctx, search_string, count):
 
 
 @cli.command()
-@click.argument('zone')
+@click.argument("zone")
 @click.pass_context
 def export(ctx, zone):
     """Export zone in BIND format"""
-    if not zone.endswith('.'):
-        zone += '.'
+    if not zone.endswith("."):
+        zone += "."
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
     r = requests.get(
         uri,
-        headers=ctx.obj['auth_header'],
+        headers=ctx.obj["auth_header"],
     )
     if r.status_code == 200:
         print_output(
             {
-                'status': 'success',
-                'message': r.text,
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "success",
+                "message": r.text,
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
     else:
         print_output(
             {
-                'status': 'error',
-                'message': f"Export failed",
-                'content': r.text,
-                'statuscode': r.status_code,
+                "status": "error",
+                "message": f"Export failed",
+                "content": r.text,
+                "statuscode": r.status_code,
             },
             ctx,
         )
@@ -860,12 +861,13 @@ def export(ctx, zone):
 def __setup_api_key__(ctx):
     """Checks for a given api key and fails otherwise"""
     true_key = False
-    if ctx.obj['key']:
-        true_key = ctx.obj['key']
+    if ctx.obj["key"]:
+        true_key = ctx.obj["key"]
     if not true_key:
-        print('No API-KEY given. Set key through environment or through flags')
+        print("No API-KEY given. Set key through environment or through flags")
         sys.exit(1)
-    ctx.obj['auth_header'] = {'X-API-Key': true_key}
+    ctx.obj["auth_header"] = {"X-API-Key": true_key}
+
 
 def print_output(content: dict, ctx):
     """Helper function to print a message in the appropriate format.
@@ -884,22 +886,22 @@ def print_output(content: dict, ctx):
     # check if caller of this function passed valid json as message output.
     # If yes, this should be output as json
     try:
-        content.update({'message': json.loads(content.get('message'))})
+        content.update({"message": json.loads(content.get("message"))})
     except json.JSONDecodeError:
         print_raw = True
     # check if raw http response body is json and convert it into a dict
     try:
-        content.update({'content': json.loads(content.get('content'))})
+        content.update({"content": json.loads(content.get("content"))})
     except json.JSONDecodeError:
         pass
     # print all output if something went wrong
-    if content.get('status') == 'error':
+    if content.get("status") == "error":
         click.echo(json.dumps(content, indent=2))
     # print all output if json flag is set, users can filter it
-    elif ctx.obj['json']:
+    elif ctx.obj["json"]:
         click.echo(json.dumps(content, indent=2))
     else:
-        if not content.get('message'):
+        if not content.get("message"):
             # print pretty message if message is empty
             click.echo(
                 json.dumps(
@@ -908,17 +910,17 @@ def print_output(content: dict, ctx):
             )
         elif print_raw:
             # print plain text if text was no json
-            click.echo(content.get('message'))
+            click.echo(content.get("message"))
         else:
             # print the message as plain json
-            click.echo(json.dumps(content.get('message')))
+            click.echo(json.dumps(content.get("message")))
 
 
 def check_for_record(uri: str, new_record: dict, ctx) -> bool:
     """Helper function to check if rrset is already existing."""
-    r = requests.get(uri, headers=ctx.obj['auth_header'])
+    r = requests.get(uri, headers=ctx.obj["auth_header"])
     if r.status_code == 200:
-        zone_records = r.json()['rrsets']
+        rrset = r.json()["rrsets"]
     else:
         raise RuntimeError(
             f"The zone exists, but no zone information could be obtained. "
@@ -951,25 +953,30 @@ def check_for_record(uri: str, new_record: dict, ctx) -> bool:
     #             'disabled': disabled,
     #         }],
     # }
-    for record in zone_records:
-        if (all(record[key] == new_record[key] for key in ['name', 'type', 'ttl']) and
-            # Todo does this check work for a list with several items?
-                len([content for content in new_record['records'] if content in record['records']])):
-            breakpoint()
-            return True
+    check_duplicate(rrset, new_record)
     return False
+
+
+def check_duplicate(upstream_rrset: list, new_rrset: dict):
+    for rrset in upstream_rrset:
+        # go through all the records to find matching rrset
+        if (all(rrset[key] == new_rrset[key] for key in ("name", "type", "ttl"))
+                and all(entry in rrset["records"] for entry in new_rrset["records"])
+        ):
+            print("Record is already there")
+            sys.exit(0)
 
 
 def confirm(message, ctx):
     """Helper function to keep users from doing potentially dangerous actions.
     Uses the force flag to determine if a manual confirmation is required."""
-    if not ctx.obj['force']:
+    if not ctx.obj["force"]:
         click.echo(message)
         confirmation = input()
-        if confirmation not in ('y', 'Y', 'YES', 'yes', 'Yes'):
-            click.echo('Aborting')
+        if confirmation not in ("y", "Y", "YES", "yes", "Yes"):
+            click.echo("Aborting")
             sys.exit(1)
 
 
-if __name__ == '__main__':
-    cli(auto_envvar_prefix='POWERDNS_CLI')
+if __name__ == "__main__":
+    cli(auto_envvar_prefix="POWERDNS_CLI")
