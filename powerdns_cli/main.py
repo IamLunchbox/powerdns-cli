@@ -111,9 +111,11 @@ def add_record(
         click.echo(json.dumps({"message": f"{name} {record_type} {content} already exists"}))
         sys.exit(0)
 
-    r = ctx.obj["session"].patch(uri, json={"rrsets": [rrset]})
-    sys.exit(0) if _create_output(r, 204, optional_json={"message": f"{name} {record_type} {content} created"}) else sys.exit(1)
-
+    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
+    if _create_output(r, 204,
+                      optional_json={"message": f"{name} {record_type} {content} created"}):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -151,7 +153,9 @@ def add_zone(ctx, zone, nameserver, master, zonetype):
         click.echo("Slave entries are not supported right now")
         sys.exit(1)
     r = ctx.obj["session"].post(uri, json=payload)
-    sys.exit(0) if _create_output(r, 201) else sys.exit(1)
+    if _create_output(r, 201):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -175,8 +179,18 @@ def add_zone(ctx, zone, nameserver, master, zonetype):
     ),
 )
 @click.argument("content", type=click.STRING)
-@click.option("--ttl", default=3600, type=click.INT, help="Set default time to live")
-@click.option("-a", "-all", "delete_all",is_flag=True, default=False, help="Deletes all records of the selected type",)
+@click.option(
+    "--ttl",
+    default=3600,
+    type=click.INT,
+    help="Set default time to live")
+@click.option(
+    "-a",
+    "-all",
+    "delete_all",
+    is_flag=True,
+    default=False,
+    help="Deletes all records of the selected type",)
 @click.pass_context
 def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     """
@@ -201,8 +215,11 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         if not _traverse_rrsets(uri, rrset, "matching_rrset", ctx):
             click.echo(json.dumps({"message": f"{record_type} record in {name} does not exist"}))
             sys.exit(0)
-        r = ctx.obj["session"].patch(uri, json=rrset)
-        sys.exit(0) if _create_output(r, 204, optional_json={"message": f"All {record_type} records for {zone} removed"}) else sys.exit(1)
+        r = _patch_zone(uri, rrset, ctx)
+        msg = {"message": f"All {record_type} records for {zone} removed"}
+        if _create_output(r, 204, optional_json=msg):
+            sys.exit(0)
+        sys.exit(1)
 
     rrset = {
         "name": name,
@@ -217,15 +234,19 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         ]
     }
     if not _traverse_rrsets(uri, rrset, "is_content_present", ctx):
-        click.echo(json.dumps({"message": f"{name} {record_type} {content} already absent"}))
+        msg = {"message": f"{name} {record_type} {content} already absent"}
+        click.echo(json.dumps(msg))
         sys.exit(0)
     matching_rrsets = _traverse_rrsets(uri, rrset, "matching_rrset", ctx)
     for index in range(len(matching_rrsets["records"])):
         if matching_rrsets["records"][index] == rrset["records"][0]:
             matching_rrsets["records"].pop(index)
     rrset["records"] = matching_rrsets["records"]
-    r = ctx.obj["session"].patch(uri, json={"rrsets": [rrset]})
-    sys.exit(0) if _create_output(r, 204, optional_json={"message": f"{name} {record_type} {content} removed"}) else sys.exit(1)
+    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
+    msg = {"message": f"{name} {record_type} {content} removed"}
+    if _create_output(r, 204, optional_json=msg):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -236,7 +257,7 @@ def delete_zone(ctx, zone):
     Deletes a Zone
     """
     zone = _make_canonical(zone)
-    upstream_zones = _get_zones(ctx)
+    upstream_zones = _query_zones(ctx)
     if zone not in [single_zone["id"] for single_zone in upstream_zones]:
         click.echo(json.dumps({"message": f"{zone} is not present"}))
         sys.exit(0)
@@ -249,7 +270,10 @@ def delete_zone(ctx, zone):
         ctx,
     )
     r = ctx.obj["session"].delete(uri)
-    sys.exit(0) if _create_output(r, 204, optional_json={"message": f"Zone {zone} deleted"}) else sys.exit(1)
+    msg = {"message": f"Zone {zone} deleted"}
+    if _create_output(r, 204, optional_json=msg):
+        sys.exit(0)
+    sys.exit(1)
 
 
 # Extend record
@@ -308,11 +332,15 @@ def disable_record(
             }
 
     if _traverse_rrsets(uri, rrset, "is_content_present", ctx):
-        click.echo(json.dumps({"message": f"{name} IN {record_type} {content} already disabled"}))
+        msg = {"message": f"{name} IN {record_type} {content} already disabled"}
+        click.echo(json.dumps(msg))
         sys.exit(0)
     rrset["records"] = _traverse_rrsets(uri, rrset, "merge_rrsets", ctx)
-    r = ctx.obj["session"].patch(uri, json={"rrsets": [rrset]})
-    sys.exit(0) if _create_output(r, 204, optional_json={"message": f"{name} IN {record_type} {content} disabled"}) else sys.exit(1)
+    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
+    msg = {"message": f"{name} IN {record_type} {content} disabled"}
+    if _create_output(r, 204, optional_json=msg):
+        sys.exit(0)
+    sys.exit(1)
 
 
 # Extend record
@@ -379,9 +407,17 @@ def extend_record(
         click.echo(json.dumps({"message": f"{name} IN {record_type} {content} already exists"}))
         sys.exit(0)
     upstream_rrset = _traverse_rrsets(uri, rrset, "matching_rrset", ctx)
-    rrset["records"].extend([record for record in upstream_rrset["records"] if record["content"] != rrset["records"][0]["content"]])
-    r = ctx.obj["session"].patch(uri, json={"rrsets": [rrset]})
-    sys.exit(0) if _create_output(r, 204, optional_json={"message": f"{name} IN {record_type} {content} appended"}) else sys.exit(1)
+    extra_records = [
+        record for record
+        in upstream_rrset["records"]
+        if record["content"] != rrset["records"][0]["content"]
+    ]
+    rrset["records"].extend(extra_records)
+    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
+    msg = {"message": f"{name} IN {record_type} {content} appended"}
+    if _create_output(r, 204, optional_json=msg):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -404,11 +440,15 @@ def export_zone(ctx, zone, bind):
     zone = _make_canonical(zone)
     if bind:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
-        r = ctx.obj["session"].get(uri)
-        sys.exit(0) if _create_output(r, 200,output_text=True) else sys.exit(1)
+        r = _get_zone(uri, ctx)
+        if _create_output(r, 200, output_text=True):
+            sys.exit(0)
+        sys.exit(1)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-    r = ctx.obj["session"].get(uri)
-    sys.exit(0) if _create_output(r, 200) else sys.exit(1)
+    r = _get_zone(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -418,8 +458,10 @@ def get_config(ctx):
     Query PDNS Config
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
-    r = ctx.obj["session"].get(uri)
-    sys.exit(0) if _create_output(r, 200) else sys.exit(1)
+    r = _get_zone(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -429,11 +471,10 @@ def get_stats(ctx):
     Query DNS Stats
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
-    r = ctx.obj["session"].get(uri)
-    sys.exit(0) if _create_output(r, 200) else sys.exit(1)
-
-
-
+    r = _get_zone(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -443,8 +484,10 @@ def list_zones(ctx):
     Get all zones of dns server
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
-    r = ctx.obj["session"].get(uri)
-    sys.exit(0) if _create_output(r, 200) else sys.exit(1)
+    r = _get_zone(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -462,7 +505,9 @@ def rectify_zone(ctx, zone):
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
     r = ctx.obj["session"].put(uri)
-    sys.exit(0) if _create_output(r, 200) else sys.exit(1)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
 
 
 @cli.command()
@@ -472,11 +517,14 @@ def rectify_zone(ctx, zone):
 def search(ctx, search_string, max_output):
     """Do fulltext search in dns database"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/search-data"
-    r = ctx.obj["session"].get(
+    r = _get_zone(
         uri,
+        ctx,
         params={"q": f"*{search_string}*", "max": max_output},
     )
-    sys.exit(0) if _create_output(r, 200) else sys.exit(1)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
 
 
 def _confirm(message, ctx):
@@ -490,10 +538,15 @@ def _confirm(message, ctx):
             sys.exit(1)
 
 
-def _create_output(content: requests.Response, exp_status_code: int, output_text: bool = False, optional_json: dict = None) -> bool:
+def _create_output(
+        content: requests.Response,
+        exp_status_code: int,
+        output_text: bool = False,
+        optional_json: dict = None) -> bool:
     """Helper function to print a message in the appropriate format.
     Is needed since the powerdns api outputs different content types, not
-    json all the time."""
+    json all the time. Sometimes output is empty (each 204 response) or
+    needs to be plain text - when you want to the BIND / AFXR export."""
     if content.status_code == exp_status_code and output_text:
         click.echo(content.text)
         return True
@@ -504,44 +557,66 @@ def _create_output(content: requests.Response, exp_status_code: int, output_text
     return False
 
 
-
-def _get_zones(ctx) -> list:
+def _get_zone(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     try:
-        r = ctx.obj["session"].get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones")
-        if r.status_code != 200:
-            click.echo(json.dumps({"error":r.json()}))
-            sys.exit(1)
-        return r.json()
+        request = ctx.obj["session"].get(uri, params)
+        return request
     except requests.RequestException as e:
-        click.echo(json.dumps({"error": f"Request error {e}"}))
+        click.echo(json.dumps({"error": f"Requests error: {e}"}))
         sys.exit(1)
 
-
-def _get_zone_rrsets(uri: str, ctx) -> list:
-    try:
-        r = ctx.obj["session"].get(uri)
-        if r.status_code != 200:
-            click.echo(json.dumps({"error": r.json()}))
-            sys.exit(1)
-        return r.json()["rrsets"]
-    except requests.RequestException as e:
-        click.echo(json.dumps({"error": f"Request error {e}"}))
+def _query_zones(ctx) -> list:
+    """Queries all zones of the dns server"""
+    r = _get_zone(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
+    if r.status_code != 200:
+        click.echo(json.dumps({"error": r.json()}))
         sys.exit(1)
+    return r.json()
+
+
+def _query_zone_rrsets(uri: str, ctx) -> list:
+    """Queries the configuration of the given zone"""
+    r = _get_zone(uri, ctx)
+    if r.status_code != 200:
+        click.echo(json.dumps({"error": r.json()}))
+        sys.exit(1)
+    return r.json()["rrsets"]
 
 
 def _make_canonical(zone: str) -> str:
+    """Returns the zone in caonical format with a trailing dot"""
     if not zone.endswith("."):
         zone += "."
     return zone
 
 
 def _make_dnsname(name: str, zone: str) -> str:
+    """Returns either the combination or zone
+    or just a zone when @ is provided as name"""
     if name == "@":
         return zone
     return f"{name}.{zone}"
 
-def _traverse_rrsets(uri: str, new_rrset: dict, query: Literal["matching_rrset", "is_content_present", "merge_rrsets"], ctx):
-    zone_rrsets = _get_zone_rrsets(uri, ctx)
+
+def _patch_zone(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
+    try:
+        request = ctx.obj["session"].patch(uri, json=rrset)
+        return request
+    except requests.RequestException as e:
+        click.echo(json.dumps({"error": f"Requests error: {e}"}))
+        sys.exit(1)
+
+
+def _traverse_rrsets(
+        uri: str,
+        new_rrset: dict,
+        query: Literal[
+            "matching_rrset",
+            "is_content_present",
+            "merge_rrsets"],
+        ctx):
+    """Helper function to compare upstream and downstream rrsets / records"""
+    zone_rrsets = _query_zone_rrsets(uri, ctx)
     if query == "matching_rrset":
         for upstream_rrset in zone_rrsets:
             if all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
@@ -561,12 +636,10 @@ def _traverse_rrsets(uri: str, new_rrset: dict, query: Literal["matching_rrset",
         merged_rrsets = new_rrset["records"].copy()
         for upstream_rrset in zone_rrsets:
             if all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
-                merged_rrsets.extend([record for record in upstream_rrset["records"] if record["content"] != new_rrset["records"][0]["content"]])
+                merged_rrsets.extend([record for record in upstream_rrset["records"]
+                                      if record["content"] != new_rrset["records"][0]["content"]])
         return merged_rrsets
     return None
-
-
-
 
 
 if __name__ == "__main__":
