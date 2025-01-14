@@ -1,4 +1,4 @@
 
 
 [tool.pylint."DISABLE"]
-disable = ["too-many-arguments", "too-many-positional-arguments"]
+disable = ["too-many-arguments", "too-many-positional-arguments", "no-value-for-parameter"]

@@ -11,8 +11,8 @@ import click
 import requests
 
 
-# create click command group with 4 global options
-@click.group()
+# create click command group with 3 global options
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
     "-k",
     "--apikey",
@@ -130,9 +130,8 @@ def add_record(
     help="Set Zone Masters",
     default=None,
 )
-@click.option("--ttl", default=3600, type=click.INT, help="Set default priority")
 @click.pass_context
-def add_zone(ctx, zone, nameserver, master, zonetype, ttl):
+def add_zone(ctx, zone, nameserver, master, zonetype):
     """
     Adds a new zone
 
@@ -200,10 +199,10 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             "records": []
         }
         if not _traverse_rrsets(uri, rrset, "matching_rrset", ctx):
-            click.echo(json.dumps({"message": f"{record_type} record in {name} not present"}))
+            click.echo(json.dumps({"message": f"{record_type} record in {name} does not exist"}))
             sys.exit(0)
         r = ctx.obj["session"].patch(uri, json=rrset)
-        sys.exit(0) if _create_output(r, 204, optional_json={"message": f"{record_type} record for {name} deleted"}) else sys.exit(1)
+        sys.exit(0) if _create_output(r, 204, optional_json={"message": f"All {record_type} records for {zone} removed"}) else sys.exit(1)
 
     rrset = {
         "name": name,
@@ -468,14 +467,14 @@ def rectify_zone(ctx, zone):
 
 @cli.command()
 @click.argument("search-string", metavar="STRING")
-@click.option("--max", help="Number of items to output", default=5, type=click.INT)
+@click.option("--max", "max_output", help="Number of items to output", default=5, type=click.INT,)
 @click.pass_context
-def search(ctx, search_string, max):
+def search(ctx, search_string, max_output):
     """Do fulltext search in dns database"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/search-data"
     r = ctx.obj["session"].get(
         uri,
-        params={"q": f"*{search_string}*", "max": max},
+        params={"q": f"*{search_string}*", "max": max_output},
     )
     sys.exit(0) if _create_output(r, 200) else sys.exit(1)
 
@@ -501,9 +500,8 @@ def _create_output(content: requests.Response, exp_status_code: int, output_text
     if content.status_code == exp_status_code and optional_json:
         click.echo(json.dumps(optional_json))
         return True
-    else:
-        click.echo(json.dumps(content.json()))
-        return False
+    click.echo(json.dumps(content.json()))
+    return False
 
 
 
@@ -516,6 +514,7 @@ def _get_zones(ctx) -> list:
         return r.json()
     except requests.RequestException as e:
         click.echo(json.dumps({"error": f"Request error {e}"}))
+        sys.exit(1)
 
 
 def _get_zone_rrsets(uri: str, ctx) -> list:
@@ -539,8 +538,7 @@ def _make_canonical(zone: str) -> str:
 def _make_dnsname(name: str, zone: str) -> str:
     if name == "@":
         return zone
-    else:
-        return f"{name}.{zone}"
+    return f"{name}.{zone}"
 
 def _traverse_rrsets(uri: str, new_rrset: dict, query: Literal["matching_rrset", "is_content_present", "merge_rrsets"], ctx):
     zone_rrsets = _get_zone_rrsets(uri, ctx)
