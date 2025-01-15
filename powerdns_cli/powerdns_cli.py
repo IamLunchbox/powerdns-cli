@@ -14,7 +14,7 @@ import requests
 # create click command group with 3 global options
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
 @click.option(
-    '-k',
+    '-a',
     '--apikey',
     help='Provide your apikey manually',
     type=click.STRING,
@@ -36,15 +36,22 @@ import requests
     default=False,
     show_default=True,
 )
+@click.option(
+    '-k',
+    '--verify',
+    help='Ignore invalid certificates',
+    is_flag=True,
+    default=False,
+    show_default=True,
+)
 @click.pass_context
-def cli(ctx, apikey, url, force):
+def cli(ctx, apikey, url, force, verify):
     """Manage PowerDNS Authoritative Nameservers and their Zones/Records
 
     Your target server api must be specified through the cli-flags. Instead, you can
-    also export the required settings with the following prefix: `POWERDNS_CLI_`.
+    also export the required settings with the prefix POWERDNS_CLI_, for example:
 
-    You will need to provide -k/--apikey/$POWERDNS_CLI_APIKEY and
-    provide -u/--url/$POWERDNS_CLI_URL.
+    export POWERDNS_CLI_APIKEY=foobar
     """
     ctx.ensure_object(dict)
     ctx.obj['apihost'] = url
@@ -52,6 +59,7 @@ def cli(ctx, apikey, url, force):
     ctx.obj['force'] = force
 
     session = requests.session()
+    session.verify = verify
     session.headers = {'X-API-Key': ctx.obj['key']}
     ctx.obj['session'] = session
 
@@ -117,7 +125,7 @@ def add_record(
         click.echo(json.dumps({'message': f"{name} {record_type} {content} already exists"}))
         sys.exit(0)
 
-    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
+    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     if _create_output(r, 204,
                       optional_json={'message': f"{name} {record_type} {content} created"}):
         sys.exit(0)
@@ -221,7 +229,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         if not _traverse_rrsets(uri, rrset, 'matching_rrset', ctx):
             click.echo(json.dumps({'message': f"{record_type} record in {name} does not exist"}))
             sys.exit(0)
-        r = _patch_zone(uri, rrset, ctx)
+        r = _http_patch(uri, rrset, ctx)
         msg = {'message': f"All {record_type} records for {zone} removed"}
         if _create_output(r, 204, optional_json=msg):
             sys.exit(0)
@@ -248,7 +256,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         if matching_rrsets['records'][index] == rrset['records'][0]:
             matching_rrsets['records'].pop(index)
     rrset['records'] = matching_rrsets['records']
-    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
+    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f"{name} {record_type} {content} removed"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
@@ -275,7 +283,7 @@ def delete_zone(ctx, zone):
         f"Are you sure? [Y/N] ",
         ctx,
     )
-    r = ctx.obj['session'].delete(uri)
+    r = _http_delete(uri, ctx)
     msg = {'message': f"Zone {zone} deleted"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
@@ -341,7 +349,7 @@ def disable_record(
         click.echo(json.dumps(msg))
         sys.exit(0)
     rrset['records'] = _traverse_rrsets(uri, rrset, 'merge_rrsets', ctx)
-    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
+    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f"{name} IN {record_type} {content} disabled"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
@@ -410,7 +418,7 @@ def extend_record(
         if record['content'] != rrset['records'][0]['content']
     ]
     rrset['records'].extend(extra_records)
-    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
+    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f"{name} IN {record_type} {content} appended"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
@@ -437,12 +445,12 @@ def export_zone(ctx, zone, bind):
     zone = _make_canonical(zone)
     if bind:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
-        r = _get_zone(uri, ctx)
+        r = _http_get(uri, ctx)
         if _create_output(r, 200, output_text=True):
             sys.exit(0)
         sys.exit(1)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
-    r = _get_zone(uri, ctx)
+    r = _http_get(uri, ctx)
     if _create_output(r, 200):
         sys.exit(0)
     sys.exit(1)
@@ -455,7 +463,7 @@ def get_config(ctx):
     Query PDNS Config
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
-    r = _get_zone(uri, ctx)
+    r = _http_get(uri, ctx)
     if _create_output(r, 200):
         sys.exit(0)
     sys.exit(1)
@@ -468,7 +476,7 @@ def get_stats(ctx):
     Query DNS Stats
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
-    r = _get_zone(uri, ctx)
+    r = _http_get(uri, ctx)
     if _create_output(r, 200):
         sys.exit(0)
     sys.exit(1)
@@ -481,7 +489,7 @@ def list_zones(ctx):
     Get all zones of dns server
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
-    r = _get_zone(uri, ctx)
+    r = _http_get(uri, ctx)
     if _create_output(r, 200):
         sys.exit(0)
     sys.exit(1)
@@ -514,7 +522,7 @@ def rectify_zone(ctx, zone):
 def search(ctx, search_string, max_output):
     """Do fulltext search in dns database"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/search-data"
-    r = _get_zone(
+    r = _http_get(
         uri,
         ctx,
         params={'q': f"*{search_string}*", 'max': max_output},
@@ -524,8 +532,8 @@ def search(ctx, search_string, max_output):
     sys.exit(1)
 
 
-def _confirm(message, ctx):
-    """Helper function to keep users from doing potentially dangerous actions.
+def _confirm(message: str, ctx: click.Context) -> None:
+    """Confirmation function to keep users from doing potentially dangerous actions.
     Uses the force flag to determine if a manual confirmation is required."""
     if not ctx.obj['force']:
         click.echo(message)
@@ -554,7 +562,17 @@ def _create_output(
     return False
 
 
-def _get_zone(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
+def _http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
+    """HTTP DELETE request"""
+    try:
+        request = ctx.obj['session'].delete(uri, params=params)
+        return request
+    except requests.RequestException as e:
+        click.echo(json.dumps({'error': f"Requests error: {e}"}))
+        sys.exit(1)
+
+
+def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     try:
         request = ctx.obj['session'].get(uri, params)
         return request
@@ -563,9 +581,18 @@ def _get_zone(uri: str, ctx: click.Context, params: dict = None) -> requests.Res
         sys.exit(1)
 
 
+def _http_patch(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
+    try:
+        request = ctx.obj['session'].patch(uri, json=rrset)
+        return request
+    except requests.RequestException as e:
+        click.echo(json.dumps({'error': f"Requests error: {e}"}))
+        sys.exit(1)
+
+
 def _query_zones(ctx) -> list:
     """Queries all zones of the dns server"""
-    r = _get_zone(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
+    r = _http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
     if r.status_code != 200:
         click.echo(json.dumps({'error': r.json()}))
         sys.exit(1)
@@ -574,7 +601,7 @@ def _query_zones(ctx) -> list:
 
 def _query_zone_rrsets(uri: str, ctx) -> list:
     """Queries the configuration of the given zone"""
-    r = _get_zone(uri, ctx)
+    r = _http_get(uri, ctx)
     if r.status_code != 200:
         click.echo(json.dumps({'error': r.json()}))
         sys.exit(1)
@@ -594,15 +621,6 @@ def _make_dnsname(name: str, zone: str) -> str:
     if name == '@':
         return zone
     return f"{name}.{zone}"
-
-
-def _patch_zone(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
-    try:
-        request = ctx.obj['session'].patch(uri, json=rrset)
-        return request
-    except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Requests error: {e}"}))
-        sys.exit(1)
 
 
 def _traverse_rrsets(
