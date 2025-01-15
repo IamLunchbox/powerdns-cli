@@ -13,11 +13,12 @@ license = {text = "GPL-3.0-or-later"}
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
-version = "0.0.2"
+version = "0.0.4"
 dependencies = [
     "requests",
     "click"
 ]
+description="PowerDNS Authoritative API client"
 
 [project.optional-dependencies]
 dev = [
