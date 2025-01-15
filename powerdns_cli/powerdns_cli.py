@@ -38,13 +38,19 @@ import requests
 )
 @click.pass_context
 def cli(ctx, apikey, url, force):
-    """Main Entrypoint to powerdns-cli function.
-    Checks apikey through  __setup_api_key__
-    and lets the given function do the rest"""
+    """Manage PowerDNS Authoritative Nameservers and their Zones/Records
+
+    Your target server api must be specified through the cli-flags. Instead, you can
+    also export the required settings with the following prefix: `POWERDNS_CLI_`.
+
+    You will need to provide -k/--apikey/$POWERDNS_CLI_APIKEY and
+    provide -u/--url/$POWERDNS_CLI_URL.
+    """
     ctx.ensure_object(dict)
     ctx.obj['apihost'] = url
     ctx.obj['key'] = apikey
     ctx.obj['force'] = force
+
     session = requests.session()
     session.headers = {'X-API-Key': ctx.obj['key']}
     ctx.obj['session'] = session

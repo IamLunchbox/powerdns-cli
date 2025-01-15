@@ -9,7 +9,7 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">3.6"
-license = {text = "GPLv3"}
+license = {text = "GPL-3.0-or-later"}
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
@@ -30,6 +30,10 @@ dev = [
 
 [project.scripts]
 powerdns-cli = "powerdns_cli.powerdns_cli:main"
+
+[project.urls]
+Homepage = "https://github.com/IamLunchbox/powerdns-cli"
+Issues = "https://github.com/IamLunchbox/powerdns-cli/issues"
 
 [tool.pylint."DISABLE"]
 disable = ["too-many-arguments", "too-many-positional-arguments", "no-value-for-parameter"]
