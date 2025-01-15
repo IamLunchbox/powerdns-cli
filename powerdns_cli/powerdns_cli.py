@@ -48,9 +48,8 @@ import requests
 def cli(ctx, apikey, url, force, verify):
     """Manage PowerDNS Authoritative Nameservers and their Zones/Records
 
-    Your target server api must be specified through the cli-flags. Instead, you can
-    also export the required settings with the prefix POWERDNS_CLI_, for example:
-
+    Your target server api must be specified through the corresponding cli-flags.
+    You can also export them with the prefix POWERDNS_CLI_, for example:
     export POWERDNS_CLI_APIKEY=foobar
     """
     ctx.ensure_object(dict)
