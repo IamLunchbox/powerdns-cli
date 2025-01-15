@@ -38,14 +38,14 @@ import requests
 )
 @click.option(
     '-k',
-    '--verify',
+    '--insecure',
     help='Ignore invalid certificates',
     is_flag=True,
     default=False,
     show_default=True,
 )
 @click.pass_context
-def cli(ctx, apikey, url, force, verify):
+def cli(ctx, apikey, url, force, insecure):
     """Manage PowerDNS Authoritative Nameservers and their Zones/Records
 
     Your target server api must be specified through the corresponding cli-flags.
@@ -58,7 +58,7 @@ def cli(ctx, apikey, url, force, verify):
     ctx.obj['force'] = force
 
     session = requests.session()
-    session.verify = verify
+    session.verify = insecure
     session.headers = {'X-API-Key': ctx.obj['key']}
     ctx.obj['session'] = session
 
