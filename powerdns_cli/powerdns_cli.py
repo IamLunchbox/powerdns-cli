@@ -12,26 +12,26 @@ import requests
 
 
 # create click command group with 3 global options
-@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.group(context_settings={'help_option_names': ['-h', '--help']})
 @click.option(
-    "-k",
-    "--apikey",
-    help="Provide your apikey manually",
+    '-k',
+    '--apikey',
+    help='Provide your apikey manually',
     type=click.STRING,
     default=None,
     required=True
 )
 @click.option(
-    "-u",
-    "--url",
-    help="DNS servers api url",
+    '-u',
+    '--url',
+    help='DNS servers api url',
     type=click.STRING,
     required=True
 )
 @click.option(
-    "-f",
-    "--force",
-    help="Force execution and skip confirmations",
+    '-f',
+    '--force',
+    help='Force execution and skip confirmations',
     is_flag=True,
     default=False,
     show_default=True,
@@ -42,36 +42,36 @@ def cli(ctx, apikey, url, force):
     Checks apikey through  __setup_api_key__
     and lets the given function do the rest"""
     ctx.ensure_object(dict)
-    ctx.obj["apihost"] = url
-    ctx.obj["key"] = apikey
-    ctx.obj["force"] = force
+    ctx.obj['apihost'] = url
+    ctx.obj['key'] = apikey
+    ctx.obj['force'] = force
     session = requests.session()
-    session.headers = {"X-API-Key": ctx.obj["key"]}
-    ctx.obj["session"] = session
+    session.headers = {'X-API-Key': ctx.obj['key']}
+    ctx.obj['session'] = session
 
 
 # Add record
 @cli.command()
-@click.argument("name", type=click.STRING)
-@click.argument("zone", type=click.STRING)
+@click.argument('name', type=click.STRING)
+@click.argument('zone', type=click.STRING)
 @click.argument(
-    "record-type",
+    'record-type',
     type=click.Choice(
         [
-            "A",
-            "AAAA",
-            "CNAME",
-            "MX",
-            "NS",
-            "PTR",
-            "SOA",
-            "SRV",
-            "TXT",
+            'A',
+            'AAAA',
+            'CNAME',
+            'MX',
+            'NS',
+            'PTR',
+            'SOA',
+            'SRV',
+            'TXT',
         ],
     ),
 )
-@click.argument("content", type=click.STRING)
-@click.option("--ttl", default=3600, type=click.INT, help="Set default time to live")
+@click.argument('content', type=click.STRING)
+@click.option('--ttl', default=3600, type=click.INT, help='Set default time to live')
 @click.pass_context
 def add_record(
     ctx,
@@ -96,40 +96,40 @@ def add_record(
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     name = _make_dnsname(name, zone)
     rrset = {
-        "name": name,
-        "type": record_type,
-        "ttl": ttl,
-        "changetype": "REPLACE",
-        "records": [
+        'name': name,
+        'type': record_type,
+        'ttl': ttl,
+        'changetype': 'REPLACE',
+        'records': [
             {
-                "content": content,
-                "disabled": False
+                'content': content,
+                'disabled': False
             }
         ],
     }
-    if _traverse_rrsets(uri, rrset, "is_content_present", ctx):
-        click.echo(json.dumps({"message": f"{name} {record_type} {content} already exists"}))
+    if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+        click.echo(json.dumps({'message': f"{name} {record_type} {content} already exists"}))
         sys.exit(0)
 
-    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
+    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
     if _create_output(r, 204,
-                      optional_json={"message": f"{name} {record_type} {content} created"}):
+                      optional_json={'message': f"{name} {record_type} {content} created"}):
         sys.exit(0)
     sys.exit(1)
 
 
 @cli.command()
-@click.argument("zone", type=click.STRING)
-@click.argument("nameserver", type=click.STRING)
+@click.argument('zone', type=click.STRING)
+@click.argument('nameserver', type=click.STRING)
 @click.argument(
-    "zonetype",
-    type=click.Choice(["MASTER", "NATIVE"], case_sensitive=False),
+    'zonetype',
+    type=click.Choice(['MASTER', 'NATIVE'], case_sensitive=False),
 )
 @click.option(
-    "-m"
-    "--master",
+    '-m'
+    '--master',
     type=click.STRING,
-    help="Set Zone Masters",
+    help='Set Zone Masters',
     default=None,
 )
 @click.pass_context
@@ -142,55 +142,55 @@ def add_zone(ctx, zone, nameserver, master, zonetype):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     zone = _make_canonical(zone)
 
-    if zonetype.capitalize() in ("MASTER", "NATIVE"):
+    if zonetype.capitalize() in ('MASTER', 'NATIVE'):
         payload = {
-            "name": zone,
-            "kind": zonetype.capitalize(),
-            "masters": master.split(",") if master else [],
-            "nameservers": [_make_canonical(server) for server in nameserver.split(",")],
+            'name': zone,
+            'kind': zonetype.capitalize(),
+            'masters': master.split(',') if master else [],
+            'nameservers': [_make_canonical(server) for server in nameserver.split(',')],
         }
     else:
-        click.echo("Slave entries are not supported right now")
+        click.echo('Slave entries are not supported right now')
         sys.exit(1)
-    r = ctx.obj["session"].post(uri, json=payload)
+    r = ctx.obj['session'].post(uri, json=payload)
     if _create_output(r, 201):
         sys.exit(0)
     sys.exit(1)
 
 
 @cli.command()
-@click.argument("name", type=click.STRING)
-@click.argument("zone")
+@click.argument('name', type=click.STRING)
+@click.argument('zone')
 @click.argument(
-    "record-type",
+    'record-type',
     type=click.Choice(
         [
-            "A",
-            "AAAA",
-            "CNAME",
-            "MX",
-            "NS",
-            "PTR",
-            "SOA",
-            "SRV",
-            "TXT",
+            'A',
+            'AAAA',
+            'CNAME',
+            'MX',
+            'NS',
+            'PTR',
+            'SOA',
+            'SRV',
+            'TXT',
         ],
         case_sensitive=False,
     ),
 )
-@click.argument("content", type=click.STRING)
+@click.argument('content', type=click.STRING)
 @click.option(
-    "--ttl",
+    '--ttl',
     default=3600,
     type=click.INT,
-    help="Set default time to live")
+    help='Set default time to live')
 @click.option(
-    "-a",
-    "-all",
-    "delete_all",
+    '-a',
+    '-all',
+    'delete_all',
     is_flag=True,
     default=False,
-    help="Deletes all records of the selected type",)
+    help='Deletes all records of the selected type',)
 @click.pass_context
 def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     """
@@ -206,51 +206,51 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     if delete_all:
         rrset = {
-            "name": name,
-            "type": record_type,
-            "ttl": ttl,
-            "changetype": "DELETE",
-            "records": []
+            'name': name,
+            'type': record_type,
+            'ttl': ttl,
+            'changetype': 'DELETE',
+            'records': []
         }
-        if not _traverse_rrsets(uri, rrset, "matching_rrset", ctx):
-            click.echo(json.dumps({"message": f"{record_type} record in {name} does not exist"}))
+        if not _traverse_rrsets(uri, rrset, 'matching_rrset', ctx):
+            click.echo(json.dumps({'message': f"{record_type} record in {name} does not exist"}))
             sys.exit(0)
         r = _patch_zone(uri, rrset, ctx)
-        msg = {"message": f"All {record_type} records for {zone} removed"}
+        msg = {'message': f"All {record_type} records for {zone} removed"}
         if _create_output(r, 204, optional_json=msg):
             sys.exit(0)
         sys.exit(1)
 
     rrset = {
-        "name": name,
-        "type": record_type,
-        "ttl": ttl,
-        "changetype": "REPLACE",
-        "records": [
+        'name': name,
+        'type': record_type,
+        'ttl': ttl,
+        'changetype': 'REPLACE',
+        'records': [
             {
-                "content": content,
-                "disabled": False,
+                'content': content,
+                'disabled': False,
             }
         ]
     }
-    if not _traverse_rrsets(uri, rrset, "is_content_present", ctx):
-        msg = {"message": f"{name} {record_type} {content} already absent"}
+    if not _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+        msg = {'message': f"{name} {record_type} {content} already absent"}
         click.echo(json.dumps(msg))
         sys.exit(0)
-    matching_rrsets = _traverse_rrsets(uri, rrset, "matching_rrset", ctx)
-    for index in range(len(matching_rrsets["records"])):
-        if matching_rrsets["records"][index] == rrset["records"][0]:
-            matching_rrsets["records"].pop(index)
-    rrset["records"] = matching_rrsets["records"]
-    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
-    msg = {"message": f"{name} {record_type} {content} removed"}
+    matching_rrsets = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
+    for index in range(len(matching_rrsets['records'])):
+        if matching_rrsets['records'][index] == rrset['records'][0]:
+            matching_rrsets['records'].pop(index)
+    rrset['records'] = matching_rrsets['records']
+    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
+    msg = {'message': f"{name} {record_type} {content} removed"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
 
 
 @cli.command()
-@click.argument("zone", type=click.STRING)
+@click.argument('zone', type=click.STRING)
 @click.pass_context
 def delete_zone(ctx, zone):
     """
@@ -258,8 +258,8 @@ def delete_zone(ctx, zone):
     """
     zone = _make_canonical(zone)
     upstream_zones = _query_zones(ctx)
-    if zone not in [single_zone["id"] for single_zone in upstream_zones]:
-        click.echo(json.dumps({"message": f"{zone} is not present"}))
+    if zone not in [single_zone['id'] for single_zone in upstream_zones]:
+        click.echo(json.dumps({'message': f"{zone} is not present"}))
         sys.exit(0)
 
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
@@ -269,35 +269,35 @@ def delete_zone(ctx, zone):
         f"Are you sure? [Y/N] ",
         ctx,
     )
-    r = ctx.obj["session"].delete(uri)
-    msg = {"message": f"Zone {zone} deleted"}
+    r = ctx.obj['session'].delete(uri)
+    msg = {'message': f"Zone {zone} deleted"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
 
 
-# Extend record
+# Disable record
 @cli.command()
-@click.argument("name", type=click.STRING)
-@click.argument("zone", type=click.STRING)
+@click.argument('name', type=click.STRING)
+@click.argument('zone', type=click.STRING)
 @click.argument(
-    "record-type",
+    'record-type',
     type=click.Choice(
         [
-            "A",
-            "AAAA",
-            "CNAME",
-            "MX",
-            "NS",
-            "PTR",
-            "SOA",
-            "SRV",
-            "TXT",
+            'A',
+            'AAAA',
+            'CNAME',
+            'MX',
+            'NS',
+            'PTR',
+            'SOA',
+            'SRV',
+            'TXT',
         ],
     ),
 )
-@click.argument("content", type=click.STRING)
-@click.option("--ttl", default=3600, type=click.INT, help="Set time to live")
+@click.argument('content', type=click.STRING)
+@click.option('--ttl', default=3600, type=click.INT, help='Set time to live')
 @click.pass_context
 def disable_record(
     ctx,
@@ -308,10 +308,9 @@ def disable_record(
     ttl,
 ):
     """
-    Disable an existing DNS record
-    Use @ if you want to enter a record for the top level.
+    Disable an existing DNS record.
+    Use @ if you want to enter a record for the top level
 
-    A record:
     powerdns-cli disable_record test01 exmaple.org A 10.0.0.1
     """
     zone = _make_canonical(zone)
@@ -319,25 +318,25 @@ def disable_record(
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     rrset = {
-                "name": name,
-                "type": record_type,
-                "ttl": ttl,
-                "changetype": "REPLACE",
-                "records": [
+                'name': name,
+                'type': record_type,
+                'ttl': ttl,
+                'changetype': 'REPLACE',
+                'records': [
                     {
-                        "content": content,
-                        "disabled": True
+                        'content': content,
+                        'disabled': True
                     }
                 ]
             }
 
-    if _traverse_rrsets(uri, rrset, "is_content_present", ctx):
-        msg = {"message": f"{name} IN {record_type} {content} already disabled"}
+    if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+        msg = {'message': f"{name} IN {record_type} {content} already disabled"}
         click.echo(json.dumps(msg))
         sys.exit(0)
-    rrset["records"] = _traverse_rrsets(uri, rrset, "merge_rrsets", ctx)
-    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
-    msg = {"message": f"{name} IN {record_type} {content} disabled"}
+    rrset['records'] = _traverse_rrsets(uri, rrset, 'merge_rrsets', ctx)
+    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
+    msg = {'message': f"{name} IN {record_type} {content} disabled"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
@@ -345,26 +344,26 @@ def disable_record(
 
 # Extend record
 @cli.command()
-@click.argument("name", type=click.STRING)
-@click.argument("zone", type=click.STRING)
+@click.argument('name', type=click.STRING)
+@click.argument('zone', type=click.STRING)
 @click.argument(
-    "record-type",
+    'record-type',
     type=click.Choice(
         [
-            "A",
-            "AAAA",
-            "CNAME",
-            "MX",
-            "NS",
-            "PTR",
-            "SOA",
-            "SRV",
-            "TXT",
+            'A',
+            'AAAA',
+            'CNAME',
+            'MX',
+            'NS',
+            'PTR',
+            'SOA',
+            'SRV',
+            'TXT',
         ],
     ),
 )
-@click.argument("content", type=click.STRING)
-@click.option("--ttl", default=3600, type=click.INT, help="Set time to live")
+@click.argument('content', type=click.STRING)
+@click.option('--ttl', default=3600, type=click.INT, help='Set time to live')
 @click.pass_context
 def extend_record(
     ctx,
@@ -375,46 +374,38 @@ def extend_record(
     ttl,
 ):
     """
-    Add new DNS records
-    Create new DNS records of different types. Use @ if you want to enter a
-    record for the top level.
-
-    A record:
-    powerdns-cli add_records test01 exmaple.org A 10.0.0.1
-    MX record:
-    powerdns-cli add_records mail example.org MX "10 10.0.0.1"
-    CNAME record:
-    powerdns-cli add_records test02 exmaple.org CNAME test01.example.org
+    Extends an existing new recordset.
+    Will create a new record if it did not exist beforehand.
     """
     zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     rrset = {
-                "name": name,
-                "type": record_type,
-                "ttl": ttl,
-                "changetype": "REPLACE",
-                "records": [
+                'name': name,
+                'type': record_type,
+                'ttl': ttl,
+                'changetype': 'REPLACE',
+                'records': [
                     {
-                        "content": content,
-                        "disabled": False
+                        'content': content,
+                        'disabled': False
                     }
                 ]
             }
 
-    if _traverse_rrsets(uri, rrset, "is_content_present", ctx):
-        click.echo(json.dumps({"message": f"{name} IN {record_type} {content} already exists"}))
+    if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+        click.echo(json.dumps({'message': f"{name} IN {record_type} {content} already exists"}))
         sys.exit(0)
-    upstream_rrset = _traverse_rrsets(uri, rrset, "matching_rrset", ctx)
+    upstream_rrset = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
     extra_records = [
         record for record
-        in upstream_rrset["records"]
-        if record["content"] != rrset["records"][0]["content"]
+        in upstream_rrset['records']
+        if record['content'] != rrset['records'][0]['content']
     ]
-    rrset["records"].extend(extra_records)
-    r = _patch_zone(uri, {"rrsets": [rrset]}, ctx)
-    msg = {"message": f"{name} IN {record_type} {content} appended"}
+    rrset['records'].extend(extra_records)
+    r = _patch_zone(uri, {'rrsets': [rrset]}, ctx)
+    msg = {'message': f"{name} IN {record_type} {content} appended"}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
@@ -423,13 +414,13 @@ def extend_record(
 @cli.command()
 @click.pass_context
 @click.argument(
-    "zone",
+    'zone',
     type=click.STRING,
 )
 @click.option(
-    "-b",
-    "--bind",
-    help="Use bind format as output",
+    '-b',
+    '--bind',
+    help='Use bind format as output',
     is_flag=True,
     default=False,
 )
@@ -493,7 +484,7 @@ def list_zones(ctx):
 @cli.command()
 @click.pass_context
 @click.argument(
-    "zone",
+    'zone',
     type=click.STRING,
 )
 def rectify_zone(ctx, zone):
@@ -504,15 +495,15 @@ def rectify_zone(ctx, zone):
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
-    r = ctx.obj["session"].put(uri)
+    r = ctx.obj['session'].put(uri)
     if _create_output(r, 200):
         sys.exit(0)
     sys.exit(1)
 
 
 @cli.command()
-@click.argument("search-string", metavar="STRING")
-@click.option("--max", "max_output", help="Number of items to output", default=5, type=click.INT,)
+@click.argument('search-string', metavar='STRING')
+@click.option('--max', 'max_output', help='Number of items to output', default=5, type=click.INT,)
 @click.pass_context
 def search(ctx, search_string, max_output):
     """Do fulltext search in dns database"""
@@ -520,7 +511,7 @@ def search(ctx, search_string, max_output):
     r = _get_zone(
         uri,
         ctx,
-        params={"q": f"*{search_string}*", "max": max_output},
+        params={'q': f"*{search_string}*", 'max': max_output},
     )
     if _create_output(r, 200):
         sys.exit(0)
@@ -530,11 +521,11 @@ def search(ctx, search_string, max_output):
 def _confirm(message, ctx):
     """Helper function to keep users from doing potentially dangerous actions.
     Uses the force flag to determine if a manual confirmation is required."""
-    if not ctx.obj["force"]:
+    if not ctx.obj['force']:
         click.echo(message)
         confirmation = input()
-        if confirmation not in ("y", "Y", "YES", "yes", "Yes"):
-            click.echo("Aborting")
+        if confirmation not in ('y', 'Y', 'YES', 'yes', 'Yes'):
+            click.echo('Aborting')
             sys.exit(1)
 
 
@@ -559,17 +550,18 @@ def _create_output(
 
 def _get_zone(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     try:
-        request = ctx.obj["session"].get(uri, params)
+        request = ctx.obj['session'].get(uri, params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({"error": f"Requests error: {e}"}))
+        click.echo(json.dumps({'error': f"Requests error: {e}"}))
         sys.exit(1)
+
 
 def _query_zones(ctx) -> list:
     """Queries all zones of the dns server"""
     r = _get_zone(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
     if r.status_code != 200:
-        click.echo(json.dumps({"error": r.json()}))
+        click.echo(json.dumps({'error': r.json()}))
         sys.exit(1)
     return r.json()
 
@@ -578,32 +570,32 @@ def _query_zone_rrsets(uri: str, ctx) -> list:
     """Queries the configuration of the given zone"""
     r = _get_zone(uri, ctx)
     if r.status_code != 200:
-        click.echo(json.dumps({"error": r.json()}))
+        click.echo(json.dumps({'error': r.json()}))
         sys.exit(1)
-    return r.json()["rrsets"]
+    return r.json()['rrsets']
 
 
 def _make_canonical(zone: str) -> str:
     """Returns the zone in caonical format with a trailing dot"""
-    if not zone.endswith("."):
-        zone += "."
+    if not zone.endswith('.'):
+        zone += '.'
     return zone
 
 
 def _make_dnsname(name: str, zone: str) -> str:
     """Returns either the combination or zone
     or just a zone when @ is provided as name"""
-    if name == "@":
+    if name == '@':
         return zone
     return f"{name}.{zone}"
 
 
 def _patch_zone(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
     try:
-        request = ctx.obj["session"].patch(uri, json=rrset)
+        request = ctx.obj['session'].patch(uri, json=rrset)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({"error": f"Requests error: {e}"}))
+        click.echo(json.dumps({'error': f"Requests error: {e}"}))
         sys.exit(1)
 
 
@@ -611,36 +603,41 @@ def _traverse_rrsets(
         uri: str,
         new_rrset: dict,
         query: Literal[
-            "matching_rrset",
-            "is_content_present",
-            "merge_rrsets"],
+            'matching_rrset',
+            'is_content_present',
+            'merge_rrsets'],
         ctx):
     """Helper function to compare upstream and downstream rrsets / records"""
     zone_rrsets = _query_zone_rrsets(uri, ctx)
-    if query == "matching_rrset":
+    if query == 'matching_rrset':
         for upstream_rrset in zone_rrsets:
-            if all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
+            if all(upstream_rrset[key] == new_rrset[key] for key in ('name', 'type')):
                 return upstream_rrset
         return {}
-    if query == "is_content_present":
+    if query == 'is_content_present':
         for rrset in zone_rrsets:
             # go through all the records to find matching rrset
             if (
-                    all(rrset[key] == new_rrset[key] for key in ("name", "type"))
+                    all(rrset[key] == new_rrset[key] for key in ('name', 'type'))
                     and
-                    all(entry in rrset["records"] for entry in new_rrset["records"])
+                    all(entry in rrset['records'] for entry in new_rrset['records'])
             ):
                 return True
         return False
-    if query == "merge_rrsets":
-        merged_rrsets = new_rrset["records"].copy()
+    if query == 'merge_rrsets':
+        merged_rrsets = new_rrset['records'].copy()
         for upstream_rrset in zone_rrsets:
-            if all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
-                merged_rrsets.extend([record for record in upstream_rrset["records"]
-                                      if record["content"] != new_rrset["records"][0]["content"]])
+            if all(upstream_rrset[key] == new_rrset[key] for key in ('name', 'type')):
+                merged_rrsets.extend([record for record in upstream_rrset['records']
+                                      if record['content'] != new_rrset['records'][0]['content']])
         return merged_rrsets
     return None
 
 
-if __name__ == "__main__":
-    cli(auto_envvar_prefix="POWERDNS_CLI")
+def main():
+    """Main entrypoint to the cli application"""
+    cli(auto_envvar_prefix='POWERDNS_CLI')
+
+
+if __name__ == '__main__':
+    main()

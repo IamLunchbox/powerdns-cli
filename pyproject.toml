@@ -1,4 +1,35 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
+[project]
+name = "powerdns-cli"
+authors = [
+    {name = "Raphael Grieger", email = "r.grieger@hotmail.com"},
+]
+readme = "README.md"
+requires-python = ">3.6"
+license = {text = "GPLv3"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+version = "0.0.1"
+dependencies = [
+    "requests",
+    "click"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "pylint",
+    "flake8",
+    "tox",
+    "bandit"
+]
+
+[project.scripts]
+powerdns-cli = "powerdns_cli.powerdns_cli:main"
 
 [tool.pylint."DISABLE"]
 disable = ["too-many-arguments", "too-many-positional-arguments", "no-value-for-parameter"]
