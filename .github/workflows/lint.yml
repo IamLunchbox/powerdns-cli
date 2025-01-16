@@ -1,3 +1,4 @@
+name: Lint project
 on:
   pull_request:
   push:
