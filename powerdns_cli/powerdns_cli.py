@@ -121,12 +121,12 @@ def add_record(
         ],
     }
     if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
-        click.echo(json.dumps({'message': f"{name} {record_type} {content} already exists"}))
+        click.echo(json.dumps({'message': f'{name} {record_type} {content} already exists'}))
         sys.exit(0)
 
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     if _create_output(r, 204,
-                      optional_json={'message': f"{name} {record_type} {content} created"}):
+                      optional_json={'message': f'{name} {record_type} {content} created'}):
         sys.exit(0)
     sys.exit(1)
 
@@ -225,10 +225,10 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             'records': []
         }
         if not _traverse_rrsets(uri, rrset, 'matching_rrset', ctx):
-            click.echo(json.dumps({'message': f"{record_type} record in {name} does not exist"}))
+            click.echo(json.dumps({'message': f'{record_type} record in {name} does not exist'}))
             sys.exit(0)
         r = _http_patch(uri, rrset, ctx)
-        msg = {'message': f"All {record_type} records for {zone} removed"}
+        msg = {'message': f'All {record_type} records for {zone} removed'}
         if _create_output(r, 204, optional_json=msg):
             sys.exit(0)
         sys.exit(1)
@@ -246,7 +246,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         ]
     }
     if not _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
-        msg = {'message': f"{name} {record_type} {content} already absent"}
+        msg = {'message': f'{name} {record_type} {content} already absent'}
         click.echo(json.dumps(msg))
         sys.exit(0)
     matching_rrsets = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
@@ -255,7 +255,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             matching_rrsets['records'].pop(index)
     rrset['records'] = matching_rrsets['records']
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
-    msg = {'message': f"{name} {record_type} {content} removed"}
+    msg = {'message': f'{name} {record_type} {content} removed'}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
@@ -271,18 +271,18 @@ def delete_zone(ctx, zone):
     zone = _make_canonical(zone)
     upstream_zones = _query_zones(ctx)
     if zone not in [single_zone['id'] for single_zone in upstream_zones]:
-        click.echo(json.dumps({'message': f"{zone} is not present"}))
+        click.echo(json.dumps({'message': f'{zone} is not present'}))
         sys.exit(0)
 
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     _confirm(
-        f"!!!! WARNING !!!!!\n"
-        f"You are attempting to delete {zone}\n"
-        f"Are you sure? [Y/N] ",
+        f'!!!! WARNING !!!!!\n'
+        f'You are attempting to delete {zone}\n'
+        f'Are you sure? [Y/N] ',
         ctx,
     )
     r = _http_delete(uri, ctx)
-    msg = {'message': f"Zone {zone} deleted"}
+    msg = {'message': f'Zone {zone} deleted'}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
@@ -343,12 +343,12 @@ def disable_record(
             }
 
     if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
-        msg = {'message': f"{name} IN {record_type} {content} already disabled"}
+        msg = {'message': f'{name} IN {record_type} {content} already disabled'}
         click.echo(json.dumps(msg))
         sys.exit(0)
     rrset['records'] = _traverse_rrsets(uri, rrset, 'merge_rrsets', ctx)
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
-    msg = {'message': f"{name} IN {record_type} {content} disabled"}
+    msg = {'message': f'{name} IN {record_type} {content} disabled'}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
@@ -407,7 +407,7 @@ def extend_record(
             }
 
     if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
-        click.echo(json.dumps({'message': f"{name} IN {record_type} {content} already exists"}))
+        click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already exists'}))
         sys.exit(0)
     upstream_rrset = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
     extra_records = [
@@ -417,7 +417,7 @@ def extend_record(
     ]
     rrset['records'].extend(extra_records)
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
-    msg = {'message': f"{name} IN {record_type} {content} appended"}
+    msg = {'message': f'{name} IN {record_type} {content} appended'}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
@@ -523,7 +523,7 @@ def search(ctx, search_string, max_output):
     r = _http_get(
         uri,
         ctx,
-        params={'q': f"*{search_string}*", 'max': max_output},
+        params={'q': f'*{search_string}*', 'max': max_output},
     )
     if _create_output(r, 200):
         sys.exit(0)
@@ -566,7 +566,7 @@ def _http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.
         request = ctx.obj['session'].delete(uri, params=params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Request error: {e}"}))
+        click.echo(json.dumps({'error': f'Request error: {e}'}))
         sys.exit(1)
 
 
@@ -575,7 +575,7 @@ def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Res
         request = ctx.obj['session'].get(uri, params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Request error: {e}"}))
+        click.echo(json.dumps({'error': f'Request error: {e}'}))
         sys.exit(1)
 
 
@@ -584,7 +584,7 @@ def _http_patch(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
         request = ctx.obj['session'].patch(uri, json=rrset)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Request error: {e}"}))
+        click.echo(json.dumps({'error': f'Request error: {e}'}))
         sys.exit(1)
 
 
@@ -593,7 +593,7 @@ def _http_post(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
         request = ctx.obj['session'].post(uri, json=rrset)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Request error: {e}"}))
+        click.echo(json.dumps({'error': f'Request error: {e}'}))
         sys.exit(1)
 
 
@@ -627,7 +627,7 @@ def _make_dnsname(name: str, zone: str) -> str:
     or just a zone when @ is provided as name"""
     if name == '@':
         return zone
-    return f"{name}.{zone}"
+    return f'{name}.{zone}'
 
 
 def _traverse_rrsets(
