@@ -576,7 +576,7 @@ def _http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.
 
 def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     try:
-        request = ctx.obj['session'].get(uri, params)
+        request = ctx.obj['session'].get(uri, params=params)
         return request
     except requests.RequestException as e:
         click.echo(json.dumps({'error': f'Request error: {e}'}))
