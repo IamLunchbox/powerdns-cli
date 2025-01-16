@@ -133,20 +133,20 @@ def add_record(
 
 @cli.command()
 @click.argument('zone', type=click.STRING)
-@click.argument('nameserver', type=click.STRING)
+@click.argument('nameservers', type=click.STRING)
 @click.argument(
     'zonetype',
     type=click.Choice(['MASTER', 'NATIVE'], case_sensitive=False),
 )
 @click.option(
-    '-m'
+    '-m',
     '--master',
     type=click.STRING,
     help='Set Zone Masters',
     default=None,
 )
 @click.pass_context
-def add_zone(ctx, zone, nameserver, master, zonetype):
+def add_zone(ctx, zone, nameservers, zonetype, master):
     """
     Adds a new zone
 
@@ -154,18 +154,17 @@ def add_zone(ctx, zone, nameserver, master, zonetype):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     zone = _make_canonical(zone)
-
-    if zonetype.capitalize() in ('MASTER', 'NATIVE'):
+    if zonetype.upper() in ('MASTER', 'NATIVE'):
         payload = {
             'name': zone,
             'kind': zonetype.capitalize(),
             'masters': master.split(',') if master else [],
-            'nameservers': [_make_canonical(server) for server in nameserver.split(',')],
+            'nameservers': [_make_canonical(server) for server in nameservers.split(',')],
         }
     else:
         click.echo('Slave entries are not supported right now')
         sys.exit(1)
-    r = ctx.obj['session'].post(uri, json=payload)
+    r = _http_post(uri, payload, ctx)
     if _create_output(r, 201):
         sys.exit(0)
     sys.exit(1)
@@ -567,7 +566,7 @@ def _http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.
         request = ctx.obj['session'].delete(uri, params=params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Requests error: {e}"}))
+        click.echo(json.dumps({'error': f"Request error: {e}"}))
         sys.exit(1)
 
 
@@ -576,7 +575,7 @@ def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Res
         request = ctx.obj['session'].get(uri, params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Requests error: {e}"}))
+        click.echo(json.dumps({'error': f"Request error: {e}"}))
         sys.exit(1)
 
 
@@ -585,7 +584,16 @@ def _http_patch(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
         request = ctx.obj['session'].patch(uri, json=rrset)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f"Requests error: {e}"}))
+        click.echo(json.dumps({'error': f"Request error: {e}"}))
+        sys.exit(1)
+
+
+def _http_post(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
+    try:
+        request = ctx.obj['session'].post(uri, json=rrset)
+        return request
+    except requests.RequestException as e:
+        click.echo(json.dumps({'error': f"Request error: {e}"}))
         sys.exit(1)
 
 
