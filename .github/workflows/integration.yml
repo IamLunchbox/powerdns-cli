@@ -1,0 +1,40 @@
+name: Powerdns integration test
+on:
+  pull_request:
+  push:
+
+
+jobs:
+  # Label of the container job
+  integration-test:
+    services:
+      powerdns:
+        image: docker.io/${{ matrix.container }}
+        env:
+          PDNS_AUTH_API_KEY: ${{ POWERDNS_CLI_APIKEY }}
+        ports:
+          - "1053:53"
+          - "1053:53/udp"
+          - "8081:8081"
+    runs-on: ubuntu-latest
+    container: docker.io/python:3.10-alpine
+    strategy:
+      matrix:
+        powerdns_container:
+          - powerdns/pdns-auth-49:4.9.3
+    env:
+      POWERDNS_CLI_APIKEY: foobarbaz
+      POWERDNS_CLI_URL: http://localhost:8081
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+      - name: Build cli
+        run: pip install .
+        working-directory: $GITHUB_WORKSPACE
+      - name: Run cli validation
+        run: |
+          powerdns-cli add-zone example.org 10.0.0.1 NATIVE
+          powerdns-cli add-zone example.com. 10.0.0.1 MASTER
+          powerdns-cli add-zone example.org 10.0.0.1 NATIVE | grep "Zone  example.org. already present"
+          powerdns-cli add-record test example.org A 10.0.0.1
