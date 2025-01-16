@@ -11,7 +11,7 @@ jobs:
       powerdns:
         image: docker.io/${{ matrix.container }}
         env:
-          PDNS_AUTH_API_KEY: ${{ POWERDNS_CLI_APIKEY }}
+          PDNS_AUTH_API_KEY: 1FooBarBaz2!
         ports:
           - "1053:53"
           - "1053:53/udp"
@@ -23,7 +23,7 @@ jobs:
         powerdns_container:
           - powerdns/pdns-auth-49:4.9.3
     env:
-      POWERDNS_CLI_APIKEY: foobarbaz
+      POWERDNS_CLI_APIKEY: 1FooBarBaz2!
       POWERDNS_CLI_URL: http://localhost:8081
 
     steps:
