@@ -162,7 +162,11 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
             'nameservers': [_make_canonical(server) for server in nameservers.split(',')],
         }
     else:
-        click.echo('Slave entries are not supported right now')
+        click.echo(json.dumps({'error': 'Slave entries are not supported right now'}))
+        sys.exit(1)
+    current_zones = _query_zones(ctx)
+    if [z for z in current_zones if z['name'] == zone]:
+        click.echo(json.dumps({'message': f'Zone {zone} already present'}))
         sys.exit(1)
     r = _http_post(uri, payload, ctx)
     if _create_output(r, 201):
