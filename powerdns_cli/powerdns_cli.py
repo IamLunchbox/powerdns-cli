@@ -282,8 +282,7 @@ def delete_zone(ctx, zone, force):
         f'!!!! WARNING !!!!!\n'
         f'You are attempting to delete {zone}\n'
         f'Are you sure? [y/N] ',
-        force,
-        ctx,
+        force
     )
     r = _http_delete(uri, ctx)
     msg = {'message': f'Zone {zone} deleted'}
