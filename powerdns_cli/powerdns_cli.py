@@ -559,6 +559,9 @@ def _create_output(
     if content.status_code == exp_status_code and optional_json:
         click.echo(json.dumps(optional_json))
         return True
+    if content.status_code == exp_status_code:
+        click.echo(json.dumps(content.json()))
+        return True
     click.echo(json.dumps(content.json()))
     return False
 
