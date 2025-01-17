@@ -160,7 +160,10 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
         click.echo(json.dumps({'message': f'Zone {zone} already present'}))
         sys.exit(0)
     r = _http_post(uri, payload, ctx)
-    if _create_output(r, 201):
+    if _create_output(r,
+                      201,
+                      optional_json={'message': f'Zone {zone} created'}
+                      ):
         sys.exit(0)
     sys.exit(1)
 
