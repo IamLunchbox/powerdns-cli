@@ -29,14 +29,6 @@ import requests
     required=True
 )
 @click.option(
-    '-f',
-    '--force',
-    help='Force execution and skip confirmations',
-    is_flag=True,
-    default=False,
-    show_default=True,
-)
-@click.option(
     '-k',
     '--insecure',
     help='Ignore invalid certificates',
@@ -55,7 +47,6 @@ def cli(ctx, apikey, url, force, insecure):
     ctx.ensure_object(dict)
     ctx.obj['apihost'] = url
     ctx.obj['key'] = apikey
-    ctx.obj['force'] = force
 
     session = requests.session()
     session.verify = insecure
@@ -121,7 +112,7 @@ def add_record(
         ],
     }
     if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
-        click.echo(json.dumps({'message': f'{name} {record_type} {content} already exists'}))
+        click.echo(json.dumps({'message': f'{name} {record_type} {content} already present'}))
         sys.exit(0)
 
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
@@ -229,7 +220,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             'records': []
         }
         if not _traverse_rrsets(uri, rrset, 'matching_rrset', ctx):
-            click.echo(json.dumps({'message': f'{record_type} record in {name} does not exist'}))
+            click.echo(json.dumps({'message': f'{record_type} in {name} already absent'}))
             sys.exit(0)
         r = _http_patch(uri, rrset, ctx)
         msg = {'message': f'All {record_type} records for {zone} removed'}
@@ -267,22 +258,31 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
 
 @cli.command()
 @click.argument('zone', type=click.STRING)
+@click.option(
+    '-f',
+    '--force',
+    help='Force execution and skip confirmation',
+    is_flag=True,
+    default=False,
+    show_default=True,
+)
 @click.pass_context
-def delete_zone(ctx, zone):
+def delete_zone(ctx, zone, force):
     """
     Deletes a Zone
     """
     zone = _make_canonical(zone)
     upstream_zones = _query_zones(ctx)
-    if zone not in [single_zone['id'] for single_zone in upstream_zones]:
-        click.echo(json.dumps({'message': f'{zone} is not present'}))
+    if zone not in [single_zone['name'] for single_zone in upstream_zones]:
+        click.echo(json.dumps({'message': f'Zone {zone} already absent'}))
         sys.exit(0)
 
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     _confirm(
         f'!!!! WARNING !!!!!\n'
         f'You are attempting to delete {zone}\n'
-        f'Are you sure? [Y/N] ',
+        f'Are you sure? [y/N] ',
+        force,
         ctx,
     )
     r = _http_delete(uri, ctx)
@@ -411,7 +411,7 @@ def extend_record(
             }
 
     if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
-        click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already exists'}))
+        click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already present'}))
         sys.exit(0)
     upstream_rrset = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
     extra_records = [
@@ -421,7 +421,7 @@ def extend_record(
     ]
     rrset['records'].extend(extra_records)
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
-    msg = {'message': f'{name} IN {record_type} {content} appended'}
+    msg = {'message': f'{name} IN {record_type} {content} extended'}
     if _create_output(r, 204, optional_json=msg):
         sys.exit(0)
     sys.exit(1)
@@ -534,10 +534,10 @@ def search(ctx, search_string, max_output):
     sys.exit(1)
 
 
-def _confirm(message: str, ctx: click.Context) -> None:
+def _confirm(message: str, force: bool, ctx: click.Context) -> None:
     """Confirmation function to keep users from doing potentially dangerous actions.
     Uses the force flag to determine if a manual confirmation is required."""
-    if not ctx.obj['force']:
+    if not force:
         click.echo(message)
         confirmation = input()
         if confirmation not in ('y', 'Y', 'YES', 'yes', 'Yes'):
@@ -602,7 +602,7 @@ def _http_post(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
 
 
 def _query_zones(ctx) -> list:
-    """Queries all zones of the dns server"""
+    """Returns all zones of the dns server"""
     r = _http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
     if r.status_code != 200:
         click.echo(json.dumps({'error': r.json()}))

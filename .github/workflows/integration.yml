@@ -33,9 +33,13 @@ jobs:
           cache: pip
       - name: Build cli
         run: pip install .
-      - name: Run cli validation
+      - name: Test zone actions
         run: |
           powerdns-cli add-zone example.org 10.0.0.1 NATIVE
           powerdns-cli add-zone example.com. 10.0.0.1 MASTER
-          powerdns-cli add-zone example.org 10.0.0.1 NATIVE | grep "Zone  example.org. already present"
+          powerdns-cli add-zone example.org 10.0.0.1 NATIVE | grep "Zone example.org. already present"
+          powerdns-cli delete-zone -f example.com.
+          powerdns-cli delete-zone -f example.com | grep "Zone example.com. already absent"
+      - name: Test record actions
+        run: |
           powerdns-cli add-record test example.org A 10.0.0.1
