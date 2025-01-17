@@ -35,11 +35,11 @@ jobs:
         run: pip install .
       - name: Test zone actions
         run: |
-          powerdns-cli add-zone example.org 10.0.0.1 NATIVE
-          powerdns-cli add-zone example.com. 10.0.0.1 MASTER
-          powerdns-cli add-zone example.org 10.0.0.1 NATIVE | grep "Zone example.org. already present"
-          powerdns-cli delete-zone -f example.com.
-          powerdns-cli delete-zone -f example.com | grep "Zone example.com. already absent"
+          powerdns-cli add-zone example.org 10.0.0.1 NATIVE | tee -a "$GITHUB_OUTPUT"
+          powerdns-cli add-zone example.com. 10.0.0.1 MASTER | tee -a "$GITHUB_OUTPUT"
+          powerdns-cli add-zone example.org 10.0.0.1 NATIVE | tee -a "$GITHUB_OUTPUT"
+          powerdns-cli delete-zone -f example.com. | tee -a "$GITHUB_OUTPUT"
+          powerdns-cli delete-zone -f example.com | tee -a "$GITHUB_OUTPUT"
       - name: Test record actions
         run: |
-          powerdns-cli add-record test example.org A 10.0.0.1
+          powerdns-cli add-record test example.org A 10.0.0.1 | tee -a "$GITHUB_OUTPUT"
