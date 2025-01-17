@@ -534,7 +534,7 @@ def search(ctx, search_string, max_output):
     sys.exit(1)
 
 
-def _confirm(message: str, force: bool, ctx: click.Context) -> None:
+def _confirm(message: str, force: bool) -> None:
     """Confirmation function to keep users from doing potentially dangerous actions.
     Uses the force flag to determine if a manual confirmation is required."""
     if not force:

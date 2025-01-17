@@ -26,6 +26,7 @@ repos:
         language: system
         types: [python]
         require_serial: true
+        pass_filenames: false
         args:
           [
             "-rn", # Only display messages
