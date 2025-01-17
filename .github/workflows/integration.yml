@@ -17,7 +17,6 @@ jobs:
           - "1053:53/udp"
           - "8081:8081"
     runs-on: ubuntu-latest
-    container: docker.io/python:3.10.6-alpine
     strategy:
       matrix:
         powerdns_container: ["powerdns/pdns-auth-49:4.9.3"]
@@ -28,6 +27,10 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.10.16
+          cache: pip
       - name: Build cli
         run: pip install .
       - name: Run cli validation
