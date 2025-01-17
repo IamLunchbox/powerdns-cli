@@ -37,7 +37,7 @@ import requests
     show_default=True,
 )
 @click.pass_context
-def cli(ctx, apikey, url, force, insecure):
+def cli(ctx, apikey, url, insecure):
     """Manage PowerDNS Authoritative Nameservers and their Zones/Records
 
     Your target server api must be specified through the corresponding cli-flags.
