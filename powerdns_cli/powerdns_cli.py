@@ -158,7 +158,7 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
     current_zones = _query_zones(ctx)
     if [z for z in current_zones if z['name'] == zone]:
         click.echo(json.dumps({'message': f'Zone {zone} already present'}))
-        sys.exit(1)
+        sys.exit(0)
     r = _http_post(uri, payload, ctx)
     if _create_output(r, 201):
         sys.exit(0)
