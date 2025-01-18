@@ -1,7 +1,8 @@
-name: Powerdns integration test
+name: Integration test
 on:
   pull_request:
   push:
+  workflow_call:
 
 
 jobs:
