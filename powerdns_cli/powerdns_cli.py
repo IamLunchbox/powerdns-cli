@@ -225,7 +225,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         if not _traverse_rrsets(uri, rrset, 'matching_rrset', ctx):
             click.echo(json.dumps({'message': f'{record_type} records in {name} already absent'}))
             sys.exit(0)
-        r = _http_patch(uri, {'rrsets':[rrset]}, ctx)
+        r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
         msg = {'message': f'All {record_type} records for {name} removed'}
         if _create_output(r, 204, optional_json=msg):
             sys.exit(0)
@@ -572,7 +572,7 @@ def _create_output(
         return True
     if (content.headers.get('Content-Type') and
             content.headers['Content-Type'].startswith('text/plain')):
-        click.echo(json.dumps({"error":content.text}))
+        click.echo(json.dumps({'error': content.text}))
         return False
     click.echo(json.dumps(content.json()))
     return False
