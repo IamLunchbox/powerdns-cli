@@ -34,13 +34,27 @@ jobs:
           cache: pip
       - name: Build cli
         run: pip install .
-      - name: Test zone actions
-        run: |
-          powerdns-cli add-zone example.org 10.0.0.1 NATIVE >> $GITHUB_STEP_SUMMARY
-          powerdns-cli add-zone example.com. 10.0.0.1 MASTER >> $GITHUB_STEP_SUMMARY
-          powerdns-cli add-zone example.org 10.0.0.1 NATIVE >> $GITHUB_STEP_SUMMARY
-          powerdns-cli delete-zone -f example.com. >> $GITHUB_STEP_SUMMARY
-          powerdns-cli delete-zone -f example.com >> $GITHUB_STEP_SUMMARY
-      - name: Test record actions
-        run: |
-          powerdns-cli add-record test example.org A 10.0.0.1 >> $GITHUB_STEP_SUMMARY
+      - name: Add native zone
+        run: powerdns-cli add-zone example.org 10.0.0.1 NATIVE
+      - name: Add master zone
+        run: powerdns-cli add-zone example.com. 10.0.0.1 MASTER
+      - name: Add duplicate native zone
+        run: powerdns-cli add-zone example.org 10.0.0.1 NATIVE
+      - name: Add duplicate master zone
+        run: powerdns-cli add-zone example.org 10.0.0.1 MASTER
+      - name: Delete zone
+        run: powerdns-cli delete-zone -f example.com.
+      - name: Delete absent zone
+        run: powerdns-cli delete-zone -f example.com
+      - name: Add Record
+        run: powerdns-cli add-record test example.org A 10.0.0.1
+      - name: Add duplicate record
+        run: powerdns-cli add-record test example.org A 10.0.0.2
+      - name: Add CNAME record with different ttl
+        run: powerdns-cli add-record --ttl 60 test1 example.org CNAME "example.org."
+      - name: Extend existing record
+        run: powerdns-cli extend-record test example.org A 10.0.0.2
+      - name: Delete part of a record
+        run: powerdns-cli delete-record test example.org A 10.0.0.2
+      - name: Delete full record
+        run: powerdns-cli delete-record -a test1 example.org CNAME "example.org."
