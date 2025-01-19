@@ -20,7 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        powerdns_container: ["powerdns/pdns-auth-49:4.9.3"]
+        powerdns_container:
+          - "powerdns/pdns-auth-49:4.9.3"
+          - "powerdns/pdns-auth-48:4.8.4"
+          - "powerdns/pdns-auth-47:4.7.4"
     env:
       POWERDNS_CLI_APIKEY: 1FooBarBaz2!
       POWERDNS_CLI_URL: http://localhost:8081
@@ -34,10 +37,13 @@ jobs:
           cache: pip
       - name: Build cli
         run: pip install .
+# Zone Management Tests
       - name: Add native zone
         run: powerdns-cli add-zone example.org 10.0.0.1 NATIVE
       - name: Add master zone
         run: powerdns-cli add-zone example.com. 10.0.0.1 MASTER
+      - name: List zones
+        run: powerdns-cli list-zones
       - name: Add duplicate native zone
         run: powerdns-cli add-zone example.org 10.0.0.1 NATIVE
       - name: Add duplicate master zone
@@ -46,15 +52,42 @@ jobs:
         run: powerdns-cli delete-zone -f example.com.
       - name: Delete absent zone
         run: powerdns-cli delete-zone -f example.com
+      - name: Rectify Zone
+        run: powerdns-cli rectify-zone example.org
+# Record Management Tests
       - name: Add Record
-        run: powerdns-cli add-record test example.org A 10.0.0.1
+        run: powerdns-cli add-record add example.org A 10.0.0.1
       - name: Add duplicate record
-        run: powerdns-cli add-record test example.org A 10.0.0.2
+        run: powerdns-cli add-record add example.org A 10.0.0.2
       - name: Add CNAME record with different ttl
-        run: powerdns-cli add-record --ttl 60 test1 example.org CNAME "example.org."
+        run: powerdns-cli add-record --ttl 60 cname example.org CNAME "example.org."
+      - name: Run extend on no preexisting record
+        run: powerdns-cli extend-record extend example.org A 10.0.0.1
       - name: Extend existing record
-        run: powerdns-cli extend-record test example.org A 10.0.0.2
+        run: powerdns-cli extend-record extend example.org A 10.0.0.2
+      - name: Create a record to delete
+        run: powerdns-cli add-record delete example.org A 10.0.0.1
+      - name: Extend a record to delete
+        run: powerdns-cli extend-record delete example.org A 10.0.0.2
       - name: Delete part of a record
-        run: powerdns-cli delete-record test example.org A 10.0.0.2
+        run: powerdns-cli delete-record delete example.org A 10.0.0.2
       - name: Delete full record
-        run: powerdns-cli delete-record -a test1 example.org CNAME "example.org."
+        run: powerdns-cli delete-record -a delete example.org A 192.168.0.1
+      - name: Create a record to disable
+        run: powerdns-cli add-record disable example.org A 10.0.0.1
+      - name: Disable record
+        run: powerdns-cli disable-record disable example.org A 10.0.0.1
+# Export Tests
+      - name: Export zone as json
+        run: powerdns-cli export-zone example.org
+      - name: Export zone as bind / afxr
+        run: powerdns-cli export-zone -b example.org
+# Config Tests
+      - name: Show config
+        run: powerdns-cli list-config
+# Stats Tests
+      - name: Show stats
+        run: powerdns-cli list-stats
+# Search Tests
+      - name: Search
+        run: powerdns-cli search --max 5 "test.example.org"
