@@ -565,6 +565,10 @@ def _create_output(
     if content.status_code == exp_status_code:
         click.echo(json.dumps(content.json()))
         return True
+    if (content.headers.get('Content-Type') and
+            content.headers['Content-Type'].startswith('text/plain')):
+        click.echo(json.dumps({"error":content.text}))
+        return False
     click.echo(json.dumps(content.json()))
     return False
 
