@@ -223,10 +223,10 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             'records': []
         }
         if not _traverse_rrsets(uri, rrset, 'matching_rrset', ctx):
-            click.echo(json.dumps({'message': f'{record_type} in {name} already absent'}))
+            click.echo(json.dumps({'message': f'{record_type} records in {name} already absent'}))
             sys.exit(0)
-        r = _http_patch(uri, rrset, ctx)
-        msg = {'message': f'All {record_type} records for {zone} removed'}
+        r = _http_patch(uri, {'rrsets':[rrset]}, ctx)
+        msg = {'message': f'All {record_type} records for {name} removed'}
         if _create_output(r, 204, optional_json=msg):
             sys.exit(0)
         sys.exit(1)
@@ -248,9 +248,13 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         click.echo(json.dumps(msg))
         sys.exit(0)
     matching_rrsets = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
+    indizes_to_remove = []
     for index in range(len(matching_rrsets['records'])):
         if matching_rrsets['records'][index] == rrset['records'][0]:
-            matching_rrsets['records'].pop(index)
+            indizes_to_remove.append(index)
+    indizes_to_remove.reverse()
+    for index in indizes_to_remove:
+        matching_rrsets['records'].pop(index)
     rrset['records'] = matching_rrsets['records']
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} {record_type} {content} removed'}
