@@ -420,12 +420,13 @@ def extend_record(
         click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already present'}))
         sys.exit(0)
     upstream_rrset = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
-    extra_records = [
-        record for record
-        in upstream_rrset['records']
-        if record['content'] != rrset['records'][0]['content']
-    ]
-    rrset['records'].extend(extra_records)
+    if upstream_rrset:
+        extra_records = [
+            record for record
+            in upstream_rrset['records']
+            if record['content'] != rrset['records'][0]['content']
+        ]
+        rrset['records'].extend(extra_records)
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} IN {record_type} {content} extended'}
     if _create_output(r, 204, optional_json=msg):
