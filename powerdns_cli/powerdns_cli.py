@@ -352,7 +352,7 @@ def disable_record(
         msg = {'message': f'{name} IN {record_type} {content} already disabled'}
         click.echo(json.dumps(msg))
         sys.exit(0)
-    rrset['records'] = _traverse_rrsets(uri, rrset, 'merge_rrsets', ctx)
+    rrset['rrsets'] = _traverse_rrsets(uri, rrset, 'merge_rrsets', ctx)
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} IN {record_type} {content} disabled'}
     if _create_output(r, 204, optional_json=msg):
