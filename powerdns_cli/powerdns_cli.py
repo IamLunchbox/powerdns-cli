@@ -467,7 +467,7 @@ def export_zone(ctx, zone, bind):
 
 @cli.command()
 @click.pass_context
-def get_config(ctx):
+def list_config(ctx):
     """
     Query PDNS Config
     """
@@ -480,7 +480,7 @@ def get_config(ctx):
 
 @cli.command()
 @click.pass_context
-def get_stats(ctx):
+def list_stats(ctx):
     """
     Query DNS Stats
     """
