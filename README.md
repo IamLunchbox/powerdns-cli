@@ -92,10 +92,10 @@ released docker images (see [here](https://hub.docker.com/r/powerdns/)), they
 won't be covered by the integration tests, though.
 
 ## Todos
-Before further features are developed, the following things are on my roadmap:
-1. Integration test through github-actions
-2. Version tests in tox
-3. Allow updating TTLs
+The following things are on my roadmap:
+1. Finish planned features and their integration tests
+2. Allow updating TTLs
+3. Version tests in tox
 4. PowerDNS ansible module which has similar features to this one
 5. unit-tests - possibly in conjunction with 4
 
@@ -103,25 +103,18 @@ Implemented features are:
 - Everything around zone manipulation (creating zones, records and so forth)
 - Exporting and searching current zone configuration
 - Accessing server configuration and statistics
-
-Planned features are:
 - Managing TSIG-Keys
-- Managing DNSSec-Keys
-- Importing bind zone files
-
-Features for the unforseeable future:
-- Management specific for master / slave nodes
 
 ## API-Spec coverage
 
 | Path          | Covered            | Planned            |
 |---------------|--------------------|--------------------|
-| autoprimary   | :x:                | :grey_question:    |
+| autoprimary   | :x:                | :heavy_check_mark: |
 | config        | :heavy_check_mark: | :heavy_check_mark: |
 | search        | :heavy_check_mark: | :heavy_check_mark: |
-| servers       | :x:                | :grey_question:    |
+| servers       | :x:                | :heavy_check_mark: |
 | stats         | :heavy_check_mark: | :heavy_check_mark: |
-| tsigkey       | :x:                | :heavy_check_mark: |
+| tsigkey       | :heavy_check_mark: | :heavy_check_mark: |
 | zonecryptokey | :x:                | :heavy_check_mark: |
-| zonemetadata  | :x:                | :grey_question:    |
+| zonemetadata  | :x:                | :heavy_check_mark: |
 | zones         | :heavy_check_mark: | :heavy_check_mark: |

@@ -122,6 +122,48 @@ def add_record(
     sys.exit(1)
 
 
+# Add Tsigkey
+@cli.command()
+@click.argument('name', type=click.STRING)
+@click.option('algorithm',
+              type=click.Choice([
+                  'hmac-md5',
+                  'hmac-sha1',
+                  'hmac-sha224',
+                  'hmac-sha256',
+                  'hmac-sha384',
+                  'hmac-sha512'
+              ]))
+@click.option('-s', '--secret', type=click.STRING)
+@click.pass_context
+def add_tsigkey(
+    ctx,
+    name,
+    algorithm,
+    secret,
+):
+    """
+    Adds a TSIGKey to the server to sign DNS messages
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    if secret:
+        tsigkey = {
+            'name': name,
+            'algorithm': algorithm,
+            'key': secret
+        }
+    else:
+        tsigkey = {
+            'name': name,
+            'algorithm': algorithm
+        }
+
+    r = _http_post(uri, tsigkey, ctx)
+    if _create_output(r, 201,):
+        sys.exit(0)
+    sys.exit(1)
+
+
 @cli.command()
 @click.argument('zone', type=click.STRING)
 @click.argument('nameservers', type=click.STRING)
@@ -164,6 +206,24 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
                       201,
                       optional_json={'message': f'Zone {zone} created'}
                       ):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.argument('id', type=click.STRING)
+@click.pass_context
+def delete_tsigkey(
+    ctx,
+    keyid
+):
+    """
+    Delete the TSIG-Key with the given server-side id
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys{keyid}"
+
+    r = _http_delete(uri, ctx)
+    if _create_output(r, 201, optional_json={'message': f"Deleted tsigkey with id {keyid}"}):
         sys.exit(0)
     sys.exit(1)
 
@@ -333,7 +393,7 @@ def disable_record(
     Disable an existing DNS record.
     Use @ if you want to enter a record for the top level
 
-    powerdns-cli disable_record test01 exmaple.org A 10.0.0.1
+    powerdns-cli disable_record test01 example.org A 10.0.0.1
     """
     zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
@@ -435,6 +495,37 @@ def extend_record(
 
 
 @cli.command()
+@click.argument('serverid', type=click.STRING)
+@click.pass_context
+def export_server(ctx, serverid):
+    """
+    List DNS-Servers
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/{serverid}"
+    r = _http_get(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+@click.argument(
+    'id',
+    type=click.STRING,
+)
+def export_tsigkey(ctx, keyid):
+    """
+    Exports the tsigkey with the given id
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
+    r = _http_get(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
 @click.pass_context
 @click.argument(
     'zone',
@@ -467,6 +558,19 @@ def export_zone(ctx, zone, bind):
 
 @cli.command()
 @click.pass_context
+@click.argument('zone', type=click.STRING)
+def flush_cache(ctx, zone):
+    """Flushes the cache of the DNS-Server"""
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
+    r = _http_put(uri, ctx, urlparams={'domain': zone})
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
 def list_config(ctx):
     """
     Query PDNS Config
@@ -480,11 +584,37 @@ def list_config(ctx):
 
 @cli.command()
 @click.pass_context
+def list_tsigkey(ctx):
+    """
+    Lists all TSIGKeys on the server
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    r = _http_get(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
 def list_stats(ctx):
     """
     Query DNS Stats
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
+    r = _http_get(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def list_server(ctx):
+    """
+    List DNS-Servers
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers"
     r = _http_get(uri, ctx)
     if _create_output(r, 200):
         sys.exit(0)
@@ -537,6 +667,45 @@ def search(ctx, search_string, max_output):
         params={'q': f'*{search_string}*', 'max': max_output},
     )
     if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+# Update Tsigkey
+@cli.command()
+@click.argument('id', type=click.STRING,)
+@click.option('algorithm', type=click.STRING,
+              choices=[
+                  'hmac-md5',
+                  'hmac-sha1',
+                  'hmac-sha224',
+                  'hmac-sha256',
+                  'hmac-sha384',
+                  'hmac-sha512'
+              ])
+@click.option('-s', '--secret', type=click.STRING)
+@click.option('-n', '--name', type=click.STRING)
+@click.pass_context
+def update_tsigkey(
+    ctx,
+    keyid,
+    algorithm,
+    secret,
+    name
+):
+    """
+    Updates an existing TSIGKey
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
+    tsigkey = {}
+    if algorithm:
+        tsigkey['algorithm'] = algorithm
+    if secret:
+        tsigkey['secret'] = secret
+    if name:
+        tsigkey['name'] = name
+    r = _http_put(uri, ctx, rrset=tsigkey)
+    if _create_output(r, 200,):
         sys.exit(0)
     sys.exit(1)
 
@@ -609,6 +778,18 @@ def _http_patch(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
 def _http_post(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
     try:
         request = ctx.obj['session'].post(uri, json=rrset)
+        return request
+    except requests.RequestException as e:
+        click.echo(json.dumps({'error': f'Request error: {e}'}))
+        sys.exit(1)
+
+
+def _http_put(uri: str,
+              ctx: click.Context,
+              urlparams: dict = None,
+              rrset: dict = None, ) -> requests.Response:
+    try:
+        request = ctx.obj['session'].put(uri, json=rrset, params=urlparams)
         return request
     except requests.RequestException as e:
         click.echo(json.dumps({'error': f'Request error: {e}'}))

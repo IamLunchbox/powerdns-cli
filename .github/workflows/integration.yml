@@ -91,3 +91,27 @@ jobs:
 # Search Tests
       - name: Search
         run: powerdns-cli search --max 5 "test.example.org"
+# TSIGKey Tests
+      - name: Add TSIGKey with defaults
+        run: powerdns-cli add-tsigkey test1 hmac-md5
+      - name: Add TSIGKey with secrets
+        run: powerdns-cli add-tsigkey test2 hmac-sha1 -s "kp4/24gyYsEzbuTVJRUMoqGFmN3LYgVDzJ/3oRSP7ys="
+      - name: List TSIGKeys
+        run: powerdns-cli list-tsigkeys
+      - name: Delete TSIGKeys
+        run: powerdns-cli delete-tsigkey 1
+      - name: Update TSIGKey secret
+        run: powerdns-cli update-tsigkey 1 -s "kp4/24gyYsEzbuTVJRUMoqGFmN3LYgVDzJ/3oRSP7ys="
+      - name: Update TSIGKey name
+        run: powerdns-cli update-tsigkey 1 -n "newname"
+      - name: Update TSIGKey algorithm
+        run: powerdns-cli update-tsigkey 1 -a "hmac-sha512"
+      - name: Export TSIGKey key
+        run: powerdns-cli export-tsigkey 1
+# Servers Tests
+      - name: List servers
+        run: powerdns-cli list-server
+      - name: Flush servercache
+        run: powerdns-cli flush-cache example.org.
+      - name: Export server
+        run: powerdns-cli export-server localhost
