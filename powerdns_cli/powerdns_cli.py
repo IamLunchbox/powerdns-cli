@@ -125,7 +125,7 @@ def add_record(
 # Add Tsigkey
 @cli.command()
 @click.argument('name', type=click.STRING)
-@click.option('algorithm',
+@click.option('-a', '--algorithm',
               type=click.Choice([
                   'hmac-md5',
                   'hmac-sha1',
