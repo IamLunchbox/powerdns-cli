@@ -674,7 +674,7 @@ def search(ctx, search_string, max_output):
 # Update Tsigkey
 @cli.command()
 @click.argument('id', type=click.STRING,)
-@click.option('algorithm', type=click.STRING,
+@click.option('-a', '--algorithm', type=click.STRING,
               choices=[
                   'hmac-md5',
                   'hmac-sha1',
