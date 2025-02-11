@@ -125,15 +125,15 @@ def add_record(
 # Add Tsigkey
 @cli.command()
 @click.argument('name', type=click.STRING)
-@click.option('algorithm',
-              type=click.Choice([
+@click.argument('algorithm',
+                type=click.Choice([
                   'hmac-md5',
                   'hmac-sha1',
                   'hmac-sha224',
                   'hmac-sha256',
                   'hmac-sha384',
                   'hmac-sha512'
-              ]))
+                ]))
 @click.option('-s', '--secret', type=click.STRING)
 @click.pass_context
 def add_tsigkey(
@@ -211,7 +211,7 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
 
 
 @cli.command()
-@click.argument('id', type=click.STRING)
+@click.argument('keyid', type=click.STRING)
 @click.pass_context
 def delete_tsigkey(
     ctx,
@@ -223,7 +223,7 @@ def delete_tsigkey(
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys{keyid}"
 
     r = _http_delete(uri, ctx)
-    if _create_output(r, 201, optional_json={'message': f"Deleted tsigkey with id {keyid}"}):
+    if _create_output(r, 201, optional_json={'message': f'Deleted tsigkey with id {keyid}'}):
         sys.exit(0)
     sys.exit(1)
 
@@ -511,7 +511,7 @@ def export_server(ctx, serverid):
 @cli.command()
 @click.pass_context
 @click.argument(
-    'id',
+    'keyid',
     type=click.STRING,
 )
 def export_tsigkey(ctx, keyid):
@@ -673,16 +673,16 @@ def search(ctx, search_string, max_output):
 
 # Update Tsigkey
 @cli.command()
-@click.argument('id', type=click.STRING,)
-@click.option('algorithm', type=click.STRING,
-              choices=[
+@click.argument('keyid', type=click.STRING,)
+@click.option('-a', '--algorithm',
+              type=click.Choice([
                   'hmac-md5',
                   'hmac-sha1',
                   'hmac-sha224',
                   'hmac-sha256',
                   'hmac-sha384',
                   'hmac-sha512'
-              ])
+              ]))
 @click.option('-s', '--secret', type=click.STRING)
 @click.option('-n', '--name', type=click.STRING)
 @click.pass_context
