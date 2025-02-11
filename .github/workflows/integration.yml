@@ -99,7 +99,7 @@ jobs:
       - name: List TSIGKeys
         run: powerdns-cli list-tsigkeys
       - name: Delete TSIGKeys
-        run: powerdns-cli delete-tsigkey test1
+        run: powerdns-cli delete-tsigkey test2
       - name: Update TSIGKey secret
         run: powerdns-cli update-tsigkey test1 -s "kp4/24gyYsEzbuTVJRUMoqGFmN3LYgVDzJ/3oRSP7ys="
       - name: Update TSIGKey name
