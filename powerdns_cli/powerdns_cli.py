@@ -749,7 +749,7 @@ def _create_output(
     except json.JSONDecodeError:
         click.echo(
             json.dumps(
-                {'error': f"Empty response from server with status {content.status_code}"}
+                {'error': f'Empty response from server with status {content.status_code}'}
             )
         )
     return False
