@@ -105,9 +105,9 @@ jobs:
       - name: Update TSIGKey name
         run: powerdns-cli update-tsigkey test1 -n "newname"
       - name: Update TSIGKey algorithm
-        run: powerdns-cli update-tsigkey test1 -a "hmac-sha512"
+        run: powerdns-cli update-tsigkey newname -a "hmac-sha512"
       - name: Export TSIGKey key
-        run: powerdns-cli export-tsigkey test1
+        run: powerdns-cli export-tsigkey newname
 # Servers Tests
       - name: List servers
         run: powerdns-cli list-servers
