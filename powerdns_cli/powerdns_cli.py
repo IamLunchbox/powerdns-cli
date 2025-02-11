@@ -584,7 +584,7 @@ def list_config(ctx):
 
 @cli.command()
 @click.pass_context
-def list_tsigkey(ctx):
+def list_tsigkeys(ctx):
     """
     Lists all TSIGKeys on the server
     """
@@ -610,7 +610,7 @@ def list_stats(ctx):
 
 @cli.command()
 @click.pass_context
-def list_server(ctx):
+def list_servers(ctx):
     """
     List DNS-Servers
     """
