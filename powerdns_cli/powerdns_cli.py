@@ -220,7 +220,7 @@ def delete_tsigkey(
     """
     Delete the TSIG-Key with the given server-side id
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys{keyid}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
 
     r = _http_delete(uri, ctx)
     if _create_output(r, 201, optional_json={'message': f'Deleted tsigkey with id {keyid}'}):
