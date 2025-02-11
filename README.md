@@ -65,7 +65,7 @@ $ powerdns-cli add-zone example.com. 10.0.0.1 MASTER
 ```
 
 If you are in need of all the possible cli options, you can take a look
-at the [integration test](https://github.com/IamLunchbox/powerdns-cli/.github/workflows/integration.yml).
+at the [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml).
 The workflow uses all the possible options to test for the api compatibility.
 
 ### Constraints
