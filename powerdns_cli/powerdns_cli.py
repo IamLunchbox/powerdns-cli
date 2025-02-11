@@ -724,7 +724,7 @@ def _confirm(message: str, force: bool) -> None:
 def _create_output(
         content: requests.Response,
         exp_status_code: int,
-        output_text: bool = False,
+        output_text: bool = None,
         optional_json: dict = None) -> bool:
     """Helper function to print a message in the appropriate format.
     Is needed since the powerdns api outputs different content types, not
@@ -743,7 +743,15 @@ def _create_output(
             content.headers['Content-Type'].startswith('text/plain')):
         click.echo(json.dumps({'error': content.text}))
         return False
-    click.echo(json.dumps(content.json()))
+    # Catch unexpected empty responses
+    try:
+        click.echo(json.dumps(content.json()))
+    except json.JSONDecodeError:
+        click.echo(
+            json.dumps(
+                {'error': f"Empty response from server with status {content.status_code}"}
+            )
+        )
     return False
 
 
