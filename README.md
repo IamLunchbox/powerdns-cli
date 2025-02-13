@@ -116,5 +116,5 @@ Implemented features are:
 | stats         | :heavy_check_mark: | :heavy_check_mark: |
 | tsigkey       | :heavy_check_mark: | :heavy_check_mark: |
 | zonecryptokey | :x:                | :heavy_check_mark: |
-| zonemetadata  | :x:                | :heavy_check_mark: |
-| zones         | :heavy_check_mark: | :heavy_check_mark: |
+| zonemetadata  | :heavy_check_mark: | :heavy_check_mark: |
+| zones         | Partly             | :heavy_check_mark: |

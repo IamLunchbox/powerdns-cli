@@ -211,6 +211,39 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
 
 
 @cli.command()
+@click.argument('zone', type=click.STRING)
+@click.argument(
+    'metadata-key',
+    type=click.STRING
+)
+@click.argument(
+    'metadata-value',
+    type=click.STRING
+)
+@click.pass_context
+def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
+    """
+    Appends metadata to a zone. Metadata is not arbitrary but most conform
+    to the expected content from the powerdns configuration
+
+    Example:
+    powerdns-cli add-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5300
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
+    payload = {
+        'kind': metadata_key,
+        'metadata': [
+            metadata_value
+        ]
+    }
+    r = _http_post(uri, payload, ctx)
+    if _create_output(r, 201):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
 @click.argument('keyid', type=click.STRING)
 @click.pass_context
 def delete_tsigkey(
@@ -354,6 +387,28 @@ def delete_zone(ctx, zone, force):
     r = _http_delete(uri, ctx)
     msg = {'message': f'Zone {zone} deleted'}
     if _create_output(r, 204, optional_json=msg):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.argument('zone', type=click.STRING)
+@click.argument(
+    'metadata-key',
+    type=click.STRING
+)
+@click.pass_context
+def delete_zonemetadata(ctx, zone, metadata_key):
+    """
+    Deletes a metadata entry for the given zone completely
+
+    Example:
+    powerdns-cli delete-zonemetadata example.org ALSO-NOTIFY
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
+    r = _http_delete(uri, ctx)
+    if _create_output(r, 204):
         sys.exit(0)
     sys.exit(1)
 
@@ -583,6 +638,33 @@ def list_config(ctx):
 
 
 @cli.command()
+@click.argument('zone', type=click.STRING)
+@click.option(
+    '-l',
+    '--limit',
+    type=click.STRING,
+    help='Limit metadata output to this single element'
+)
+@click.pass_context
+def list_zonemetadata(ctx, zone, limit):
+    """
+    Lists metadata for a given zone. Can optionally be limited to a single metadata key.
+
+    Example:
+    powerdns-cli list-zonemetadata -l "IFXR" example.org
+    """
+    zone = _make_canonical(zone)
+    if limit:
+        uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{limit}"
+    else:
+        uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
+    r = _http_get(uri, ctx)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
 @click.pass_context
 def list_tsigkeys(ctx):
     """
@@ -649,6 +731,38 @@ def rectify_zone(ctx, zone):
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
     r = ctx.obj['session'].put(uri)
+    if _create_output(r, 200):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.argument('zone', type=click.STRING)
+@click.argument(
+    'metadata-key',
+    type=click.STRING
+)
+@click.argument(
+    'metadata-value',
+    type=click.STRING
+)
+@click.pass_context
+def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
+    """
+    Replaces a metadataset of a given zone
+
+    Example:
+    powerdns-cli replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5300
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
+    payload = {
+        'kind': metadata_key,
+        'metadata': [
+            metadata_value
+        ]
+    }
+    r = _http_put(uri, ctx, rrset=payload)
     if _create_output(r, 200):
         sys.exit(0)
     sys.exit(1)
@@ -749,7 +863,7 @@ def _create_output(
     except json.JSONDecodeError:
         click.echo(
             json.dumps(
-                {'error': f'Empty response from server with status {content.status_code}'}
+                {'error': f'Non json response from server with status {content.status_code}'}
             )
         )
     return False
@@ -792,10 +906,12 @@ def _http_post(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
         sys.exit(1)
 
 
-def _http_put(uri: str,
-              ctx: click.Context,
-              urlparams: dict = None,
-              rrset: dict = None, ) -> requests.Response:
+def _http_put(
+        uri: str,
+        ctx: click.Context,
+        urlparams: dict = None,
+        rrset: dict = None
+) -> requests.Response:
     try:
         request = ctx.obj['session'].put(uri, json=rrset, params=urlparams)
         return request
