@@ -119,12 +119,12 @@ jobs:
       - name: Lists zonemetadata
         run: powerdns-cli list-zonemetadata example.org
       - name: Add zonemetadata
-        run: add-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5305
+        run: powerdns-cli add-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5305
       - name: Add duplicate zonemetadata
-        run: add-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
+        run: powerdns-cli add-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: List single zonemetadata value
         run: powerdns-cli list-zonemetadata -l "ALSO-NOTIFY" example.org
       - name: Replace zonemetadata
-        run: replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
+        run: powerdns-cli replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: Delete zonemetadata
-        run: Delete-zonemetadata example.org ALSO-NOTIFY
+        run: powerdns-cli delete-zonemetadata example.org ALSO-NOTIFY
