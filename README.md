@@ -29,10 +29,12 @@ stay in different branches.
 
 ## Usage
 `powerdns-cli` is built with pythons click framework and uses keyword-based functions.
-Therefore, flags may be positional. To get things going you may, for example, add a zone:
+Therefore, shared flags, as the api key and api url, are positional.  
+
+To get things going you may, for example, add a zone:  
 `$ powerdns-cli -a MyApiKey -u http://localhost add-zone example.com. 10.0.0.1 MASTER`
 
-But this does not work and will lead `powerdns-cli` to complain about missing flags.
+The following example does **not** work and will create an error:  
 `$ powerdns-cli add-zone -a MyApiKey -u http://localhost example.com. 10.0.0.1 MASTER`
 
 
@@ -47,7 +49,8 @@ powerdns-cli add-zone example.com. 10.0.0.1 MASTER
 ```
 
 If you want to use environment variables for subcommands you will have to add
-the subcommand to the variable string as well: `POWERDNS_CLI_ADD_RECORD_TTL=86400`.
+the subcommand to the variable string as well:  
+`POWERDNS_CLI_ADD_RECORD_TTL=86400`.
 
 `powerdns-cli` will almost always respond in json, even if the PowerDNS-api doesn't
 (sometimes its plain/text, sometimes there is no output at all).
@@ -60,8 +63,6 @@ This script tries to stay idempotent
 # Add a zone
 $ powerdns-cli add-zone example.com. 10.0.0.1 MASTER
 {"message": "Zone example.com. created"}
-
-
 ```
 
 If you are in need of all the possible cli options, you can take a look
@@ -72,38 +73,42 @@ The workflow uses all the possible options to test for the api compatibility.
 Building a simple cli for a large set of options of an api is no easy task.
 Therefore, I had to go for compromises to keep `powerdns-cli` clutter-free.
 
-But you should possibly want to now about these behaviours:
+But you should possibly want to know about these caveats:
 1. It is not possible to simply create a record with several entries. Instead, you have to use `extend-record` several times.
-2. If you want to remove a single entry from a multi-entry record, just use `delete-record`. The other records are kept.
+2. If you want to remove a single entry from a multi-entry record, use `delete-record`. The other records are kept.
 3. If you want to get rid of all the records all at once, you may pass `--all/-a` to `delete-record`.
 4. There are no guardrails for removing records from a zone, only for removing a zone altogether.
 5. By default, each record is enabled. You can disable a record, but enabling it requires re-adding it.
 6. Disabled records don't appear in BIND-exports (hidden by PowerDNS).
-7. The default TTL is set to 3600. You can (currently) not change the ttl, you must recreate the record.
+7. The default TTL is set to 3600. You can (currently) not change the TTL after you set it in a rrset, you must recreate the record.
 
 ## Version Support
 All the PowerDNS authoritative nameserver versions, which receive
-patches / security updates, receive integration tests. You can check if
+patches / security updates, are covered by integration tests. You can check if
 your version gets updates [here](https://doc.powerdns.com/authoritative/appendices/EOL.html).
-And you can check [here]() which versions are actually tested.
+And you can check [here](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml) which versions are actually tested.
 
 If the PowerDNS-Team does not apply releases and changes to their publicly
 released docker images (see [here](https://hub.docker.com/r/powerdns/)), they
-won't be covered by the integration tests, though.
+won't be covered by the integration tests.
 
 ## Todos
-The following things are on my roadmap:
-1. Finish planned features and their integration tests
-2. Allow updating TTLs
-3. Version tests in tox
-4. PowerDNS ansible module which has similar features to this one
-5. unit-tests - possibly in conjunction with 4
+The following things are on my roadmap before a beta release:
+1. Finish feature implementations and their integration tests
+2. Rewrite the action keywords to simplify interaction (as in docker run, docker exec...) 
+3. Allow updating TTLs
+4. Version tests in tox
+
+After the beta is done, i plan to port the code to implement it in ansible.
+1. PowerDNS ansible module which has similar features to this one
+2. unit-tests - possibly in conjunction with 4
 
 Implemented features are:
 - Everything around zone manipulation (creating zones, records and so forth)
 - Exporting and searching current zone configuration
 - Accessing server configuration and statistics
 - Managing TSIG-Keys
+- Zonemetadata
 
 ## API-Spec coverage
 
