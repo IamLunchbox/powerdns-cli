@@ -118,7 +118,7 @@ def add_record(
         sys.exit(0)
 
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
-    if _create_output(r, 204,
+    if _create_output(r, (204,),
                       optional_json={'message': f'{name} {record_type} {content} created'}):
         sys.exit(0)
     sys.exit(1)
@@ -161,7 +161,7 @@ def add_tsigkey(
         }
 
     r = _http_post(uri, tsigkey, ctx)
-    if _create_output(r, 201,):
+    if _create_output(r, (201,),):
         sys.exit(0)
     sys.exit(1)
 
@@ -205,7 +205,7 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
         sys.exit(0)
     r = _http_post(uri, payload, ctx)
     if _create_output(r,
-                      201,
+                      (201,),
                       optional_json={'message': f'Zone {zone} created'}
                       ):
         sys.exit(0)
@@ -240,7 +240,7 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
         ]
     }
     r = _http_post(uri, payload, ctx)
-    if _create_output(r, 201):
+    if _create_output(r, (201,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -258,7 +258,7 @@ def delete_tsigkey(
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
 
     r = _http_delete(uri, ctx)
-    if _create_output(r, 204, optional_json={'message': f'Deleted tsigkey with id {keyid}'}):
+    if _create_output(r, (204,), optional_json={'message': f'Deleted tsigkey with id {keyid}'}):
         sys.exit(0)
     sys.exit(1)
 
@@ -322,7 +322,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             sys.exit(0)
         r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
         msg = {'message': f'All {record_type} records for {name} removed'}
-        if _create_output(r, 204, optional_json=msg):
+        if _create_output(r, (204,), optional_json=msg):
             sys.exit(0)
         sys.exit(1)
 
@@ -353,7 +353,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     rrset['records'] = matching_rrsets['records']
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} {record_type} {content} removed'}
-    if _create_output(r, 204, optional_json=msg):
+    if _create_output(r, (204,), optional_json=msg):
         sys.exit(0)
     sys.exit(1)
 
@@ -388,7 +388,7 @@ def delete_zone(ctx, zone, force):
     )
     r = _http_delete(uri, ctx)
     msg = {'message': f'Zone {zone} deleted'}
-    if _create_output(r, 204, optional_json=msg):
+    if _create_output(r, (204,), optional_json=msg):
         sys.exit(0)
     sys.exit(1)
 
@@ -412,7 +412,7 @@ def delete_zonemetadata(ctx, zone, metadata_key):
     r = _http_delete(uri, ctx)
     if _create_output(
             r,
-            204,
+            (200, 204),
             optional_json={'message': f'Deleted metadata key {metadata_key} for {zone}'}
     ):
         sys.exit(0)
@@ -480,7 +480,7 @@ def disable_record(
     rrset['records'] = _traverse_rrsets(uri, rrset, 'merge_rrsets', ctx)
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} IN {record_type} {content} disabled'}
-    if _create_output(r, 204, optional_json=msg):
+    if _create_output(r, (204,), optional_json=msg):
         sys.exit(0)
     sys.exit(1)
 
@@ -550,7 +550,7 @@ def extend_record(
         rrset['records'].extend(extra_records)
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} IN {record_type} {content} extended'}
-    if _create_output(r, 204, optional_json=msg):
+    if _create_output(r, (204,), optional_json=msg):
         sys.exit(0)
     sys.exit(1)
 
@@ -564,7 +564,7 @@ def export_server(ctx, serverid):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/{serverid}"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -581,7 +581,7 @@ def export_tsigkey(ctx, keyid):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -607,12 +607,12 @@ def export_zone(ctx, zone, bind):
     if bind:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
         r = _http_get(uri, ctx)
-        if _create_output(r, 200, output_text=True):
+        if _create_output(r, (200,), output_text=True):
             sys.exit(0)
         sys.exit(1)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -625,7 +625,7 @@ def flush_cache(ctx, zone):
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
     r = _http_put(uri, ctx, urlparams={'domain': zone})
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -638,7 +638,7 @@ def list_config(ctx):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -665,7 +665,7 @@ def list_zonemetadata(ctx, zone, limit):
     else:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -678,7 +678,7 @@ def list_tsigkeys(ctx):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -691,7 +691,7 @@ def list_stats(ctx):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -704,7 +704,7 @@ def list_servers(ctx):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -717,7 +717,7 @@ def list_zones(ctx):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     r = _http_get(uri, ctx)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -737,7 +737,7 @@ def rectify_zone(ctx, zone):
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
     r = ctx.obj['session'].put(uri)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -769,7 +769,7 @@ def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
         ]
     }
     r = _http_put(uri, ctx, rrset=payload)
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -786,7 +786,7 @@ def search(ctx, search_string, max_output):
         ctx,
         params={'q': f'*{search_string}*', 'max': max_output},
     )
-    if _create_output(r, 200):
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -825,7 +825,7 @@ def update_tsigkey(
     if name:
         tsigkey['name'] = name
     r = _http_put(uri, ctx, rrset=tsigkey)
-    if _create_output(r, 200,):
+    if _create_output(r, (200,),):
         sys.exit(0)
     sys.exit(1)
 
@@ -843,20 +843,20 @@ def _confirm(message: str, force: bool) -> None:
 
 def _create_output(
         content: requests.Response,
-        exp_status_code: int,
+        exp_status_code: tuple,
         output_text: bool = None,
         optional_json: dict = None) -> bool:
     """Helper function to print a message in the appropriate format.
     Is needed since the powerdns api outputs different content types, not
     json all the time. Sometimes output is empty (each 204 response) or
     needs to be plain text - when you want to the BIND / AFXR export."""
-    if content.status_code == exp_status_code and output_text:
+    if content.status_code in exp_status_code and output_text:
         click.echo(content.text)
         return True
-    if content.status_code == exp_status_code and optional_json:
+    if content.status_code in exp_status_code and optional_json:
         click.echo(json.dumps(optional_json))
         return True
-    if content.status_code == exp_status_code:
+    if content.status_code in exp_status_code:
         click.echo(json.dumps(content.json()))
         return True
     if (content.headers.get('Content-Type') and
