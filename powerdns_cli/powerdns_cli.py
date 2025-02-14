@@ -3,6 +3,8 @@
 powerdns-cli: Manage PowerDNS Zones/Records
 """
 
+# pylint: disable=too-many-lines
+
 import json
 import sys
 from typing import Literal
@@ -408,7 +410,11 @@ def delete_zonemetadata(ctx, zone, metadata_key):
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
     r = _http_delete(uri, ctx)
-    if _create_output(r, 204):
+    if _create_output(
+            r,
+            204,
+            optional_json={'message': f'Deleted metadata key {metadata_key} for {zone}'}
+    ):
         sys.exit(0)
     sys.exit(1)
 
