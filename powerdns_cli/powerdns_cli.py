@@ -148,17 +148,12 @@ def add_tsigkey(
     Adds a TSIGKey to the server to sign DNS messages
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    tsigkey = {
+        'name': name,
+        'algorithm': algorithm
+    }
     if secret:
-        tsigkey = {
-            'name': name,
-            'algorithm': algorithm,
-            'key': secret
-        }
-    else:
-        tsigkey = {
-            'name': name,
-            'algorithm': algorithm
-        }
+        tsigkey['key'] = secret
 
     r = _http_post(uri, tsigkey, ctx)
     if _create_output(r, (201,),):
@@ -632,11 +627,63 @@ def flush_cache(ctx, zone):
 
 @cli.command()
 @click.pass_context
+def list_autoprimaries(ctx):
+    """
+    Query PDNS Config
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    r = _http_get(uri, ctx)
+    if _create_output(r, (200,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
 def list_config(ctx):
     """
     Query PDNS Config
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
+    r = _http_get(uri, ctx)
+    if _create_output(r, (200,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def list_tsigkeys(ctx):
+    """
+    Lists all TSIGKeys on the server
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    r = _http_get(uri, ctx)
+    if _create_output(r, (200,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def list_servers(ctx):
+    """
+    List DNS-Servers
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers"
+    r = _http_get(uri, ctx)
+    if _create_output(r, (200,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def list_stats(ctx):
+    """
+    Query DNS Stats
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         sys.exit(0)
@@ -664,45 +711,6 @@ def list_zonemetadata(ctx, zone, limit):
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{limit}"
     else:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
-    r = _http_get(uri, ctx)
-    if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
-
-
-@cli.command()
-@click.pass_context
-def list_tsigkeys(ctx):
-    """
-    Lists all TSIGKeys on the server
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
-    r = _http_get(uri, ctx)
-    if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
-
-
-@cli.command()
-@click.pass_context
-def list_stats(ctx):
-    """
-    Query DNS Stats
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
-    r = _http_get(uri, ctx)
-    if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
-
-
-@cli.command()
-@click.pass_context
-def list_servers(ctx):
-    """
-    List DNS-Servers
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         sys.exit(0)
