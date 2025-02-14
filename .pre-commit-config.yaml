@@ -1,3 +1,5 @@
+files: (powerdns_cli|test)/.*\.py
+fail_fast: true
 repos:
   - repo: https://github.com/pycqa/flake8
     rev: 7.1.0
@@ -13,7 +15,6 @@ repos:
       - id: check-merge-conflict
       - id: double-quote-string-fixer
       - id: end-of-file-fixer
-      - id: check-toml
   - repo: https://github.com/PyCQA/bandit
     rev: '1.7.10'
     hooks:
