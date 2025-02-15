@@ -128,3 +128,12 @@ jobs:
         run: powerdns-cli replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: Delete zonemetadata
         run: powerdns-cli delete-zonemetadata example.org ALSO-NOTIFY
+# Autoprimary Tests
+      - name: Add autoprimary
+        run: powerdns-cli add-autoprimary 127.0.0.1 example.org
+      - name: Add autoprimary with name
+        run: powerdns-cli add-autoprimary -a test123 127.0.0.1 example.org
+      - name: List autoprimaries
+        run: powerdns-cli list-autoprimaries
+      - name: Delete autoprimary
+        run: powerdns-cli delete-autoprimary 127.0.0.1 example.org
