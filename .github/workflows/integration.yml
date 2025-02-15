@@ -132,7 +132,7 @@ jobs:
       - name: Add autoprimary
         run: powerdns-cli add-autoprimary 127.0.0.1 example.org
       - name: Add autoprimary with name
-        run: powerdns-cli add-autoprimary -a test123 127.0.0.1 example.org
+        run: powerdns-cli add-autoprimary -a test123 127.0.0.1 example.com
       - name: List autoprimaries
         run: powerdns-cli list-autoprimaries
       - name: Delete autoprimary
