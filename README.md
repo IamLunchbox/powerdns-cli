@@ -114,7 +114,7 @@ Implemented features are:
 
 | Path          | Covered            | Planned            |
 |---------------|--------------------|--------------------|
-| autoprimary   | :x:                | :heavy_check_mark: |
+| autoprimaries | :heavy_check_mark: | :heavy_check_mark: |
 | config        | :heavy_check_mark: | :heavy_check_mark: |
 | search        | :heavy_check_mark: | :heavy_check_mark: |
 | servers       | :x:                | :heavy_check_mark: |
