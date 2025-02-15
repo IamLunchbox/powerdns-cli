@@ -56,6 +56,38 @@ def cli(ctx, apikey, url, insecure):
     ctx.obj['session'] = session
 
 
+@cli.command()
+@click.argument('ip', type=click.STRING)
+@click.argument('nameserver', type=click.STRING)
+@click.option('-a', '--account', type=click.STRING, help='Option')
+@click.pass_context
+def add_autoprimary(
+    ctx,
+    ip,
+    nameserver,
+    account,
+):
+    """
+    Adds an autoprimary upstream dns server
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    payload = {
+            'ip': ip,
+            'nameserver': nameserver,
+    }
+    if account:
+        payload['account'] = account
+
+    r = _http_post(uri, payload, ctx)
+    if _create_output(
+            r,
+            (201,),
+            optional_json={'message': f"Autoprimary {ip} with nameserver {nameserver} added"}
+    ):
+        sys.exit(0)
+    sys.exit(1)
+
+
 # Add record
 @cli.command()
 @click.argument('name', type=click.STRING)
@@ -220,7 +252,7 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
 @click.pass_context
 def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
     """
-    Appends metadata to a zone. Metadata is not arbitrary but most conform
+    Appends metadata to a zone. Metadata is not arbitrary and must conform
     to the expected content from the powerdns configuration
 
     Example:
@@ -236,6 +268,30 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
     }
     r = _http_post(uri, payload, ctx)
     if _create_output(r, (201,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.argument('ip', type=click.STRING)
+@click.argument('nameserver', type=click.STRING)
+@click.pass_context
+def delete_autoprimary(
+    ctx,
+    ip,
+    nameserver,
+):
+    """
+    Deletes an autoprimary from the dns server configuration
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
+
+    r = _http_delete(uri, ctx)
+    if _create_output(
+            r,
+            (204,),
+            optional_json={'message': f"Autoprimary {ip} with nameserver {nameserver} deleted"}
+    ):
         sys.exit(0)
     sys.exit(1)
 
@@ -629,7 +685,7 @@ def flush_cache(ctx, zone):
 @click.pass_context
 def list_autoprimaries(ctx):
     """
-    Query PDNS Config
+    Lists all currently configured autoprimary servers
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     r = _http_get(uri, ctx)
