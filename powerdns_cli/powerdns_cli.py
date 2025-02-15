@@ -82,7 +82,7 @@ def add_autoprimary(
     if _create_output(
             r,
             (201,),
-            optional_json={'message': f"Autoprimary {ip} with nameserver {nameserver} added"}
+            optional_json={'message': f'Autoprimary {ip} with nameserver {nameserver} added'}
     ):
         sys.exit(0)
     sys.exit(1)
@@ -290,7 +290,7 @@ def delete_autoprimary(
     if _create_output(
             r,
             (204,),
-            optional_json={'message': f"Autoprimary {ip} with nameserver {nameserver} deleted"}
+            optional_json={'message': f'Autoprimary {ip} with nameserver {nameserver} deleted'}
     ):
         sys.exit(0)
     sys.exit(1)
