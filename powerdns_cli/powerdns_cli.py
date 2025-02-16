@@ -297,6 +297,26 @@ def delete_autoprimary(
 
 
 @cli.command()
+@click.pass_context
+@click.argument('zone', type=click.STRING)
+@click.argument('cryptokey-id', type=click.STRING)
+def delete_cryptokey(zone, cryptokey_id, ctx):
+    """
+    Lists all currently configured cryptokeys for this zone
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    r = _http_delete(uri, ctx)
+    if _create_output(r,
+                      (204,),
+                      optional_json={
+                          'message': f'Deleted id {cryptokey_id} for zone {zone}'}
+                      ):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
 @click.argument('keyid', type=click.STRING)
 @click.pass_context
 def delete_tsigkey(
@@ -470,6 +490,30 @@ def delete_zonemetadata(ctx, zone, metadata_key):
     sys.exit(1)
 
 
+@cli.command()
+@click.pass_context
+@click.argument('zone', type=click.STRING)
+@click.argument('cryptokey-id', type=click.STRING)
+def disable_cryptokey(zone, cryptokey_id, ctx):
+    """
+    Disables the cryptokey for this zone
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    payload = {
+        'id': cryptokey_id,
+        'active': False,
+    }
+    r = _http_patch(uri, payload, ctx)
+    if _create_output(r,
+                      (204,),
+                      optional_json={
+                          'message': f'Disabled id {cryptokey_id} for zone {zone}'}
+                      ):
+        sys.exit(0)
+    sys.exit(1)
+
+
 # Disable record
 @cli.command()
 @click.argument('name', type=click.STRING)
@@ -532,6 +576,28 @@ def disable_record(
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} IN {record_type} {content} disabled'}
     if _create_output(r, (204,), optional_json=msg):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+@click.argument('zone', type=click.STRING)
+@click.argument('cryptokey-id', type=click.STRING)
+def enable_cryptokey(zone, cryptokey_id, ctx):
+    """
+    Enables the given cryptokey for this zone
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    payload = {
+        'id': cryptokey_id,
+        'active': True,
+    }
+    r = _http_patch(uri, payload, ctx)
+    if _create_output(r,
+                      (204,),
+                      optional_json={'message': f'Enabled id {cryptokey_id} for zone {zone}'}):
         sys.exit(0)
     sys.exit(1)
 
@@ -602,6 +668,22 @@ def extend_record(
     r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
     msg = {'message': f'{name} IN {record_type} {content} extended'}
     if _create_output(r, (204,), optional_json=msg):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+@click.argument('zone', type=click.STRING)
+@click.argument('cryptokey-id', type=click.STRING)
+def export_cryptokey(zone, cryptokey_id, ctx):
+    """
+    Exports the cryptokey including the private key for the given zone
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    r = _http_get(uri, ctx)
+    if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
 
@@ -701,6 +783,21 @@ def list_config(ctx):
     Query PDNS Config
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
+    r = _http_get(uri, ctx)
+    if _create_output(r, (200,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+@click.argument('zone', type=click.STRING)
+def list_cryptokeys(zone, ctx):
+    """
+    Lists all currently configured cryptokeys for this zone
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         sys.exit(0)
