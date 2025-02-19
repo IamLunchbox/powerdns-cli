@@ -88,6 +88,58 @@ def add_autoprimary(
     sys.exit(1)
 
 
+@cli.command()
+@click.argument('zone', type=click.STRING)
+@click.argument('keytype', type=click.Choice(['ksk', 'csk', 'zsk']))
+@click.option('-a', '--active', is_flag=True, default=False,
+              help='Sets the key to active immediately')
+@click.option('-p', '--publish', is_flag=True, default=False,
+              help='Set the key to not published')
+@click.option('-s', '--secret', type=click.STRING, help='Manually set the dnssec private key')
+@click.option('-b', '--bits', type=click.INT, help='Set the key size in bits, required for zsk')
+@click.option('--algorithm',
+              type=click.Choice([
+                  'rsasha1',
+                  'rsasha256',
+                  'rsasha512',
+                  'ecdsap256sha256',
+                  'ed25519',
+                  'ed448']
+              ),
+              help='Set the key size in bits, required for zsk')
+@click.pass_context
+def add_cryptokey(
+    ctx,
+    zone,
+    keytype,
+    active,
+    publish,
+    secret,
+    bits,
+    algorithm
+):
+    """
+    Adds a cryptokey to your zone
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
+    payload = {
+        'active': active,
+        'published': publish,
+        'keytype': keytype
+    }
+    for key, val in {'privatekey': secret, 'bits': bits, 'algorithm': algorithm}.items():
+        if val:
+            payload[key] = val
+    r = _http_post(uri, payload, ctx)
+    if _create_output(
+            r,
+            (201,),
+    ):
+        sys.exit(0)
+    sys.exit(1)
+
+
 # Add record
 @cli.command()
 @click.argument('name', type=click.STRING)
@@ -300,12 +352,12 @@ def delete_autoprimary(
 @click.pass_context
 @click.argument('zone', type=click.STRING)
 @click.argument('cryptokey-id', type=click.STRING)
-def delete_cryptokey(zone, cryptokey_id, ctx):
+def delete_cryptokey(ctx, zone, cryptokey_id):
     """
     Lists all currently configured cryptokeys for this zone
     """
     zone = _make_canonical(zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     r = _http_delete(uri, ctx)
     if _create_output(r,
                       (204,),
@@ -792,12 +844,12 @@ def list_config(ctx):
 @cli.command()
 @click.pass_context
 @click.argument('zone', type=click.STRING)
-def list_cryptokeys(zone, ctx):
+def list_cryptokeys(ctx, zone):
     """
     Lists all currently configured cryptokeys for this zone
     """
     zone = _make_canonical(zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         sys.exit(0)
