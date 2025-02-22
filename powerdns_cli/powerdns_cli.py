@@ -102,7 +102,7 @@ def add_autoprimary(
     type=click.STRING,
     help='Manually set the dnssec private key'
 )
-@click.option('-b', '--bits', type=click.INT, help='Set the key size in bits, required for zsk')
+@click.option('--bits', type=click.INT, help='Set the key size in bits, required for zsk')
 @click.option('--algorithm',
               type=click.Choice([
                   'rsasha1',
