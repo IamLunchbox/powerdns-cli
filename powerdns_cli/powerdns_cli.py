@@ -95,7 +95,7 @@ def add_autoprimary(
               help='Sets the key to active immediately')
 @click.option('-p', '--publish', is_flag=True, default=False,
               help='Set the key to not published')
-@click.option('-s', '--secret', type=click.STRING, help='Manually set the dnssec private key')
+@click.option('-s', '--secret', type=str, help='Manually set the dnssec private key')
 @click.option('-b', '--bits', type=click.INT, help='Set the key size in bits, required for zsk')
 @click.option('--algorithm',
               type=click.Choice([
@@ -128,7 +128,11 @@ def add_cryptokey(
         'published': publish,
         'keytype': keytype
     }
-    for key, val in {'privatekey': secret, 'bits': bits, 'algorithm': algorithm}.items():
+    for key, val in {
+        'privatekey': secret.replace('\\n', '\n'),
+        'bits': bits,
+        'algorithm': algorithm
+    }.items():
         if val:
             payload[key] = val
     r = _http_post(uri, payload, ctx)
@@ -728,12 +732,12 @@ def extend_record(
 @click.pass_context
 @click.argument('zone', type=click.STRING)
 @click.argument('cryptokey-id', type=click.STRING)
-def export_cryptokey(zone, cryptokey_id, ctx):
+def export_cryptokey(ctx, zone, cryptokey_id):
     """
     Exports the cryptokey including the private key for the given zone
     """
     zone = _make_canonical(zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         sys.exit(0)

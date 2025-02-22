@@ -144,9 +144,15 @@ jobs:
         run: powerdns-cli add-cryptokey -a ecdsap256sha256 -b 256 example.org zsk
       - name: Add ksk cryptokey
         run: powerdns-cli add-cryptokey example.org ksk
+      - name: Import a cryptokey secret
+        run: >
+          powerdns-cli 
+          add-cryptokey 
+          example.org 
+          -s 'Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: 1nM02+BeuUuppbSgtDBIV3106HMTdLNMqV7rnb4t0iA=\n' ksk
       - name: List cryptokeys
         run: powerdns-cli list-cryptokeys example.org
       - name: Delete a cryptokey
         run: powerdns-cli delete-cryptokey example.org 1
-
-
+      - name: Export a cryptokey
+        run: powerdns-cli export-cryptokey example.org 2
