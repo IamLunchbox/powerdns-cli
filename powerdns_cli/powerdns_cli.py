@@ -78,7 +78,7 @@ def add_autoprimary(
     if account:
         payload['account'] = account
 
-    r = _http_post(uri, payload, ctx)
+    r = _http_post(uri, ctx, payload)
     if _create_output(
             r,
             (201,),
@@ -141,7 +141,7 @@ def add_cryptokey(
     }.items():
         if val:
             payload[key] = val
-    r = _http_post(uri, payload, ctx)
+    r = _http_post(uri, ctx, payload)
     if _create_output(
             r,
             (201,),
@@ -207,11 +207,11 @@ def add_record(
             }
         ],
     }
-    if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+    if _traverse_rrsets(uri, ctx, rrset, 'is_content_present',):
         click.echo(json.dumps({'message': f'{name} {record_type} {content} already present'}))
         sys.exit(0)
 
-    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
+    r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     if _create_output(r, (204,),
                       optional_json={'message': f'{name} {record_type} {content} created'}):
         sys.exit(0)
@@ -242,14 +242,14 @@ def add_tsigkey(
     Adds a TSIGKey to the server to sign DNS messages
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
-    tsigkey = {
+    payload = {
         'name': name,
         'algorithm': algorithm
     }
     if secret:
-        tsigkey['key'] = secret
+        payload['key'] = secret
 
-    r = _http_post(uri, tsigkey, ctx)
+    r = _http_post(uri, ctx, payload)
     if _create_output(r, (201,),):
         sys.exit(0)
     sys.exit(1)
@@ -292,7 +292,7 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
     if [z for z in current_zones if z['name'] == zone]:
         click.echo(json.dumps({'message': f'Zone {zone} already present'}))
         sys.exit(0)
-    r = _http_post(uri, payload, ctx)
+    r = _http_post(uri, ctx, payload)
     if _create_output(r,
                       (201,),
                       optional_json={'message': f'Zone {zone} created'}
@@ -328,7 +328,7 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
             metadata_value
         ]
     }
-    r = _http_post(uri, payload, ctx)
+    r = _http_post(uri, ctx, payload)
     if _create_output(r, (201,)):
         sys.exit(0)
     sys.exit(1)
@@ -450,10 +450,10 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             'changetype': 'DELETE',
             'records': []
         }
-        if not _traverse_rrsets(uri, rrset, 'matching_rrset', ctx):
+        if not _traverse_rrsets(uri, ctx, rrset, 'matching_rrset'):
             click.echo(json.dumps({'message': f'{record_type} records in {name} already absent'}))
             sys.exit(0)
-        r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
+        r = _http_patch(uri, ctx, {'rrsets': [rrset]})
         msg = {'message': f'All {record_type} records for {name} removed'}
         if _create_output(r, (204,), optional_json=msg):
             sys.exit(0)
@@ -471,11 +471,11 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             }
         ]
     }
-    if not _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+    if not _traverse_rrsets(uri, ctx, rrset, 'is_content_present'):
         msg = {'message': f'{name} {record_type} {content} already absent'}
         click.echo(json.dumps(msg))
         sys.exit(0)
-    matching_rrsets = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
+    matching_rrsets = _traverse_rrsets(uri, ctx, rrset, 'matching_rrset')
     indizes_to_remove = []
     for index in range(len(matching_rrsets['records'])):
         if matching_rrsets['records'][index] == rrset['records'][0]:
@@ -484,7 +484,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     for index in indizes_to_remove:
         matching_rrsets['records'].pop(index)
     rrset['records'] = matching_rrsets['records']
-    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
+    r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} {record_type} {content} removed'}
     if _create_output(r, (204,), optional_json=msg):
         sys.exit(0)
@@ -556,7 +556,7 @@ def delete_zonemetadata(ctx, zone, metadata_key):
 @click.pass_context
 @click.argument('zone', type=click.STRING)
 @click.argument('cryptokey-id', type=click.STRING)
-def disable_cryptokey(zone, cryptokey_id, ctx):
+def disable_cryptokey(ctx, zone, cryptokey_id):
     """
     Disables the cryptokey for this zone
     """
@@ -566,7 +566,7 @@ def disable_cryptokey(zone, cryptokey_id, ctx):
         'id': cryptokey_id,
         'active': False,
     }
-    r = _http_patch(uri, payload, ctx)
+    r = _http_patch(uri, ctx, payload)
     if _create_output(r,
                       (204,),
                       optional_json={
@@ -630,12 +630,12 @@ def disable_record(
                 ]
             }
 
-    if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+    if _traverse_rrsets(uri, ctx, rrset, 'is_content_present'):
         msg = {'message': f'{name} IN {record_type} {content} already disabled'}
         click.echo(json.dumps(msg))
         sys.exit(0)
-    rrset['records'] = _traverse_rrsets(uri, rrset, 'merge_rrsets', ctx)
-    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
+    rrset['records'] = _traverse_rrsets(uri, ctx, rrset, 'merge_rrsets')
+    r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} IN {record_type} {content} disabled'}
     if _create_output(r, (204,), optional_json=msg):
         sys.exit(0)
@@ -646,7 +646,7 @@ def disable_record(
 @click.pass_context
 @click.argument('zone', type=click.STRING)
 @click.argument('cryptokey-id', type=click.STRING)
-def enable_cryptokey(zone, cryptokey_id, ctx):
+def enable_cryptokey(ctx, zone, cryptokey_id):
     """
     Enables the given cryptokey for this zone
     """
@@ -656,7 +656,7 @@ def enable_cryptokey(zone, cryptokey_id, ctx):
         'id': cryptokey_id,
         'active': True,
     }
-    r = _http_patch(uri, payload, ctx)
+    r = _http_patch(uri, ctx, payload)
     if _create_output(r,
                       (204,),
                       optional_json={'message': f'Enabled id {cryptokey_id} for zone {zone}'}):
@@ -716,10 +716,10 @@ def extend_record(
                 ]
             }
 
-    if _traverse_rrsets(uri, rrset, 'is_content_present', ctx):
+    if _traverse_rrsets(uri, ctx, rrset, 'is_content_present'):
         click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already present'}))
         sys.exit(0)
-    upstream_rrset = _traverse_rrsets(uri, rrset, 'matching_rrset', ctx)
+    upstream_rrset = _traverse_rrsets(uri, ctx, rrset, 'matching_rrset')
     if upstream_rrset:
         extra_records = [
             record for record
@@ -727,7 +727,7 @@ def extend_record(
             if record['content'] != rrset['records'][0]['content']
         ]
         rrset['records'].extend(extra_records)
-    r = _http_patch(uri, {'rrsets': [rrset]}, ctx)
+    r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} IN {record_type} {content} extended'}
     if _create_output(r, (204,), optional_json=msg):
         sys.exit(0)
@@ -819,7 +819,7 @@ def flush_cache(ctx, zone):
     """Flushes the cache of the DNS-Server"""
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
-    r = _http_put(uri, ctx, urlparams={'domain': zone})
+    r = _http_put(uri, ctx, params={'domain': zone})
     if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
@@ -991,7 +991,7 @@ def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
             metadata_value
         ]
     }
-    r = _http_put(uri, ctx, rrset=payload)
+    r = _http_put(uri, ctx, payload=payload)
     if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
@@ -1047,7 +1047,7 @@ def update_tsigkey(
         tsigkey['secret'] = secret
     if name:
         tsigkey['name'] = name
-    r = _http_put(uri, ctx, rrset=tsigkey)
+    r = _http_put(uri, ctx, payload=tsigkey)
     if _create_output(r, (200,),):
         sys.exit(0)
     sys.exit(1)
@@ -1117,18 +1117,18 @@ def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Res
         sys.exit(1)
 
 
-def _http_patch(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
+def _http_patch(uri: str, ctx: click.Context, payload: dict, ) -> requests.Response:
     try:
-        request = ctx.obj['session'].patch(uri, json=rrset)
+        request = ctx.obj['session'].patch(uri, json=payload)
         return request
     except requests.RequestException as e:
         click.echo(json.dumps({'error': f'Request error: {e}'}))
         sys.exit(1)
 
 
-def _http_post(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
+def _http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
     try:
-        request = ctx.obj['session'].post(uri, json=rrset)
+        request = ctx.obj['session'].post(uri, json=payload)
         return request
     except requests.RequestException as e:
         click.echo(json.dumps({'error': f'Request error: {e}'}))
@@ -1138,11 +1138,11 @@ def _http_post(uri: str, rrset: dict, ctx: click.Context) -> requests.Response:
 def _http_put(
         uri: str,
         ctx: click.Context,
-        urlparams: dict = None,
-        rrset: dict = None
+        params: dict = None,
+        payload: dict = None
 ) -> requests.Response:
     try:
-        request = ctx.obj['session'].put(uri, json=rrset, params=urlparams)
+        request = ctx.obj['session'].put(uri, json=payload, params=params)
         return request
     except requests.RequestException as e:
         click.echo(json.dumps({'error': f'Request error: {e}'}))
@@ -1184,12 +1184,13 @@ def _make_dnsname(name: str, zone: str) -> str:
 
 def _traverse_rrsets(
         uri: str,
+        ctx: click.Context,
         new_rrset: dict,
         query: Literal[
             'matching_rrset',
             'is_content_present',
             'merge_rrsets'],
-        ctx):
+        ):
     """Helper function to compare upstream and downstream rrsets / records"""
     zone_rrsets = _query_zone_rrsets(uri, ctx)
     if query == 'matching_rrset':
