@@ -95,7 +95,13 @@ def add_autoprimary(
               help='Sets the key to active immediately')
 @click.option('-p', '--publish', is_flag=True, default=False,
               help='Set the key to not published')
-@click.option('-s', '--secret', type=click.STRING, help='Manually set the dnssec private key')
+@click.option(
+    '-s',
+    '--secret',
+    default='',
+    type=click.STRING,
+    help='Manually set the dnssec private key'
+)
 @click.option('-b', '--bits', type=click.INT, help='Set the key size in bits, required for zsk')
 @click.option('--algorithm',
               type=click.Choice([
