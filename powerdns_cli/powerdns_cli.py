@@ -361,7 +361,7 @@ def delete_autoprimary(
 @cli.command()
 @click.pass_context
 @click.argument('zone', type=click.STRING)
-@click.argument('cryptokey-id', type=click.STRING)
+@click.argument('cryptokey-id', type=click.INT)
 def delete_cryptokey(ctx, zone, cryptokey_id):
     """
     Lists all currently configured cryptokeys for this zone
@@ -555,18 +555,18 @@ def delete_zonemetadata(ctx, zone, metadata_key):
 @cli.command()
 @click.pass_context
 @click.argument('zone', type=click.STRING)
-@click.argument('cryptokey-id', type=click.STRING)
+@click.argument('cryptokey-id', type=click.INT)
 def disable_cryptokey(ctx, zone, cryptokey_id):
     """
     Disables the cryptokey for this zone
     """
     zone = _make_canonical(zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     payload = {
         'id': cryptokey_id,
         'active': False,
     }
-    r = _http_patch(uri, ctx, payload)
+    r = _http_put(uri, ctx, payload)
     if _create_output(r,
                       (204,),
                       optional_json={
@@ -645,18 +645,18 @@ def disable_record(
 @cli.command()
 @click.pass_context
 @click.argument('zone', type=click.STRING)
-@click.argument('cryptokey-id', type=click.STRING)
+@click.argument('cryptokey-id', type=click.INT)
 def enable_cryptokey(ctx, zone, cryptokey_id):
     """
     Enables the given cryptokey for this zone
     """
     zone = _make_canonical(zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zone/{zone}/cryptokeys/{cryptokey_id}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     payload = {
         'id': cryptokey_id,
         'active': True,
     }
-    r = _http_patch(uri, ctx, payload)
+    r = _http_put(uri, ctx, payload)
     if _create_output(r,
                       (204,),
                       optional_json={'message': f'Enabled id {cryptokey_id} for zone {zone}'}):
@@ -991,7 +991,7 @@ def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
             metadata_value
         ]
     }
-    r = _http_put(uri, ctx, payload=payload)
+    r = _http_put(uri, ctx, payload)
     if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
@@ -1047,7 +1047,7 @@ def update_tsigkey(
         tsigkey['secret'] = secret
     if name:
         tsigkey['name'] = name
-    r = _http_put(uri, ctx, payload=tsigkey)
+    r = _http_put(uri, ctx, tsigkey)
     if _create_output(r, (200,),):
         sys.exit(0)
     sys.exit(1)
@@ -1138,8 +1138,8 @@ def _http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response
 def _http_put(
         uri: str,
         ctx: click.Context,
-        params: dict = None,
-        payload: dict = None
+        payload: dict = None,
+        params: dict = None
 ) -> requests.Response:
     try:
         request = ctx.obj['session'].put(uri, json=payload, params=params)

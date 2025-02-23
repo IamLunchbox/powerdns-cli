@@ -158,5 +158,5 @@ jobs:
         run: powerdns-cli export-cryptokey example.org 2
       - name: Enable cryptokey
         run: powerdns-cli enable-cryptokey example.org 2
-      - name: Enable cryptokey
+      - name: Disable cryptokey
         run: powerdns-cli disable-cryptokey example.org 2
