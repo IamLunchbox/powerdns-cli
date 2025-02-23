@@ -109,6 +109,7 @@ Implemented features are:
 - Accessing server configuration and statistics
 - Managing TSIG-Keys
 - Zonemetadata
+- Zonecryptokeys
 
 ## API-Spec coverage
 
@@ -120,6 +121,6 @@ Implemented features are:
 | servers       | :heavy_check_mark: | :heavy_check_mark: |
 | stats         | :heavy_check_mark: | :heavy_check_mark: |
 | tsigkey       | :heavy_check_mark: | :heavy_check_mark: |
-| zonecryptokey | :x:                | :heavy_check_mark: |
+| zonecryptokey | :heavy_check_mark: | :heavy_check_mark: |
 | zonemetadata  | :heavy_check_mark: | :heavy_check_mark: |
 | zones         | Partly             | :heavy_check_mark: |
