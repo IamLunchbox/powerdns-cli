@@ -951,6 +951,27 @@ def list_zones(ctx):
     'zone',
     type=click.STRING,
 )
+def notify_zone(ctx, zone):
+    """
+    Notify given zone to its slaves
+
+    Fails when zone kind is not Master or Slave, or master and slave are
+    disabled in the configuration. Only works for slave if renotify is on.
+    """
+    zone = _make_canonical(zone)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/notify"
+    r = ctx.obj['session'].put(uri)
+    if _create_output(r, (200,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+@click.argument(
+    'zone',
+    type=click.STRING,
+)
 def rectify_zone(ctx, zone):
     """
     Rectify a given zone

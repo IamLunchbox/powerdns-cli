@@ -38,10 +38,10 @@ jobs:
       - name: Build cli
         run: pip install .
 # Zone Management Tests
-      - name: Add native zone
-        run: powerdns-cli add-zone example.org 10.0.0.1 NATIVE
       - name: Add master zone
-        run: powerdns-cli add-zone example.com. 10.0.0.1 MASTER
+        run: powerdns-cli add-zone example.org 10.0.0.1 MASTER
+      - name: Add native zone
+        run: powerdns-cli add-zone example.com. 10.0.0.1 NATIVE
       - name: List zones
         run: powerdns-cli list-zones
       - name: Add duplicate native zone
@@ -54,6 +54,8 @@ jobs:
         run: powerdns-cli delete-zone -f example.com
       - name: Rectify Zone
         run: powerdns-cli rectify-zone example.org
+      - name: Notify Zone
+        run: powerdns-cli notify-zone example.org
 # Record Management Tests
       - name: Add Record
         run: powerdns-cli add-record add example.org A 10.0.0.1
