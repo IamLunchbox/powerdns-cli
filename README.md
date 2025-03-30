@@ -23,7 +23,7 @@ python3 powerdns-cli/powerdns_cli/powerdns_cli.py
 ```
 
 Please be advised, that the main branch, especially in alpha phase, might be
-an in an unstable phase. Once this project progresses to a beta or production-
+unstable. Once this project progresses to a beta or production-
 ready release you can expect the main branch to be stable, since changes will
 stay in different branches.
 
