@@ -113,14 +113,14 @@ Implemented features are:
 
 ## API-Spec coverage
 
-| Path          | Covered            | Planned            |
-|---------------|--------------------|--------------------|
-| autoprimaries | :heavy_check_mark: | :heavy_check_mark: |
-| config        | :heavy_check_mark: | :heavy_check_mark: |
-| search        | :heavy_check_mark: | :heavy_check_mark: |
-| servers       | :heavy_check_mark: | :heavy_check_mark: |
-| stats         | :heavy_check_mark: | :heavy_check_mark: |
-| tsigkey       | :heavy_check_mark: | :heavy_check_mark: |
-| zonecryptokey | :heavy_check_mark: | :heavy_check_mark: |
-| zonemetadata  | :heavy_check_mark: | :heavy_check_mark: |
-| zones         | Partly             | :heavy_check_mark: |
+| Path          | Covered            |
+|---------------|--------------------|
+| autoprimaries | :heavy_check_mark: |
+| config        | :heavy_check_mark: |
+| search        | :heavy_check_mark: |
+| servers       | :heavy_check_mark: |
+| stats         | :heavy_check_mark: |
+| tsigkey       | :heavy_check_mark: |
+| zonecryptokey | :heavy_check_mark: |
+| zonemetadata  | :heavy_check_mark: |
+| zones         | :heavy_check_mark: |
