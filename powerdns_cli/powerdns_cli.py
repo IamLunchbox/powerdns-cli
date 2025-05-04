@@ -68,7 +68,7 @@ def add_autoprimary(
     account,
 ):
     """
-    Adds an autoprimary upstream dns server
+    Adds an autoprimary upstream DNS server.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     payload = {
@@ -94,7 +94,7 @@ def add_autoprimary(
 @click.option('-a', '--active', is_flag=True, default=False,
               help='Sets the key to active immediately')
 @click.option('-p', '--publish', is_flag=True, default=False,
-              help='Set the key to not published')
+              help='Sets the key to published')
 @click.option(
     '-s',
     '--secret',
@@ -125,7 +125,7 @@ def add_cryptokey(
     algorithm
 ):
     """
-    Adds a cryptokey to your zone
+    Adds a cryptokey to the zone. Is disabled and not published by default
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
@@ -184,13 +184,6 @@ def add_record(
     """
     Adds a new DNS record of different types. Use @ if you want to enter a
     record for the top level.
-
-    A record:
-    powerdns-cli add_single_record test01 exmaple.org A 10.0.0.1
-    MX record:
-    powerdns-cli add_single_record mail example.org MX "10 10.0.0.1"
-    CNAME record:
-    powerdns-cli add_single_record test02 example.org CNAME test01.example.org
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
@@ -239,7 +232,7 @@ def add_tsigkey(
     secret,
 ):
     """
-    Adds a TSIGKey to the server to sign DNS messages
+    Adds a TSIGKey to the server to sign DNS transfer messages.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
     payload = {
@@ -272,9 +265,8 @@ def add_tsigkey(
 @click.pass_context
 def add_zone(ctx, zone, nameservers, zonetype, master):
     """
-    Adds a new zone
-
-    Can create a master or native zone, slaves zones are disabled
+    Adds a new zone.
+    Can create a master or native zone, slaves zones are disabled.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     zone = _make_canonical(zone)
@@ -315,10 +307,7 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
 def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
     """
     Appends metadata to a zone. Metadata is not arbitrary and must conform
-    to the expected content from the powerdns configuration
-
-    Example:
-    powerdns-cli add-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5300
+    to the expected content from the PowerDNS configuration.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
@@ -344,7 +333,7 @@ def delete_autoprimary(
     nameserver,
 ):
     """
-    Deletes an autoprimary from the dns server configuration
+    Deletes an autoprimary from the dns server configuration.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
 
@@ -364,7 +353,7 @@ def delete_autoprimary(
 @click.argument('cryptokey-id', type=click.INT)
 def delete_cryptokey(ctx, zone, cryptokey_id):
     """
-    Lists all currently configured cryptokeys for this zone
+    Lists all currently configured cryptokeys.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
@@ -386,7 +375,7 @@ def delete_tsigkey(
     keyid
 ):
     """
-    Delete the TSIG-Key with the given server-side id
+    Delete the TSIG-Key with the given server-side id.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
 
@@ -432,12 +421,10 @@ def delete_tsigkey(
 @click.pass_context
 def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     """
-    Deletes the DNS record of the given types and content
-
-    If all is specified, all entries of given type and name will be removed
-
-    Example:
-    powerdns-cli delete_record mail example.org A 10.0.0.1
+    Deletes the DNS record of the given types and content.
+    Will precisely match the RRSET content.
+    When there are two RRSETs, only the specified one will be removed.
+    unless all is specified.
     """
     zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
@@ -504,7 +491,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
 @click.pass_context
 def delete_zone(ctx, zone, force):
     """
-    Deletes a Zone
+    Deletes a Zone.
     """
     zone = _make_canonical(zone)
     upstream_zones = _query_zones(ctx)
@@ -535,10 +522,7 @@ def delete_zone(ctx, zone, force):
 @click.pass_context
 def delete_zonemetadata(ctx, zone, metadata_key):
     """
-    Deletes a metadata entry for the given zone completely
-
-    Example:
-    powerdns-cli delete-zonemetadata example.org ALSO-NOTIFY
+    Deletes a metadata entry for the given zone.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
@@ -558,7 +542,7 @@ def delete_zonemetadata(ctx, zone, metadata_key):
 @click.argument('cryptokey-id', type=click.INT)
 def disable_cryptokey(ctx, zone, cryptokey_id):
     """
-    Disables the cryptokey for this zone
+    Disables the cryptokey for this zone.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
@@ -608,10 +592,8 @@ def disable_record(
     ttl,
 ):
     """
-    Disable an existing DNS record.
-    Use @ if you want to enter a record for the top level
-
-    powerdns-cli disable_record test01 example.org A 10.0.0.1
+    Disables an existing DNS record.
+    Use @ if you want to enter a record for the top level.
     """
     zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
@@ -648,7 +630,7 @@ def disable_record(
 @click.argument('cryptokey-id', type=click.INT)
 def enable_cryptokey(ctx, zone, cryptokey_id):
     """
-    Enables the given cryptokey for this zone
+    Enables an already existing cryptokey.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
@@ -696,8 +678,8 @@ def extend_record(
     ttl,
 ):
     """
-    Extends an existing new recordset.
-    Will create a new record if it did not exist beforehand.
+    Extends an existing RRSET.
+    Will create a new RRSET, if it did not exist beforehand.
     """
     zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
@@ -740,7 +722,7 @@ def extend_record(
 @click.argument('cryptokey-id', type=click.STRING)
 def export_cryptokey(ctx, zone, cryptokey_id):
     """
-    Exports the cryptokey including the private key for the given zone
+    Exports the cryptokey with the given id including the private key.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
@@ -755,7 +737,7 @@ def export_cryptokey(ctx, zone, cryptokey_id):
 @click.pass_context
 def export_server(ctx, serverid):
     """
-    List DNS-Servers
+    Exports the base data of the given serverid.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/{serverid}"
     r = _http_get(uri, ctx)
@@ -772,7 +754,7 @@ def export_server(ctx, serverid):
 )
 def export_tsigkey(ctx, keyid):
     """
-    Exports the tsigkey with the given id
+    Exports a tsigkey with the given id.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
     r = _http_get(uri, ctx)
@@ -796,7 +778,7 @@ def export_tsigkey(ctx, keyid):
 )
 def export_zone(ctx, zone, bind):
     """
-    Export the whole zone configuration
+    Export the whole zone configuration, either as JSON or BIND.
     """
     zone = _make_canonical(zone)
     if bind:
@@ -816,7 +798,7 @@ def export_zone(ctx, zone, bind):
 @click.pass_context
 @click.argument('zone', type=click.STRING)
 def flush_cache(ctx, zone):
-    """Flushes the cache of the DNS-Server"""
+    """Flushes the cache of the given zone."""
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
     r = _http_put(uri, ctx, params={'domain': zone})
@@ -829,7 +811,7 @@ def flush_cache(ctx, zone):
 @click.pass_context
 def list_autoprimaries(ctx):
     """
-    Lists all currently configured autoprimary servers
+    Lists all currently configured autoprimary servers.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     r = _http_get(uri, ctx)
@@ -842,7 +824,7 @@ def list_autoprimaries(ctx):
 @click.pass_context
 def list_config(ctx):
     """
-    Query PDNS Config
+    Query the configuration of this PowerDNS instance.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
     r = _http_get(uri, ctx)
@@ -856,7 +838,7 @@ def list_config(ctx):
 @click.argument('zone', type=click.STRING)
 def list_cryptokeys(ctx, zone):
     """
-    Lists all currently configured cryptokeys for this zone
+    Lists all currently configured cryptokeys for this zone. Does not display secrets.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
@@ -896,7 +878,7 @@ def list_servers(ctx):
 @click.pass_context
 def list_stats(ctx):
     """
-    Query DNS Stats
+    Display operational statistics of the dns server.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
     r = _http_get(uri, ctx)
@@ -916,10 +898,7 @@ def list_stats(ctx):
 @click.pass_context
 def list_zonemetadata(ctx, zone, limit):
     """
-    Lists metadata for a given zone. Can optionally be limited to a single metadata key.
-
-    Example:
-    powerdns-cli list-zonemetadata -l "IFXR" example.org
+    Lists the metadata for a given zone. Can optionally be limited to a single metadata key.
     """
     zone = _make_canonical(zone)
     if limit:
@@ -936,7 +915,7 @@ def list_zonemetadata(ctx, zone, limit):
 @click.pass_context
 def list_zones(ctx):
     """
-    Get all zones of dns server
+    List all configured zones on this dns server.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     r = _http_get(uri, ctx)
@@ -953,10 +932,10 @@ def list_zones(ctx):
 )
 def notify_zone(ctx, zone):
     """
-    Notify given zone to its slaves
+    Let the server notify its slaves of changes to the given zone.
 
-    Fails when zone kind is not Master or Slave, or master and slave are
-    disabled in the configuration. Only works for slave if renotify is on.
+    Fails when the zone kind is not master or slave, or master and slave are
+    disabled in the configuration. Only works for slave if renotify is enabled.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/notify"
@@ -974,9 +953,9 @@ def notify_zone(ctx, zone):
 )
 def rectify_zone(ctx, zone):
     """
-    Rectify a given zone
+    Rectifies a given zone.
 
-    Will fail on slave zones and zones without dnssec
+    Will fail on slave zones and zones without dnssec.
     """
     zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
@@ -1087,7 +1066,7 @@ def _confirm(message: str, force: bool) -> None:
 
 def _create_output(
         content: requests.Response,
-        exp_status_code: tuple,
+        exp_status_code: tuple[int, ...],
         output_text: bool = None,
         optional_json: dict = None) -> bool:
     """Helper function to print a message in the appropriate format.
