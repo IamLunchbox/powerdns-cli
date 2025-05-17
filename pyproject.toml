@@ -16,7 +16,7 @@ classifiers = [
 version = "0.0.14"
 dependencies = [
     "requests==2.32.3",
-    "click==8.1.8"
+    "click==8.2.0"
 ]
 description="PowerDNS Authoritative API client"
 
