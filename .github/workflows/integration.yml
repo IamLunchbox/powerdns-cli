@@ -91,7 +91,7 @@ jobs:
         run: powerdns-cli list-stats
 # Search Tests
       - name: Search
-        run: powerdns-cli search --max 5 "test.example.org"
+        run: powerdns-cli search-rrsets --max 5 "test.example.org"
 # TSIGKey Tests
       - name: Add TSIGKey with defaults
         run: powerdns-cli add-tsigkey test1 hmac-md5
