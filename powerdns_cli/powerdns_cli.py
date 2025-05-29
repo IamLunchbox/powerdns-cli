@@ -3,14 +3,34 @@
 powerdns-cli: Manage PowerDNS Zones/Records
 """
 
-# pylint: disable=too-many-lines
 
 import json
 import sys
-from typing import Literal
+import re
 
 import click
 import requests
+
+
+class ZoneType(click.ParamType):
+    """Conversion class to ensure, that a provided """
+    name = 'zone'
+
+    def convert(self, value, param, ctx):
+        try:
+            if not re.match(
+                    r'((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?',
+                    value,
+                    re.IGNORECASE):
+                raise click.BadParameter('You did not provide a valid zone name.')
+            if not value.endswith('.'):
+                value += '.'
+            return value
+        except (AttributeError, TypeError):
+            self.fail(f"{value!r} could not be converted to a canonical zone", param, ctx)
+
+
+Zone = ZoneType()
 
 
 # create click command group with 3 global options
@@ -89,7 +109,7 @@ def add_autoprimary(
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument('keytype', type=click.Choice(['ksk', 'csk', 'zsk']))
 @click.option('-a', '--active', is_flag=True, default=False,
               help='Sets the key to active immediately')
@@ -127,7 +147,6 @@ def add_cryptokey(
     """
     Adds a cryptokey to the zone. Is disabled and not published by default
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
     payload = {
         'active': active,
@@ -153,7 +172,7 @@ def add_cryptokey(
 # Add record
 @cli.command()
 @click.argument('name', type=click.STRING)
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument(
     'record-type',
     type=click.Choice(
@@ -185,7 +204,6 @@ def add_record(
     Adds a new DNS record of different types. Use @ if you want to enter a
     record for the top level.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     name = _make_dnsname(name, zone)
     rrset = {
@@ -200,7 +218,7 @@ def add_record(
             }
         ],
     }
-    if _traverse_rrsets(uri, ctx, rrset, 'is_content_present',):
+    if _is_content_present(uri, ctx, rrset):
         click.echo(json.dumps({'message': f'{name} {record_type} {content} already present'}))
         sys.exit(0)
 
@@ -249,8 +267,8 @@ def add_tsigkey(
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
-@click.argument('nameservers', type=click.STRING)
+@click.argument('zone', type=Zone)
+@click.argument('nameservers', nargs=-1, type=click.STRING)
 @click.argument(
     'zonetype',
     type=click.Choice(['MASTER', 'NATIVE'], case_sensitive=False),
@@ -266,16 +284,18 @@ def add_tsigkey(
 def add_zone(ctx, zone, nameservers, zonetype, master):
     """
     Adds a new zone.
-    Can create a master or native zone, slaves zones are disabled.
+    Can create a master or native zones, slaves zones are disabled.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
-    zone = _make_canonical(zone)
+    canonical_nameservers = [
+        server if server.endswith('.') else server + '.' for server in nameservers
+    ]
     if zonetype.upper() in ('MASTER', 'NATIVE'):
         payload = {
             'name': zone,
             'kind': zonetype.capitalize(),
             'masters': master.split(',') if master else [],
-            'nameservers': [_make_canonical(server) for server in nameservers.split(',')],
+            'nameservers': canonical_nameservers,
         }
     else:
         click.echo(json.dumps({'error': 'Slave entries are not supported right now'}))
@@ -294,7 +314,7 @@ def add_zone(ctx, zone, nameservers, zonetype, master):
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument(
     'metadata-key',
     type=click.STRING
@@ -309,7 +329,6 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
     Appends metadata to a zone. Metadata is not arbitrary and must conform
     to the expected content from the PowerDNS configuration.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
     payload = {
         'kind': metadata_key,
@@ -349,13 +368,12 @@ def delete_autoprimary(
 
 @cli.command()
 @click.pass_context
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument('cryptokey-id', type=click.INT)
 def delete_cryptokey(ctx, zone, cryptokey_id):
     """
     Lists all currently configured cryptokeys.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     r = _http_delete(uri, ctx)
     if _create_output(r,
@@ -426,7 +444,6 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     When there are two RRSETs, only the specified one will be removed.
     unless all is specified.
     """
-    zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     if delete_all:
@@ -437,7 +454,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             'changetype': 'DELETE',
             'records': []
         }
-        if not _traverse_rrsets(uri, ctx, rrset, 'matching_rrset'):
+        if not _is_matching_rrset_present(uri, ctx, rrset):
             click.echo(json.dumps({'message': f'{record_type} records in {name} already absent'}))
             sys.exit(0)
         r = _http_patch(uri, ctx, {'rrsets': [rrset]})
@@ -458,11 +475,11 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
             }
         ]
     }
-    if not _traverse_rrsets(uri, ctx, rrset, 'is_content_present'):
+    if not _is_content_present(uri, ctx, rrset):
         msg = {'message': f'{name} {record_type} {content} already absent'}
         click.echo(json.dumps(msg))
         sys.exit(0)
-    matching_rrsets = _traverse_rrsets(uri, ctx, rrset, 'matching_rrset')
+    matching_rrsets = _is_matching_rrset_present(uri, ctx, rrset)
     indizes_to_remove = []
     for index in range(len(matching_rrsets['records'])):
         if matching_rrsets['records'][index] == rrset['records'][0]:
@@ -479,7 +496,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.option(
     '-f',
     '--force',
@@ -493,7 +510,6 @@ def delete_zone(ctx, zone, force):
     """
     Deletes a Zone.
     """
-    zone = _make_canonical(zone)
     upstream_zones = _query_zones(ctx)
     if zone not in [single_zone['name'] for single_zone in upstream_zones]:
         click.echo(json.dumps({'message': f'Zone {zone} already absent'}))
@@ -514,7 +530,7 @@ def delete_zone(ctx, zone, force):
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument(
     'metadata-key',
     type=click.STRING
@@ -524,7 +540,6 @@ def delete_zonemetadata(ctx, zone, metadata_key):
     """
     Deletes a metadata entry for the given zone.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
     r = _http_delete(uri, ctx)
     if _create_output(
@@ -538,13 +553,12 @@ def delete_zonemetadata(ctx, zone, metadata_key):
 
 @cli.command()
 @click.pass_context
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument('cryptokey-id', type=click.INT)
 def disable_cryptokey(ctx, zone, cryptokey_id):
     """
     Disables the cryptokey for this zone.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     payload = {
         'id': cryptokey_id,
@@ -563,7 +577,7 @@ def disable_cryptokey(ctx, zone, cryptokey_id):
 # Disable record
 @cli.command()
 @click.argument('name', type=click.STRING)
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument(
     'record-type',
     type=click.Choice(
@@ -595,7 +609,6 @@ def disable_record(
     Disables an existing DNS record.
     Use @ if you want to enter a record for the top level.
     """
-    zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
@@ -612,11 +625,11 @@ def disable_record(
                 ]
             }
 
-    if _traverse_rrsets(uri, ctx, rrset, 'is_content_present'):
+    if _is_content_present(uri, ctx, rrset):
         msg = {'message': f'{name} IN {record_type} {content} already disabled'}
         click.echo(json.dumps(msg))
         sys.exit(0)
-    rrset['records'] = _traverse_rrsets(uri, ctx, rrset, 'merge_rrsets')
+    rrset['records'] = _merge_rrsets(uri, ctx, rrset)
     r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} IN {record_type} {content} disabled'}
     if _create_output(r, (204,), optional_json=msg):
@@ -626,13 +639,12 @@ def disable_record(
 
 @cli.command()
 @click.pass_context
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument('cryptokey-id', type=click.INT)
 def enable_cryptokey(ctx, zone, cryptokey_id):
     """
     Enables an already existing cryptokey.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     payload = {
         'id': cryptokey_id,
@@ -649,7 +661,7 @@ def enable_cryptokey(ctx, zone, cryptokey_id):
 # Extend record
 @cli.command()
 @click.argument('name', type=click.STRING)
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument(
     'record-type',
     type=click.Choice(
@@ -681,7 +693,6 @@ def extend_record(
     Extends an existing RRSET.
     Will create a new RRSET, if it did not exist beforehand.
     """
-    zone = _make_canonical(zone)
     name = _make_dnsname(name, zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
@@ -698,10 +709,10 @@ def extend_record(
                 ]
             }
 
-    if _traverse_rrsets(uri, ctx, rrset, 'is_content_present'):
+    if _is_content_present(uri, ctx, rrset):
         click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already present'}))
         sys.exit(0)
-    upstream_rrset = _traverse_rrsets(uri, ctx, rrset, 'matching_rrset')
+    upstream_rrset = _is_matching_rrset_present(uri, ctx, rrset)
     if upstream_rrset:
         extra_records = [
             record for record
@@ -718,13 +729,12 @@ def extend_record(
 
 @cli.command()
 @click.pass_context
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.argument('cryptokey-id', type=click.STRING)
 def export_cryptokey(ctx, zone, cryptokey_id):
     """
     Exports the cryptokey with the given id including the private key.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
@@ -780,7 +790,6 @@ def export_zone(ctx, zone, bind):
     """
     Export the whole zone configuration, either as JSON or BIND.
     """
-    zone = _make_canonical(zone)
     if bind:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
         r = _http_get(uri, ctx)
@@ -796,10 +805,9 @@ def export_zone(ctx, zone, bind):
 
 @cli.command()
 @click.pass_context
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 def flush_cache(ctx, zone):
     """Flushes the cache of the given zone."""
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
     r = _http_put(uri, ctx, params={'domain': zone})
     if _create_output(r, (200,)):
@@ -835,12 +843,11 @@ def list_config(ctx):
 
 @cli.command()
 @click.pass_context
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 def list_cryptokeys(ctx, zone):
     """
     Lists all currently configured cryptokeys for this zone. Does not display secrets.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
@@ -888,7 +895,7 @@ def list_stats(ctx):
 
 
 @cli.command()
-@click.argument('zone', type=click.STRING)
+@click.argument('zone', type=Zone)
 @click.option(
     '-l',
     '--limit',
@@ -900,7 +907,6 @@ def list_zonemetadata(ctx, zone, limit):
     """
     Lists the metadata for a given zone. Can optionally be limited to a single metadata key.
     """
-    zone = _make_canonical(zone)
     if limit:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{limit}"
     else:
@@ -937,7 +943,6 @@ def notify_zone(ctx, zone):
     Fails when the zone kind is not master or slave, or master and slave are
     disabled in the configuration. Only works for slave if renotify is enabled.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/notify"
     r = ctx.obj['session'].put(uri)
     if _create_output(r, (200,)):
@@ -957,41 +962,8 @@ def rectify_zone(ctx, zone):
 
     Will fail on slave zones and zones without dnssec.
     """
-    zone = _make_canonical(zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
     r = ctx.obj['session'].put(uri)
-    if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
-
-
-@cli.command()
-@click.argument('zone', type=click.STRING)
-@click.argument(
-    'metadata-key',
-    type=click.STRING
-)
-@click.argument(
-    'metadata-value',
-    type=click.STRING
-)
-@click.pass_context
-def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
-    """
-    Replaces a metadataset of a given zone
-
-    Example:
-    powerdns-cli replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5300
-    """
-    zone = _make_canonical(zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
-    payload = {
-        'kind': metadata_key,
-        'metadata': [
-            metadata_value
-        ]
-    }
-    r = _http_put(uri, ctx, payload)
     if _create_output(r, (200,)):
         sys.exit(0)
     sys.exit(1)
@@ -1053,6 +1025,37 @@ def update_tsigkey(
     sys.exit(1)
 
 
+@cli.command()
+@click.argument('zone', type=Zone)
+@click.argument(
+    'metadata-key',
+    type=click.STRING
+)
+@click.argument(
+    'metadata-value',
+    type=click.STRING
+)
+@click.pass_context
+def update_zonemetadata(ctx, zone, metadata_key, metadata_value):
+    """
+    Replaces a metadataset of a given zone
+
+    Example:
+    powerdns-cli replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5300
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
+    payload = {
+        'kind': metadata_key,
+        'metadata': [
+            metadata_value
+        ]
+    }
+    r = _http_put(uri, ctx, payload)
+    if _create_output(r, (200,)):
+        sys.exit(0)
+    sys.exit(1)
+
+
 def _confirm(message: str, force: bool) -> None:
     """Confirmation function to keep users from doing potentially dangerous actions.
     Uses the force flag to determine if a manual confirmation is required."""
@@ -1082,8 +1085,7 @@ def _create_output(
     if content.status_code in exp_status_code:
         click.echo(json.dumps(content.json()))
         return True
-    if (content.headers.get('Content-Type') and
-            content.headers['Content-Type'].startswith('text/plain')):
+    if content.headers.get('Content-Type', '').startswith('text/plain'):
         click.echo(json.dumps({'error': content.text}))
         return False
     # Catch unexpected empty responses
@@ -1158,20 +1160,13 @@ def _query_zones(ctx) -> list:
     return r.json()
 
 
-def _query_zone_rrsets(uri: str, ctx) -> list:
+def _query_zone_rrsets(uri: str, ctx) -> list[dict]:
     """Queries the configuration of the given zone"""
     r = _http_get(uri, ctx)
     if r.status_code != 200:
         click.echo(json.dumps({'error': r.json()}))
         sys.exit(1)
     return r.json()['rrsets']
-
-
-def _make_canonical(zone: str) -> str:
-    """Returns the zone in caonical format with a trailing dot"""
-    if not zone.endswith('.'):
-        zone += '.'
-    return zone
 
 
 def _make_dnsname(name: str, zone: str) -> str:
@@ -1182,40 +1177,39 @@ def _make_dnsname(name: str, zone: str) -> str:
     return f'{name}.{zone}'
 
 
-def _traverse_rrsets(
-        uri: str,
-        ctx: click.Context,
-        new_rrset: dict,
-        query: Literal[
-            'matching_rrset',
-            'is_content_present',
-            'merge_rrsets'],
-        ):
-    """Helper function to compare upstream and downstream rrsets / records"""
+def _is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) -> dict:
     zone_rrsets = _query_zone_rrsets(uri, ctx)
-    if query == 'matching_rrset':
-        for upstream_rrset in zone_rrsets:
-            if all(upstream_rrset[key] == new_rrset[key] for key in ('name', 'type')):
-                return upstream_rrset
-        return {}
-    if query == 'is_content_present':
-        for rrset in zone_rrsets:
-            # go through all the records to find matching rrset
-            if (
-                    all(rrset[key] == new_rrset[key] for key in ('name', 'type'))
-                    and
-                    all(entry in rrset['records'] for entry in new_rrset['records'])
-            ):
-                return True
-        return False
-    if query == 'merge_rrsets':
-        merged_rrsets = new_rrset['records'].copy()
-        for upstream_rrset in zone_rrsets:
-            if all(upstream_rrset[key] == new_rrset[key] for key in ('name', 'type')):
-                merged_rrsets.extend([record for record in upstream_rrset['records']
-                                      if record['content'] != new_rrset['records'][0]['content']])
-        return merged_rrsets
-    return None
+    for upstream_rrset in zone_rrsets:
+        if all(upstream_rrset[key] == new_rrset[key] for key in
+               ('name', 'type')):
+            return upstream_rrset
+    return {}
+
+
+def _is_content_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
+    zone_rrsets = _query_zone_rrsets(uri, ctx)
+    for rrset in zone_rrsets:
+        # go through all the records to find matching rrset
+        if (
+                all(rrset[key] == new_rrset[key] for key in ('name', 'type'))
+                and
+                all(entry in rrset['records'] for entry in new_rrset['records'])
+        ):
+            return True
+    return False
+
+
+def _merge_rrsets(uri: str, ctx: click.Context, new_rrset: dict) -> list:
+    zone_rrsets = _query_zone_rrsets(uri, ctx)
+    merged_rrsets = new_rrset['records'].copy()
+    for upstream_rrset in zone_rrsets:
+        if all(upstream_rrset[key] == new_rrset[key] for key in
+               ('name', 'type')):
+            merged_rrsets.extend([record for record in upstream_rrset['records']
+                                  if
+                                  record['content'] != new_rrset['records'][0][
+                                      'content']])
+    return merged_rrsets
 
 
 def main():
