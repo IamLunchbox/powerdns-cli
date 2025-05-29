@@ -126,7 +126,7 @@ jobs:
       - name: List single zonemetadata value
         run: powerdns-cli list-zonemetadata -l "ALSO-NOTIFY" example.org
       - name: Replace zonemetadata
-        run: powerdns-cli replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
+        run: powerdns-cli update-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: Delete zonemetadata
         run: powerdns-cli delete-zonemetadata example.org ALSO-NOTIFY
 # Autoprimary Tests
