@@ -1001,8 +1001,8 @@ def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
 @click.argument('search-string', metavar='STRING')
 @click.option('--max', 'max_output', help='Number of items to output', default=5, type=click.INT,)
 @click.pass_context
-def search(ctx, search_string, max_output):
-    """Do fulltext search in dns database"""
+def search_rrsets(ctx, search_string, max_output):
+    """Do fulltext search in the rrset database"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/search-data"
     r = _http_get(
         uri,
