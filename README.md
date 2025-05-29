@@ -95,7 +95,8 @@ won't be covered by the integration tests.
 ## Todos
 The following things are on my roadmap before a beta release:
 1. Allow updating TTLs
-2. Version tests in tox
+2. Allow updating zone data, e.g. masters
+3. Version tests in tox
 
 After the beta is done, i plan to port the code to implement it in ansible.
 1. PowerDNS ansible module which has similar features to this one
