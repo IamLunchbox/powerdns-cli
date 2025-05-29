@@ -1,6 +1,5 @@
 name: Integration test
 on:
-  pull_request:
   push:
   workflow_call:
 
