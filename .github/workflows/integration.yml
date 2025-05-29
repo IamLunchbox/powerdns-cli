@@ -38,7 +38,7 @@ jobs:
         run: pip install .
 # Zone Management Tests
       - name: Add master zone
-        run: powerdns-cli add-zone example.org 10.0.0.1 MASTER
+        run: powerdns-cli add-zone example.org 10.0.0.1 192.168.0.1 MASTER
       - name: Add native zone
         run: powerdns-cli add-zone example.com. 10.0.0.1 NATIVE
       - name: List zones
