@@ -94,14 +94,12 @@ won't be covered by the integration tests.
 
 ## Todos
 The following things are on my roadmap before a beta release:
-1. Finish feature implementations and their integration tests
-2. Rewrite the action keywords to simplify interaction (as in docker run, docker exec...) 
-3. Allow updating TTLs
-4. Version tests in tox
+1. Allow updating TTLs
+2. Version tests in tox
 
 After the beta is done, i plan to port the code to implement it in ansible.
 1. PowerDNS ansible module which has similar features to this one
-2. unit-tests - possibly in conjunction with 4
+2. unit-tests
 
 Implemented features are:
 - Everything around zone manipulation (creating zones, records and so forth)
