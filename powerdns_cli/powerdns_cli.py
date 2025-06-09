@@ -268,7 +268,6 @@ def add_tsigkey(
 
 @cli.command()
 @click.argument('zone', type=Zone)
-@click.argument('nameservers', nargs=-1, type=click.STRING)
 @click.argument(
     'zonetype',
     type=click.Choice(['MASTER', 'NATIVE'], case_sensitive=False),
@@ -281,21 +280,17 @@ def add_tsigkey(
     default=None,
 )
 @click.pass_context
-def add_zone(ctx, zone, nameservers, zonetype, master):
+def add_zone(ctx, zone, zonetype, master):
     """
     Adds a new zone.
     Can create a master or native zones, slaves zones are disabled.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
-    canonical_nameservers = [
-        server if server.endswith('.') else server + '.' for server in nameservers
-    ]
     if zonetype.upper() in ('MASTER', 'NATIVE'):
         payload = {
             'name': zone,
             'kind': zonetype.capitalize(),
             'masters': master.split(',') if master else [],
-            'nameservers': canonical_nameservers,
         }
     else:
         click.echo(json.dumps({'error': 'Slave entries are not supported right now'}))
