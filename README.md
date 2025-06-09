@@ -4,7 +4,12 @@
 
 # powerdns-cli
 PowerDNS-CLI is your (scriptable) interface to interact with the
-[PowerDNS Authoritative Nameserver](https://doc.powerdns.com/authoritative/).
+[PowerDNS Authoritative Nameserver](https://doc.powerdns.com/authoritative/). PowerDNS itself does only offer an 
+API to interact with remotely, its `pdns_util` does only work on the PowerDNS-Host
+itself, not remotely from another machine.
+
+Other interaction methods are web interface designed, by hardly scriptable (to 
+my knowledge).
 
 This project is currently in alpha phase and will soon progress to a beta stage.
 Beta release will be done as soon as integration tests and python version tests
@@ -75,12 +80,9 @@ Therefore, I had to go for compromises to keep `powerdns-cli` clutter-free.
 
 But you should possibly want to know about these caveats:
 1. It is not possible to simply create a record with several entries. Instead, you have to use `extend-record` several times.
-2. If you want to remove a single entry from a multi-entry record, use `delete-record`. The other records are kept.
-3. If you want to get rid of all the records all at once, you may pass `--all/-a` to `delete-record`.
-4. There are no guardrails for removing records from a zone, only for removing a zone altogether.
-5. By default, each record is enabled. You can disable a record, but enabling it requires re-adding it.
-6. Disabled records don't appear in BIND-exports (hidden by PowerDNS).
-7. The default TTL is set to 3600. You can (currently) not change the TTL after you set it in a rrset, you must recreate the record.
+2. There are no guardrails for removing records from a zone, only for removing a zone altogether.
+3. By default, each record is enabled. You can disable a record, but enabling it requires re-adding it, since enabling would need the same information anyways.
+4. The default TTL is set to 86400. The ttl is set per name:zone:type pair.
 
 ## Version Support
 All the PowerDNS authoritative nameserver versions, which receive
@@ -94,9 +96,8 @@ won't be covered by the integration tests.
 
 ## Todos
 The following things are on my roadmap before a beta release:
-1. Allow updating TTLs
-2. Allow updating zone data, e.g. masters
-3. Version tests in tox
+1. Idempotence for zonemetadata-tasks, right now only records are idempotent
+2. Version tests in tox
 
 After the beta is done, i plan to port the code to implement it in ansible.
 1. PowerDNS ansible module which has similar features to this one

@@ -5,7 +5,6 @@ powerdns-cli: Manage PowerDNS Zones/Records
 
 
 import json
-import sys
 import re
 
 import click
@@ -104,8 +103,8 @@ def add_autoprimary(
             (201,),
             optional_json={'message': f'Autoprimary {ip} with nameserver {nameserver} added'}
     ):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -165,8 +164,8 @@ def add_cryptokey(
             r,
             (201,),
     ):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 # Add record
@@ -190,7 +189,7 @@ def add_cryptokey(
     ),
 )
 @click.argument('content', type=click.STRING)
-@click.option('--ttl', default=3600, type=click.INT, help='Set default time to live')
+@click.option('--ttl', default=86400, type=click.INT, help='Set default time to live')
 @click.pass_context
 def add_record(
     ctx,
@@ -220,13 +219,13 @@ def add_record(
     }
     if _is_content_present(uri, ctx, rrset):
         click.echo(json.dumps({'message': f'{name} {record_type} {content} already present'}))
-        sys.exit(0)
+        raise SystemExit(0)
 
     r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     if _create_output(r, (204,),
                       optional_json={'message': f'{name} {record_type} {content} created'}):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 # Add Tsigkey
@@ -262,8 +261,8 @@ def add_tsigkey(
 
     r = _http_post(uri, ctx, payload)
     if _create_output(r, (201,),):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -294,18 +293,18 @@ def add_zone(ctx, zone, zonetype, master):
         }
     else:
         click.echo(json.dumps({'error': 'Slave entries are not supported right now'}))
-        sys.exit(1)
+        raise SystemExit(1)
     current_zones = _query_zones(ctx)
     if [z for z in current_zones if z['name'] == zone]:
         click.echo(json.dumps({'message': f'Zone {zone} already present'}))
-        sys.exit(0)
+        raise SystemExit(0)
     r = _http_post(uri, ctx, payload)
     if _create_output(r,
                       (201,),
                       optional_json={'message': f'Zone {zone} created'}
                       ):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -321,7 +320,7 @@ def add_zone(ctx, zone, zonetype, master):
 @click.pass_context
 def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
     """
-    Appends metadata to a zone. Metadata is not arbitrary and must conform
+    Adds metadata to a zone. Metadata is not arbitrary and must conform
     to the expected content from the PowerDNS configuration.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
@@ -333,8 +332,8 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
     }
     r = _http_post(uri, ctx, payload)
     if _create_output(r, (201,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -357,8 +356,8 @@ def delete_autoprimary(
             (204,),
             optional_json={'message': f'Autoprimary {ip} with nameserver {nameserver} deleted'}
     ):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -376,8 +375,8 @@ def delete_cryptokey(ctx, zone, cryptokey_id):
                       optional_json={
                           'message': f'Deleted id {cryptokey_id} for zone {zone}'}
                       ):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -394,8 +393,8 @@ def delete_tsigkey(
 
     r = _http_delete(uri, ctx)
     if _create_output(r, (204,), optional_json={'message': f'Deleted tsigkey with id {keyid}'}):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -421,12 +420,12 @@ def delete_tsigkey(
 @click.argument('content', type=click.STRING)
 @click.option(
     '--ttl',
-    default=3600,
+    default=86400,
     type=click.INT,
     help='Set default time to live')
 @click.option(
     '-a',
-    '-all',
+    '--all',
     'delete_all',
     is_flag=True,
     default=False,
@@ -451,12 +450,12 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         }
         if not _is_matching_rrset_present(uri, ctx, rrset):
             click.echo(json.dumps({'message': f'{record_type} records in {name} already absent'}))
-            sys.exit(0)
+            raise SystemExit(0)
         r = _http_patch(uri, ctx, {'rrsets': [rrset]})
         msg = {'message': f'All {record_type} records for {name} removed'}
         if _create_output(r, (204,), optional_json=msg):
-            sys.exit(0)
-        sys.exit(1)
+            raise SystemExit(0)
+        raise SystemExit(1)
 
     rrset = {
         'name': name,
@@ -473,7 +472,7 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     if not _is_content_present(uri, ctx, rrset):
         msg = {'message': f'{name} {record_type} {content} already absent'}
         click.echo(json.dumps(msg))
-        sys.exit(0)
+        raise SystemExit(0)
     matching_rrsets = _is_matching_rrset_present(uri, ctx, rrset)
     indizes_to_remove = []
     for index in range(len(matching_rrsets['records'])):
@@ -486,8 +485,8 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} {record_type} {content} removed'}
     if _create_output(r, (204,), optional_json=msg):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -508,7 +507,7 @@ def delete_zone(ctx, zone, force):
     upstream_zones = _query_zones(ctx)
     if zone not in [single_zone['name'] for single_zone in upstream_zones]:
         click.echo(json.dumps({'message': f'Zone {zone} already absent'}))
-        sys.exit(0)
+        raise SystemExit(0)
 
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     _confirm(
@@ -520,8 +519,8 @@ def delete_zone(ctx, zone, force):
     r = _http_delete(uri, ctx)
     msg = {'message': f'Zone {zone} deleted'}
     if _create_output(r, (204,), optional_json=msg):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -542,8 +541,8 @@ def delete_zonemetadata(ctx, zone, metadata_key):
             (200, 204),
             optional_json={'message': f'Deleted metadata key {metadata_key} for {zone}'}
     ):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -565,8 +564,8 @@ def disable_cryptokey(ctx, zone, cryptokey_id):
                       optional_json={
                           'message': f'Disabled id {cryptokey_id} for zone {zone}'}
                       ):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 # Disable record
@@ -590,7 +589,7 @@ def disable_cryptokey(ctx, zone, cryptokey_id):
     ),
 )
 @click.argument('content', type=click.STRING)
-@click.option('--ttl', default=3600, type=click.INT, help='Set time to live')
+@click.option('--ttl', default=86400, type=click.INT, help='Set time to live')
 @click.pass_context
 def disable_record(
     ctx,
@@ -608,28 +607,28 @@ def disable_record(
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     rrset = {
-                'name': name,
-                'type': record_type,
-                'ttl': ttl,
-                'changetype': 'REPLACE',
-                'records': [
-                    {
-                        'content': content,
-                        'disabled': True
-                    }
-                ]
+        'name': name,
+        'type': record_type,
+        'ttl': ttl,
+        'changetype': 'REPLACE',
+        'records': [
+            {
+                'content': content,
+                'disabled': True
             }
+        ]
+    }
 
     if _is_content_present(uri, ctx, rrset):
         msg = {'message': f'{name} IN {record_type} {content} already disabled'}
         click.echo(json.dumps(msg))
-        sys.exit(0)
+        raise SystemExit(0)
     rrset['records'] = _merge_rrsets(uri, ctx, rrset)
     r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} IN {record_type} {content} disabled'}
     if _create_output(r, (204,), optional_json=msg):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -649,8 +648,8 @@ def enable_cryptokey(ctx, zone, cryptokey_id):
     if _create_output(r,
                       (204,),
                       optional_json={'message': f'Enabled id {cryptokey_id} for zone {zone}'}):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 # Extend record
@@ -674,7 +673,7 @@ def enable_cryptokey(ctx, zone, cryptokey_id):
     ),
 )
 @click.argument('content', type=click.STRING)
-@click.option('--ttl', default=3600, type=click.INT, help='Set time to live')
+@click.option('--ttl', default=86400, type=click.INT, help='Set time to live')
 @click.pass_context
 def extend_record(
     ctx,
@@ -706,7 +705,7 @@ def extend_record(
 
     if _is_content_present(uri, ctx, rrset):
         click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already present'}))
-        sys.exit(0)
+        raise SystemExit(0)
     upstream_rrset = _is_matching_rrset_present(uri, ctx, rrset)
     if upstream_rrset:
         extra_records = [
@@ -718,8 +717,29 @@ def extend_record(
     r = _http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} IN {record_type} {content} extended'}
     if _create_output(r, (204,), optional_json=msg):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+# pylint: disable=unused-argument
+@cli.command()
+@click.argument('zone', type=Zone)
+@click.argument(
+    'metadata-key',
+    type=click.STRING
+)
+@click.argument(
+    'metadata-value',
+    type=click.STRING
+)
+@click.pass_context
+def extend_zonemetadata(ctx, zone, metadata_key, metadata_value):
+    """
+    Appends metadata to a zonemetadata set.
+    """
+    ctx.invoke(add_zonemetadata)
+
+# pylint: enable=unused-argument
 
 
 @cli.command()
@@ -733,8 +753,8 @@ def export_cryptokey(ctx, zone, cryptokey_id):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -747,8 +767,8 @@ def export_server(ctx, serverid):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/{serverid}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -764,8 +784,8 @@ def export_tsigkey(ctx, keyid):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -789,13 +809,13 @@ def export_zone(ctx, zone, bind):
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
         r = _http_get(uri, ctx)
         if _create_output(r, (200,), output_text=True):
-            sys.exit(0)
-        sys.exit(1)
+            raise SystemExit(0)
+        raise SystemExit(1)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -806,8 +826,8 @@ def flush_cache(ctx, zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
     r = _http_put(uri, ctx, params={'domain': zone})
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -819,8 +839,8 @@ def list_autoprimaries(ctx):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -832,8 +852,8 @@ def list_config(ctx):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -846,8 +866,8 @@ def list_cryptokeys(ctx, zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -859,8 +879,8 @@ def list_tsigkeys(ctx):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -872,8 +892,8 @@ def list_servers(ctx):
     uri = f"{ctx.obj['apihost']}/api/v1/servers"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -885,8 +905,8 @@ def list_stats(ctx):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -908,8 +928,8 @@ def list_zonemetadata(ctx, zone, limit):
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -921,8 +941,8 @@ def list_zones(ctx):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -941,8 +961,8 @@ def notify_zone(ctx, zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/notify"
     r = ctx.obj['session'].put(uri)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -960,8 +980,36 @@ def rectify_zone(ctx, zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
     r = ctx.obj['session'].put(uri)
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@cli.command()
+@click.argument('zone', type=Zone)
+@click.argument(
+    'metadata-key',
+    type=click.STRING
+)
+@click.argument(
+    'metadata-value',
+    type=click.STRING
+)
+@click.pass_context
+def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
+    """
+    Replaces a metadataset of a given zone
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
+    payload = {
+        'kind': metadata_key,
+        'metadata': [
+            metadata_value
+        ]
+    }
+    r = _http_put(uri, ctx, payload)
+    if _create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 @cli.command()
@@ -977,8 +1025,8 @@ def search_rrsets(ctx, search_string, max_output):
         params={'q': f'*{search_string}*', 'max': max_output},
     )
     if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 # Update Tsigkey
@@ -1016,39 +1064,8 @@ def update_tsigkey(
         tsigkey['name'] = name
     r = _http_put(uri, ctx, tsigkey)
     if _create_output(r, (200,),):
-        sys.exit(0)
-    sys.exit(1)
-
-
-@cli.command()
-@click.argument('zone', type=Zone)
-@click.argument(
-    'metadata-key',
-    type=click.STRING
-)
-@click.argument(
-    'metadata-value',
-    type=click.STRING
-)
-@click.pass_context
-def update_zonemetadata(ctx, zone, metadata_key, metadata_value):
-    """
-    Replaces a metadataset of a given zone
-
-    Example:
-    powerdns-cli replace-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5300
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
-    payload = {
-        'kind': metadata_key,
-        'metadata': [
-            metadata_value
-        ]
-    }
-    r = _http_put(uri, ctx, payload)
-    if _create_output(r, (200,)):
-        sys.exit(0)
-    sys.exit(1)
+        raise SystemExit(0)
+    raise SystemExit(1)
 
 
 def _confirm(message: str, force: bool) -> None:
@@ -1059,7 +1076,7 @@ def _confirm(message: str, force: bool) -> None:
         confirmation = input()
         if confirmation not in ('y', 'Y', 'YES', 'yes', 'Yes'):
             click.echo('Aborting')
-            sys.exit(1)
+            raise SystemExit(1)
 
 
 def _create_output(
@@ -1101,8 +1118,7 @@ def _http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.
         request = ctx.obj['session'].delete(uri, params=params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f'Request error: {e}'}))
-        sys.exit(1)
+        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
 
 
 def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
@@ -1110,8 +1126,7 @@ def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Res
         request = ctx.obj['session'].get(uri, params=params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f'Request error: {e}'}))
-        sys.exit(1)
+        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
 
 
 def _http_patch(uri: str, ctx: click.Context, payload: dict, ) -> requests.Response:
@@ -1119,8 +1134,7 @@ def _http_patch(uri: str, ctx: click.Context, payload: dict, ) -> requests.Respo
         request = ctx.obj['session'].patch(uri, json=payload)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f'Request error: {e}'}))
-        sys.exit(1)
+        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
 
 
 def _http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
@@ -1128,8 +1142,7 @@ def _http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response
         request = ctx.obj['session'].post(uri, json=payload)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f'Request error: {e}'}))
-        sys.exit(1)
+        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
 
 
 def _http_put(
@@ -1142,8 +1155,7 @@ def _http_put(
         request = ctx.obj['session'].put(uri, json=payload, params=params)
         return request
     except requests.RequestException as e:
-        click.echo(json.dumps({'error': f'Request error: {e}'}))
-        sys.exit(1)
+        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
 
 
 def _query_zones(ctx) -> list:
@@ -1151,7 +1163,7 @@ def _query_zones(ctx) -> list:
     r = _http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
     if r.status_code != 200:
         click.echo(json.dumps({'error': r.json()}))
-        sys.exit(1)
+        raise SystemExit(1)
     return r.json()
 
 
@@ -1160,7 +1172,7 @@ def _query_zone_rrsets(uri: str, ctx) -> list[dict]:
     r = _http_get(uri, ctx)
     if r.status_code != 200:
         click.echo(json.dumps({'error': r.json()}))
-        sys.exit(1)
+        raise SystemExit(1)
     return r.json()['rrsets']
 
 
@@ -1175,8 +1187,7 @@ def _make_dnsname(name: str, zone: str) -> str:
 def _is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) -> dict:
     zone_rrsets = _query_zone_rrsets(uri, ctx)
     for upstream_rrset in zone_rrsets:
-        if all(upstream_rrset[key] == new_rrset[key] for key in
-               ('name', 'type')):
+        if all(upstream_rrset[key] == new_rrset[key] for key in ('name', 'type')):
             return upstream_rrset
     return {}
 
@@ -1184,11 +1195,12 @@ def _is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) ->
 def _is_content_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
     zone_rrsets = _query_zone_rrsets(uri, ctx)
     for rrset in zone_rrsets:
-        # go through all the records to find matching rrset
         if (
-                all(rrset[key] == new_rrset[key] for key in ('name', 'type'))
+                # Check if general entry name, type and ttl are the same
+                all(rrset[key] == new_rrset[key] for key in ('name', 'type', 'ttl'))
                 and
-                all(entry in rrset['records'] for entry in new_rrset['records'])
+                # Check if all references within that rrset are identical
+                all(record in rrset['records'] for record in new_rrset['records'])
         ):
             return True
     return False
@@ -1200,10 +1212,13 @@ def _merge_rrsets(uri: str, ctx: click.Context, new_rrset: dict) -> list:
     for upstream_rrset in zone_rrsets:
         if all(upstream_rrset[key] == new_rrset[key] for key in
                ('name', 'type')):
-            merged_rrsets.extend([record for record in upstream_rrset['records']
-                                  if
-                                  record['content'] != new_rrset['records'][0][
-                                      'content']])
+            merged_rrsets.extend(
+                [
+                    record for record in upstream_rrset['records']
+                    if
+                    record['content'] != new_rrset['records'][0]['content']
+                ]
+            )
     return merged_rrsets
 
 
