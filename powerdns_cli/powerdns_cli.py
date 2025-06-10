@@ -3,7 +3,6 @@
 powerdns-cli: Manage PowerDNS Zones/Records
 """
 
-
 import json
 import re
 
@@ -78,25 +77,27 @@ def cli(ctx, apikey, url, insecure):
 @cli.command()
 @click.argument('ip', type=click.STRING)
 @click.argument('nameserver', type=click.STRING)
-@click.option('-a', '--account', type=click.STRING, help='Option')
+@click.option('-a', '--account', default='', type=click.STRING, help='Option')
 @click.pass_context
 def add_autoprimary(
-    ctx,
-    ip,
-    nameserver,
-    account,
+        ctx,
+        ip,
+        nameserver,
+        account,
 ):
     """
-    Adds an autoprimary upstream DNS server.
+    Adds an autoprimary upstream dns server
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     payload = {
-            'ip': ip,
-            'nameserver': nameserver,
+        'ip': ip,
+        'nameserver': nameserver,
+        'account': account
     }
-    if account:
-        payload['account'] = account
-
+    if _is_autoprimary_present(uri, ctx, ip, nameserver):
+        click.echo(json.dumps(
+            {'message': f'Autoprimary {ip} with nameserver {nameserver} already present'}))
+        raise SystemExit(0)
     r = _http_post(uri, ctx, payload)
     if _create_output(
             r,
@@ -109,7 +110,7 @@ def add_autoprimary(
 
 @cli.command()
 @click.argument('zone', type=Zone)
-@click.argument('keytype', type=click.Choice(['ksk', 'csk', 'zsk']))
+@click.argument('key-type', type=click.Choice(['ksk', 'csk', 'zsk']))
 @click.option('-a', '--active', is_flag=True, default=False,
               help='Sets the key to active immediately')
 @click.option('-p', '--publish', is_flag=True, default=False,
@@ -134,14 +135,14 @@ def add_autoprimary(
               help='Set the key size in bits, required for zsk')
 @click.pass_context
 def add_cryptokey(
-    ctx,
-    zone,
-    keytype,
-    active,
-    publish,
-    secret,
-    bits,
-    algorithm
+        ctx,
+        zone,
+        key_type,
+        active,
+        publish,
+        secret,
+        bits,
+        algorithm
 ):
     """
     Adds a cryptokey to the zone. Is disabled and not published by default
@@ -150,7 +151,7 @@ def add_cryptokey(
     payload = {
         'active': active,
         'published': publish,
-        'keytype': keytype
+        'keytype': key_type
     }
     for key, val in {
         'privatekey': secret.replace('\\n', '\n'),
@@ -200,8 +201,8 @@ def add_record(
         ttl,
 ):
     """
-    Adds a new DNS record of different types. Use @ if you want to enter a
-    record for the top level.
+    Adds a new dns record of your given type. Use @ if you want to enter a
+    record for the top level name / zone name
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
     name = _make_dnsname(name, zone)
@@ -228,28 +229,27 @@ def add_record(
     raise SystemExit(1)
 
 
-# Add Tsigkey
 @cli.command()
 @click.argument('name', type=click.STRING)
 @click.argument('algorithm',
                 type=click.Choice([
-                  'hmac-md5',
-                  'hmac-sha1',
-                  'hmac-sha224',
-                  'hmac-sha256',
-                  'hmac-sha384',
-                  'hmac-sha512'
+                    'hmac-md5',
+                    'hmac-sha1',
+                    'hmac-sha224',
+                    'hmac-sha256',
+                    'hmac-sha384',
+                    'hmac-sha512'
                 ]))
 @click.option('-s', '--secret', type=click.STRING)
 @click.pass_context
 def add_tsigkey(
-    ctx,
-    name,
-    algorithm,
-    secret,
+        ctx,
+        name,
+        algorithm,
+        secret,
 ):
     """
-    Adds a TSIGKey to the server to sign DNS transfer messages.
+    Adds a TSIGKey to the server to sign dns transfer messages
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
     payload = {
@@ -260,7 +260,7 @@ def add_tsigkey(
         payload['key'] = secret
 
     r = _http_post(uri, ctx, payload)
-    if _create_output(r, (201,),):
+    if _create_output(r, (201,), ):
         raise SystemExit(0)
     raise SystemExit(1)
 
@@ -281,8 +281,7 @@ def add_tsigkey(
 @click.pass_context
 def add_zone(ctx, zone, zonetype, master):
     """
-    Adds a new zone.
-    Can create a master or native zones, slaves zones are disabled.
+    Adds a new zone. Can create a master or native zones, slaves zones are disabled
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     if zonetype.upper() in ('MASTER', 'NATIVE'):
@@ -320,8 +319,9 @@ def add_zone(ctx, zone, zonetype, master):
 @click.pass_context
 def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
     """
-    Adds metadata to a zone. Metadata is not arbitrary and must conform
-    to the expected content from the PowerDNS configuration.
+    Adds metadata to a zone. Valid dictionary metadata-keys are not arbitrary and must conform
+    to the expected content from the PowerDNS configuration. Custom metadata must be preceded by
+    leading X- as a key
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata"
     payload = {
@@ -351,21 +351,25 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
 def delete_autoprimary(
         ctx,
         ip,
-        nameserver,
+        nameserver
 ):
     """
-    Deletes an autoprimary from the dns server configuration.
+    Deletes an autoprimary from the dns server configuration
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
-
-    r = _http_delete(uri, ctx)
-    if _create_output(
-            r,
-            (204,),
-            optional_json={'message': f'Autoprimary {ip} with nameserver {nameserver} deleted'}
-    ):
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    if _is_autoprimary_present(uri, ctx, ip, nameserver):
+        uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
+        r = _http_delete(uri, ctx)
+        if _create_output(
+                r,
+                (204,),
+                optional_json={'message': f'Autoprimary {ip} with nameserver {nameserver} deleted'}
+        ):
+            raise SystemExit(0)
+    else:
+        click.echo(json.dumps(
+            {'message': f'Autoprimary {ip} with nameserver {nameserver} already absent'}))
         raise SystemExit(0)
-    raise SystemExit(1)
 
 
 @cli.command()
@@ -374,7 +378,7 @@ def delete_autoprimary(
 @click.argument('cryptokey-id', type=click.INT)
 def delete_cryptokey(ctx, zone, cryptokey_id):
     """
-    Lists all currently configured cryptokeys.
+    Deletes the given cryptokey-id from all the configured cryptokeys
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     r = _http_delete(uri, ctx)
@@ -388,20 +392,22 @@ def delete_cryptokey(ctx, zone, cryptokey_id):
 
 
 @cli.command()
-@click.argument('keyid', type=click.STRING)
+@click.argument('key-id', type=click.STRING)
 @click.pass_context
 def delete_tsigkey(
-    ctx,
-    keyid
+        ctx,
+        key_id
 ):
     """
-    Delete the TSIG-Key with the given server-side id.
+    Delete the TSIG-Key with the given server-side id
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{key_id}"
 
     r = _http_delete(uri, ctx)
-    if _create_output(r, (204,), optional_json={'message': f'Deleted tsigkey with id {keyid}'}):
+    if _create_output(r, (204,), optional_json={'message': f'Deleted tsigkey with id {key_id}'}):
         raise SystemExit(0)
+    msg = {'message': f'Failed to delete the tsigkey {key_id}'}
+    click.echo(json.dumps(msg))
     raise SystemExit(1)
 
 
@@ -437,14 +443,13 @@ def delete_tsigkey(
     'delete_all',
     is_flag=True,
     default=False,
-    help='Deletes all records of the selected type',)
+    help='Deletes all records of the selected type')
 @click.pass_context
 def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
     """
-    Deletes the DNS record of the given types and content.
-    Will precisely match the RRSET content.
-    When there are two RRSETs, only the specified one will be removed.
-    unless all is specified.
+    Deletes a record of the precisely given type and content.
+    When there are two records, only the specified one will be removed,
+    unless --all is specified
     """
     name = _make_dnsname(name, zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
@@ -463,6 +468,8 @@ def delete_record(ctx, name, zone, record_type, content, ttl, delete_all):
         msg = {'message': f'All {record_type} records for {name} removed'}
         if _create_output(r, (204,), optional_json=msg):
             raise SystemExit(0)
+        msg = {'message': f'Failed to delete all {record_type} records for {name}'}
+        click.echo(json.dumps(msg))
         raise SystemExit(1)
 
     rrset = {
@@ -603,16 +610,15 @@ def disable_cryptokey(ctx, zone, cryptokey_id):
 @click.option('--ttl', default=86400, type=click.INT, help='Set time to live')
 @click.pass_context
 def disable_record(
-    ctx,
-    name,
-    record_type,
-    content,
-    zone,
-    ttl,
+        ctx,
+        name,
+        record_type,
+        content,
+        zone,
+        ttl,
 ):
     """
-    Disables an existing DNS record.
-    Use @ if you want to enter a record for the top level.
+    Disables an existing dns record. Use @ to target the zone name itself
     """
     name = _make_dnsname(name, zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
@@ -648,7 +654,7 @@ def disable_record(
 @click.argument('cryptokey-id', type=click.INT)
 def enable_cryptokey(ctx, zone, cryptokey_id):
     """
-    Enables an already existing cryptokey.
+    Enables an already existing cryptokey
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     payload = {
@@ -687,32 +693,31 @@ def enable_cryptokey(ctx, zone, cryptokey_id):
 @click.option('--ttl', default=86400, type=click.INT, help='Set time to live')
 @click.pass_context
 def extend_record(
-    ctx,
-    name,
-    record_type,
-    content,
-    zone,
-    ttl,
+        ctx,
+        name,
+        record_type,
+        content,
+        zone,
+        ttl,
 ):
     """
-    Extends an existing RRSET.
-    Will create a new RRSET, if it did not exist beforehand.
+    Extends records of an existing RRSET. Will create a new RRSET, if it did not exist beforehand
     """
     name = _make_dnsname(name, zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}"
 
     rrset = {
-                'name': name,
-                'type': record_type,
-                'ttl': ttl,
-                'changetype': 'REPLACE',
-                'records': [
-                    {
-                        'content': content,
-                        'disabled': False
-                    }
-                ]
+        'name': name,
+        'type': record_type,
+        'ttl': ttl,
+        'changetype': 'REPLACE',
+        'records': [
+            {
+                'content': content,
+                'disabled': False
             }
+        ]
+    }
 
     if _is_content_present(uri, ctx, rrset):
         click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already present'}))
@@ -733,6 +738,7 @@ def extend_record(
 
 
 # pylint: disable=unused-argument
+# noinspection PyUnusedLocal
 @cli.command()
 @click.argument('zone', type=Zone)
 @click.argument(
@@ -746,20 +752,19 @@ def extend_record(
 @click.pass_context
 def extend_zonemetadata(ctx, zone, metadata_key, metadata_value):
     """
-    Appends metadata to a zonemetadata set.
+    Appends a new item to the list of metadata item for a zone
     """
     ctx.forward(add_zonemetadata)
 
+
 # pylint: enable=unused-argument
-
-
 @cli.command()
 @click.pass_context
 @click.argument('zone', type=Zone)
 @click.argument('cryptokey-id', type=click.STRING)
 def export_cryptokey(ctx, zone, cryptokey_id):
     """
-    Exports the cryptokey with the given id including the private key.
+    Exports the cryptokey with the given id including the private key
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
     r = _http_get(uri, ctx)
@@ -769,13 +774,13 @@ def export_cryptokey(ctx, zone, cryptokey_id):
 
 
 @cli.command()
-@click.argument('serverid', type=click.STRING)
+@click.argument('server-id', type=click.STRING)
 @click.pass_context
-def export_server(ctx, serverid):
+def export_server(ctx, server_id):
     """
-    Exports the base data of the given serverid.
+    Exports the base data of the given serverid
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/{serverid}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/{server_id}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         raise SystemExit(0)
@@ -785,14 +790,14 @@ def export_server(ctx, serverid):
 @cli.command()
 @click.pass_context
 @click.argument(
-    'keyid',
+    'key-id',
     type=click.STRING,
 )
-def export_tsigkey(ctx, keyid):
+def export_tsigkey(ctx, key_id):
     """
-    Exports a tsigkey with the given id.
+    Exports a tsigkey with the given id
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{key_id}"
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         raise SystemExit(0)
@@ -814,7 +819,7 @@ def export_tsigkey(ctx, keyid):
 )
 def export_zone(ctx, zone, bind):
     """
-    Export the whole zone configuration, either as JSON or BIND.
+    Export the whole zone configuration, either as JSON or BIND
     """
     if bind:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/export"
@@ -833,7 +838,7 @@ def export_zone(ctx, zone, bind):
 @click.pass_context
 @click.argument('zone', type=Zone)
 def flush_cache(ctx, zone):
-    """Flushes the cache of the given zone."""
+    """Flushes the cache of the given zone"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
     r = _http_put(uri, ctx, params={'domain': zone})
     if _create_output(r, (200,)):
@@ -845,7 +850,7 @@ def flush_cache(ctx, zone):
 @click.pass_context
 def list_autoprimaries(ctx):
     """
-    Lists all currently configured autoprimary servers.
+    Lists all currently configured autoprimary servers
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     r = _http_get(uri, ctx)
@@ -858,7 +863,7 @@ def list_autoprimaries(ctx):
 @click.pass_context
 def list_config(ctx):
     """
-    Query the configuration of this PowerDNS instance.
+    Query the configuration of this PowerDNS instance
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
     r = _http_get(uri, ctx)
@@ -872,7 +877,7 @@ def list_config(ctx):
 @click.argument('zone', type=Zone)
 def list_cryptokeys(ctx, zone):
     """
-    Lists all currently configured cryptokeys for this zone. Does not display secrets.
+    Lists all currently configured cryptokeys for this zone without displaying secrets
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys"
     r = _http_get(uri, ctx)
@@ -898,7 +903,7 @@ def list_tsigkeys(ctx):
 @click.pass_context
 def list_servers(ctx):
     """
-    List DNS-Servers
+    Lists configured dns-servers
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers"
     r = _http_get(uri, ctx)
@@ -911,7 +916,7 @@ def list_servers(ctx):
 @click.pass_context
 def list_stats(ctx):
     """
-    Display operational statistics of the dns server.
+    Displays operational statistics of your dns server
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
     r = _http_get(uri, ctx)
@@ -931,7 +936,7 @@ def list_stats(ctx):
 @click.pass_context
 def list_zonemetadata(ctx, zone, limit):
     """
-    Lists the metadata for a given zone. Can optionally be limited to a single metadata key.
+    Lists the metadata for a given zone. Can optionally be limited to a single key
     """
     if limit:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{limit}"
@@ -947,7 +952,7 @@ def list_zonemetadata(ctx, zone, limit):
 @click.pass_context
 def list_zones(ctx):
     """
-    List all configured zones on this dns server.
+    List all configured zones on this dns server, does not display their RRSETs
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     r = _http_get(uri, ctx)
@@ -964,9 +969,9 @@ def list_zones(ctx):
 )
 def notify_zone(ctx, zone):
     """
-    Let the server notify its slaves of changes to the given zone.
+    Let the server notify its slaves of changes to the given zone
 
-    Fails when the zone kind is not master or slave, or master and slave are
+    Fails when the zone kind is neither master or slave, or master and slave are
     disabled in the configuration. Only works for slave if renotify is enabled.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/notify"
@@ -984,9 +989,7 @@ def notify_zone(ctx, zone):
 )
 def rectify_zone(ctx, zone):
     """
-    Rectifies a given zone.
-
-    Will fail on slave zones and zones without dnssec.
+    Rectifies a given zone. Will fail on slave zones and zones without dnssec.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/rectify"
     r = ctx.obj['session'].put(uri)
@@ -1008,7 +1011,7 @@ def rectify_zone(ctx, zone):
 @click.pass_context
 def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
     """
-    Replaces a metadataset of a given zone
+    Replaces a set of metadata of a given zone
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
     payload = {
@@ -1025,22 +1028,23 @@ def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
     else:
         click.echo(json.dumps({
             'message': f'{metadata_key} with value '
-                       f'{metadata_value} for zone {zone} already present'}
+            f'{metadata_value} for zone {zone} already present'}
         ))
         raise SystemExit(0)
 
 
 @cli.command()
 @click.argument('search-string', metavar='STRING')
-@click.option('--max', 'max_output', help='Number of items to output', default=5, type=click.INT,)
+@click.option('--max', 'max_output', help='Number of items to output', default=5, type=click.INT)
 @click.pass_context
 def search_rrsets(ctx, search_string, max_output):
-    """Do fulltext search in the rrset database"""
+    """Do fulltext search in the rrset database. Use wildcards in your string to ignore leading
+    or trailing characters"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/search-data"
     r = _http_get(
         uri,
         ctx,
-        params={'q': f'*{search_string}*', 'max': max_output},
+        params={'q': f'{search_string}', 'max': max_output},
     )
     if _create_output(r, (200,)):
         raise SystemExit(0)
@@ -1049,7 +1053,7 @@ def search_rrsets(ctx, search_string, max_output):
 
 # Update Tsigkey
 @cli.command()
-@click.argument('keyid', type=click.STRING,)
+@click.argument('keyid', type=click.STRING)
 @click.option('-a', '--algorithm',
               type=click.Choice([
                   'hmac-md5',
@@ -1081,7 +1085,7 @@ def update_tsigkey(
     if name:
         tsigkey['name'] = name
     r = _http_put(uri, ctx, tsigkey)
-    if _create_output(r, (200,),):
+    if _create_output(r, (200,), ):
         raise SystemExit(0)
     raise SystemExit(1)
 
@@ -1140,6 +1144,7 @@ def _http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.
 
 
 def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
+    """HTTP GET request"""
     try:
         request = ctx.obj['session'].get(uri, params=params)
         return request
@@ -1148,6 +1153,7 @@ def _http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Res
 
 
 def _http_patch(uri: str, ctx: click.Context, payload: dict, ) -> requests.Response:
+    """HTTP PATCH request"""
     try:
         request = ctx.obj['session'].patch(uri, json=payload)
         return request
@@ -1156,6 +1162,7 @@ def _http_patch(uri: str, ctx: click.Context, payload: dict, ) -> requests.Respo
 
 
 def _http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
+    """HTTP POST request"""
     try:
         request = ctx.obj['session'].post(uri, json=payload)
         return request
@@ -1169,6 +1176,7 @@ def _http_put(
         payload: dict = None,
         params: dict = None
 ) -> requests.Response:
+    """HTTP PUT request"""
     try:
         request = ctx.obj['session'].put(uri, json=payload, params=params)
         return request
@@ -1186,7 +1194,7 @@ def _query_zones(ctx) -> list:
 
 
 def _query_zone_rrsets(uri: str, ctx) -> list[dict]:
-    """Queries the configuration of the given zone"""
+    """Queries the configuration of the given zone and returns a list of all RRSETs"""
     r = _http_get(uri, ctx)
     if r.status_code != 200:
         click.echo(json.dumps({'error': r.json()}))
@@ -1195,14 +1203,29 @@ def _query_zone_rrsets(uri: str, ctx) -> list[dict]:
 
 
 def _make_dnsname(name: str, zone: str) -> str:
-    """Returns either the combination or zone
-    or just a zone when @ is provided as name"""
+    """Returns either the combination or zone or just a zone when @ is provided as name"""
     if name == '@':
         return zone
     return f'{name}.{zone}'
 
 
+def _is_autoprimary_present(
+        uri: str,
+        ctx: click.Context,
+        ip: str,
+        nameserver: str
+) -> bool:
+    """Checks if the ip and nameserver are already in the autoprimary list"""
+    upstream_autoprimaries = _http_get(uri, ctx).json()
+    for autoprimary in upstream_autoprimaries:
+        if autoprimary['nameserver'] == nameserver and autoprimary['ip'] == ip:
+            return True
+    return False
+
+
 def _is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -> bool:
+    """Checks if an entry is already existing in the metadata for the zone. Will not check
+    for identical entries, only if the given metadata information is in the corresponding list"""
     zone_metadata = _http_get(uri, ctx).json()
     if (new_data['kind'] == zone_metadata['kind'] and
             new_data['metadata'][0] in zone_metadata['metadata']):
@@ -1211,6 +1234,7 @@ def _is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -
 
 
 def _is_metadata_content_identical(uri: str, ctx: click.Context, new_data: dict) -> bool:
+    """Checks if the metadata entry is identical to the new content"""
     zone_metadata = _http_get(uri, ctx).json()
     if new_data == zone_metadata:
         return True
@@ -1218,6 +1242,7 @@ def _is_metadata_content_identical(uri: str, ctx: click.Context, new_data: dict)
 
 
 def _is_metadata_entry_present(uri: str, ctx: click.Context) -> bool:
+    """Checks if a metadata entry exists at all"""
     zone_metadata = _http_get(uri, ctx)
     # When there is no metadata set of the given type, the api will still
     # return 200 and a dict with an emtpy list of metadata entries
@@ -1227,6 +1252,7 @@ def _is_metadata_entry_present(uri: str, ctx: click.Context) -> bool:
 
 
 def _is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) -> dict:
+    """Checks if a RRSETs is already existing in the dns database, does not check records"""
     zone_rrsets = _query_zone_rrsets(uri, ctx)
     for upstream_rrset in zone_rrsets:
         if all(upstream_rrset[key] == new_rrset[key] for key in ('name', 'type')):
@@ -1235,6 +1261,7 @@ def _is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) ->
 
 
 def _is_content_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
+    """Checks if a matching rrset is present and if the new record is also already present"""
     zone_rrsets = _query_zone_rrsets(uri, ctx)
     for rrset in zone_rrsets:
         if (
@@ -1249,6 +1276,7 @@ def _is_content_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
 
 
 def _merge_rrsets(uri: str, ctx: click.Context, new_rrset: dict) -> list:
+    """Merge the upstream and local rrset records to create a unified and deduplicated set"""
     zone_rrsets = _query_zone_rrsets(uri, ctx)
     merged_rrsets = new_rrset['records'].copy()
     for upstream_rrset in zone_rrsets:
