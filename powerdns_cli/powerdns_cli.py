@@ -192,12 +192,12 @@ def add_cryptokey(
 @click.option('--ttl', default=86400, type=click.INT, help='Set default time to live')
 @click.pass_context
 def add_record(
-    ctx,
-    name,
-    record_type,
-    content,
-    zone,
-    ttl,
+        ctx,
+        name,
+        record_type,
+        content,
+        zone,
+        ttl,
 ):
     """
     Adds a new DNS record of different types. Use @ if you want to enter a
@@ -328,8 +328,16 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
         'kind': metadata_key,
         'metadata': [
             metadata_value
-        ]
+        ],
+        'type': 'Metadata'
     }
+    if _is_metadata_content_present(f"{uri}/{metadata_key}", ctx, payload):
+        click.echo(
+            json.dumps(
+                {'message': f'{metadata_key} {metadata_value} in {zone} already present'}
+            )
+        )
+        raise SystemExit(0)
     r = _http_post(uri, ctx, payload)
     if _create_output(r, (201,)):
         raise SystemExit(0)
@@ -535,14 +543,17 @@ def delete_zonemetadata(ctx, zone, metadata_key):
     Deletes a metadata entry for the given zone.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/metadata/{metadata_key}"
-    r = _http_delete(uri, ctx)
-    if _create_output(
-            r,
-            (200, 204),
-            optional_json={'message': f'Deleted metadata key {metadata_key} for {zone}'}
-    ):
+    if _is_metadata_entry_present(uri, ctx):
+        r = _http_delete(uri, ctx)
+        if _create_output(
+                r,
+                (200, 204),
+                optional_json={'message': f'Deleted metadata key {metadata_key} for {zone}'}
+        ):
+            raise SystemExit(0)
+    else:
+        click.echo(json.dumps({'message': f'{metadata_key} for {zone} already absent'}))
         raise SystemExit(0)
-    raise SystemExit(1)
 
 
 @cli.command()
@@ -1004,12 +1015,19 @@ def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
         'kind': metadata_key,
         'metadata': [
             metadata_value
-        ]
+        ],
+        'type': 'Metadata'
     }
-    r = _http_put(uri, ctx, payload)
-    if _create_output(r, (200,)):
+    if not _is_metadata_content_identical(uri, ctx, payload):
+        r = _http_put(uri, ctx, payload)
+        if _create_output(r, (200,)):
+            raise SystemExit(0)
+    else:
+        click.echo(json.dumps({
+            'message': f'{metadata_key} with value '
+                       f'{metadata_value} for zone {zone} already present'}
+        ))
         raise SystemExit(0)
-    raise SystemExit(1)
 
 
 @cli.command()
@@ -1182,6 +1200,30 @@ def _make_dnsname(name: str, zone: str) -> str:
     if name == '@':
         return zone
     return f'{name}.{zone}'
+
+
+def _is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -> bool:
+    zone_metadata = _http_get(uri, ctx).json()
+    if (new_data['kind'] == zone_metadata['kind'] and
+            new_data['metadata'][0] in zone_metadata['metadata']):
+        return True
+    return False
+
+
+def _is_metadata_content_identical(uri: str, ctx: click.Context, new_data: dict) -> bool:
+    zone_metadata = _http_get(uri, ctx).json()
+    if new_data == zone_metadata:
+        return True
+    return False
+
+
+def _is_metadata_entry_present(uri: str, ctx: click.Context) -> bool:
+    zone_metadata = _http_get(uri, ctx)
+    # When there is no metadata set of the given type, the api will still
+    # return 200 and a dict with an emtpy list of metadata entries
+    if zone_metadata.status_code == 200 and zone_metadata.json()['metadata']:
+        return True
+    return False
 
 
 def _is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) -> dict:

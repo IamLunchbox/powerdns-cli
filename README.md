@@ -96,7 +96,7 @@ won't be covered by the integration tests.
 
 ## Todos
 The following things are on my roadmap before a beta release:
-1. Idempotence for zonemetadata-tasks, right now only records are idempotent
+1. Full idempotence: Cryptokeys and tsigkeys require review
 2. Version tests in tox
 
 After the beta is done, i plan to port the code to implement it in ansible.

@@ -121,6 +121,8 @@ jobs:
         run: powerdns-cli list-zonemetadata example.org
       - name: Add zonemetadata
         run: powerdns-cli add-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5305
+      - name: Add duplicate zonemetadata
+        run: powerdns-cli add-zonemetadata example.org ALSO-NOTIFY 192.0.2.1:5305
       - name: Extend zonemetadata
         run: powerdns-cli extend-zonemetadata example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: List single zonemetadata value
