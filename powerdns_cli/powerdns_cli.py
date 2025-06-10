@@ -341,9 +341,9 @@ def add_zonemetadata(ctx, zone, metadata_key, metadata_value):
 @click.argument('nameserver', type=click.STRING)
 @click.pass_context
 def delete_autoprimary(
-    ctx,
-    ip,
-    nameserver,
+        ctx,
+        ip,
+        nameserver,
 ):
     """
     Deletes an autoprimary from the dns server configuration.
@@ -737,7 +737,7 @@ def extend_zonemetadata(ctx, zone, metadata_key, metadata_value):
     """
     Appends metadata to a zonemetadata set.
     """
-    ctx.invoke(add_zonemetadata)
+    ctx.forward(add_zonemetadata)
 
 # pylint: enable=unused-argument
 
@@ -1045,11 +1045,11 @@ def search_rrsets(ctx, search_string, max_output):
 @click.option('-n', '--name', type=click.STRING)
 @click.pass_context
 def update_tsigkey(
-    ctx,
-    keyid,
-    algorithm,
-    secret,
-    name
+        ctx,
+        keyid,
+        algorithm,
+        secret,
+        name
 ):
     """
     Updates an existing TSIGKey
