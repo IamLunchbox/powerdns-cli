@@ -2,7 +2,6 @@
 """
 powerdns-cli: Manage PowerDNS Zones/Records
 """
-
 import json
 import re
 
@@ -110,7 +109,7 @@ def add_autoprimary(
 
 @cli.command()
 @click.argument('zone', type=Zone)
-@click.argument('key-type', type=click.Choice(['ksk', 'csk', 'zsk']))
+@click.argument('key-type', type=click.Choice(['ksk', 'zsk']))
 @click.option('-a', '--active', is_flag=True, default=False,
               help='Sets the key to active immediately')
 @click.option('-p', '--publish', is_flag=True, default=False,
@@ -153,13 +152,20 @@ def add_cryptokey(
         'published': publish,
         'keytype': key_type
     }
+    # Click CLI escapes newline characters
+    secret = secret.replace('\\n', '\n')
     for key, val in {
-        'privatekey': secret.replace('\\n', '\n'),
+        'privatekey': secret,
         'bits': bits,
         'algorithm': algorithm
     }.items():
         if val:
             payload[key] = val
+    if secret and _is_dnssec_key_present(
+            uri, key_type, bits, algorithm, secret.replace('\\n', '\n'), ctx):
+        click.echo(json.dumps(
+            {'message': 'The provided dnssec-key is already present at the backend'}))
+        raise SystemExit(0)
     r = _http_post(uri, ctx, payload)
     if _create_output(
             r,
@@ -381,6 +387,7 @@ def delete_cryptokey(ctx, zone, cryptokey_id):
     Deletes the given cryptokey-id from all the configured cryptokeys
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
+    _does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} already absent", 0, ctx)
     r = _http_delete(uri, ctx)
     if _create_output(r,
                       (204,),
@@ -576,6 +583,10 @@ def disable_cryptokey(ctx, zone, cryptokey_id):
         'id': cryptokey_id,
         'active': False,
     }
+    r = _does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    if not r.json()['active']:
+        click.echo(json.dumps({'message': f"Cryptokey with id {cryptokey_id} is already inactive"}))
+        raise SystemExit(0)
     r = _http_put(uri, ctx, payload)
     if _create_output(r,
                       (204,),
@@ -661,6 +672,10 @@ def enable_cryptokey(ctx, zone, cryptokey_id):
         'id': cryptokey_id,
         'active': True,
     }
+    r = _does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    if r.json()['active']:
+        click.echo(json.dumps({'message': f"Cryptokey with id {cryptokey_id} is already active"}))
+        raise SystemExit(0)
     r = _http_put(uri, ctx, payload)
     if _create_output(r,
                       (204,),
@@ -767,6 +782,7 @@ def export_cryptokey(ctx, zone, cryptokey_id):
     Exports the cryptokey with the given id including the private key
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{zone}/cryptokeys/{cryptokey_id}"
+    _does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     r = _http_get(uri, ctx)
     if _create_output(r, (200,)):
         raise SystemExit(0)
@@ -1101,6 +1117,17 @@ def _confirm(message: str, force: bool) -> None:
             raise SystemExit(1)
 
 
+def _does_cryptokey_exist(uri: str,
+                          exit_message: str,
+                          exit_code: int,
+                          ctx: click.Context) -> requests.Response:
+    r = _http_get(uri, ctx)
+    if r.status_code == 404:
+        click.echo(json.dumps({'message': exit_message}))
+        raise SystemExit(exit_code)
+    return r
+
+
 def _create_output(
         content: requests.Response,
         exp_status_code: tuple[int, ...],
@@ -1202,6 +1229,17 @@ def _query_zone_rrsets(uri: str, ctx) -> list[dict]:
     return r.json()['rrsets']
 
 
+def _lowercase_secret(secret: str) -> str:
+    last_colon_index = secret.rfind(':')
+
+    # Split the string into two parts
+    before_last_colon = secret[:last_colon_index]
+    after_last_colon = secret[last_colon_index:]
+
+    # Lowercase the part before the last colon and combine with the unchanged part after
+    return before_last_colon.lower() + after_last_colon
+
+
 def _make_dnsname(name: str, zone: str) -> str:
     """Returns either the combination or zone or just a zone when @ is provided as name"""
     if name == '@':
@@ -1221,6 +1259,29 @@ def _is_autoprimary_present(
         if autoprimary['nameserver'] == nameserver and autoprimary['ip'] == ip:
             return True
     return False
+
+
+def _is_dnssec_key_present(uri: str, key_type: str, bits: int,
+                           algorithm: str, secret: str, ctx: click.Context) -> bool:
+    """Retrieves all private keys for the given zone and checks if the private key is corresponding
+    to the private key provided by the user"""
+    # Powerdns will accept secrets without trailing newlines and actually append one by itself -
+    # and it will fix upper/lowercase in non-secret data
+    secret = secret.rstrip('\n')
+    secret = _lowercase_secret(secret)
+    present_keys = _http_get(uri, ctx)
+    relevant_ids = [
+        keyid for keyid in present_keys.json()
+        if keyid['keytype'] == key_type and
+        (algorithm is None or keyid['algorithm'] == algorithm.upper()) and
+        (bits is None or keyid['bits'] == bits)
+    ]
+    relevant_privkeys = (_http_get(f"{uri}/{key['id']}", ctx).json() for key in relevant_ids)
+
+    return any(
+        _lowercase_secret(key['privatekey'].rstrip('\n')) == secret
+        for key in relevant_privkeys
+    )
 
 
 def _is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -> bool:

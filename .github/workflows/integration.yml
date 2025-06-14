@@ -141,8 +141,6 @@ jobs:
       - name: Delete autoprimary
         run: powerdns-cli delete-autoprimary 127.0.0.1 example.org
 # Cryptokey Tests
-      - name: Add csk cryptokey
-        run: powerdns-cli add-cryptokey --active --publish example.org csk
       - name: Add ZSK cryptokey
         run: powerdns-cli add-cryptokey --algorithm ecdsap256sha256 --bits 256 example.org zsk
       - name: Add ksk cryptokey
