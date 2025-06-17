@@ -98,7 +98,7 @@ jobs:
       - name: Add TSIGKey with secrets
         run: powerdns-cli add-tsigkey test2 hmac-sha1 -s "kp4/24gyYsEzbuTVJRUMoqGFmN3LYgVDzJ/3oRSP7ys="
       - name: List TSIGKeys
-        run: powerdns-cli list-tsigkeys
+        run: powerdns-cli list-tsigkey
       - name: Delete TSIGKeys
         run: powerdns-cli delete-tsigkey test2
       - name: Update TSIGKey secret

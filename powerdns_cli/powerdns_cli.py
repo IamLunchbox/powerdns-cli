@@ -252,7 +252,7 @@ def add_tsigkey(
         ctx,
         name,
         algorithm,
-        secret,
+        secret
 ):
     """
     Adds a TSIGKey to the server to sign dns transfer messages
@@ -264,7 +264,11 @@ def add_tsigkey(
     }
     if secret:
         payload['key'] = secret
-
+    r = _http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}", ctx)
+    if r.status_code == 200:
+        msg = {'message': f'TSIGKEY {name} already present'}
+        click.echo(json.dumps(msg))
+        raise SystemExit(0)
     r = _http_post(uri, ctx, payload)
     if _create_output(r, (201,), ):
         raise SystemExit(0)
@@ -399,22 +403,24 @@ def delete_cryptokey(ctx, zone, cryptokey_id):
 
 
 @cli.command()
-@click.argument('key-id', type=click.STRING)
+@click.argument('name', type=click.STRING)
 @click.pass_context
 def delete_tsigkey(
         ctx,
-        key_id
+        name
 ):
     """
-    Delete the TSIG-Key with the given server-side id
+    Deletes the TSIG-Key with the given name
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{key_id}"
-
-    r = _http_delete(uri, ctx)
-    if _create_output(r, (204,), optional_json={'message': f'Deleted tsigkey with id {key_id}'}):
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
+    r = _http_get(uri, ctx)
+    if not r.status_code == 200:
+        msg = {'message': f'TSIGKEY for zone {name} already absent'}
+        click.echo(json.dumps(msg))
         raise SystemExit(0)
-    msg = {'message': f'Failed to delete the tsigkey {key_id}'}
-    click.echo(json.dumps(msg))
+    r = _http_delete(uri, ctx)
+    if _create_output(r, (204,), optional_json={'message': f'Deleted tsigkey {name}'}):
+        raise SystemExit(0)
     raise SystemExit(1)
 
 
@@ -904,9 +910,9 @@ def list_cryptokeys(ctx, zone):
 
 @cli.command()
 @click.pass_context
-def list_tsigkeys(ctx):
+def list_tsigkey(ctx):
     """
-    Lists all TSIGKeys on the server
+    Show the TSIGKeys for this zone
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
     r = _http_get(uri, ctx)
@@ -1044,7 +1050,7 @@ def replace_zonemetadata(ctx, zone, metadata_key, metadata_value):
     else:
         click.echo(json.dumps({
             'message': f'{metadata_key} with value '
-            f'{metadata_value} for zone {zone} already present'}
+                       f'{metadata_value} for zone {zone} already present'}
         ))
         raise SystemExit(0)
 
@@ -1069,7 +1075,7 @@ def search_rrsets(ctx, search_string, max_output):
 
 # Update Tsigkey
 @cli.command()
-@click.argument('keyid', type=click.STRING)
+@click.argument('name', type=click.STRING)
 @click.option('-a', '--algorithm',
               type=click.Choice([
                   'hmac-md5',
@@ -1080,26 +1086,27 @@ def search_rrsets(ctx, search_string, max_output):
                   'hmac-sha512'
               ]))
 @click.option('-s', '--secret', type=click.STRING)
-@click.option('-n', '--name', type=click.STRING)
+@click.option('-n', '--new-name', type=click.STRING)
 @click.pass_context
 def update_tsigkey(
         ctx,
-        keyid,
+        name,
         algorithm,
         secret,
-        name
+        new_name
 ):
     """
-    Updates an existing TSIGKey
+    Updates or renames an existing TSIGKey
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{keyid}"
-    tsigkey = {}
-    if algorithm:
-        tsigkey['algorithm'] = algorithm
-    if secret:
-        tsigkey['secret'] = secret
-    if name:
-        tsigkey['name'] = name
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
+    tsigkey = {k: v for k, v in {'algorithm': algorithm, 'secret': secret, 'name': new_name}.items()
+               if v}
+    if new_name:
+        r = _http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys", ctx)
+        if new_name in (key['name'] for key in r.json()):
+            msg = {'message': f"Error, the target {name} already exists. Refusing to override."}
+            click.echo(json.dumps(msg))
+            raise SystemExit(1)
     r = _http_put(uri, ctx, tsigkey)
     if _create_output(r, (200,), ):
         raise SystemExit(0)
@@ -1231,12 +1238,8 @@ def _query_zone_rrsets(uri: str, ctx) -> list[dict]:
 
 def _lowercase_secret(secret: str) -> str:
     last_colon_index = secret.rfind(':')
-
-    # Split the string into two parts
     before_last_colon = secret[:last_colon_index]
     after_last_colon = secret[last_colon_index:]
-
-    # Lowercase the part before the last colon and combine with the unchanged part after
     return before_last_colon.lower() + after_last_colon
 
 
@@ -1265,7 +1268,7 @@ def _is_dnssec_key_present(uri: str, key_type: str, bits: int,
                            algorithm: str, secret: str, ctx: click.Context) -> bool:
     """Retrieves all private keys for the given zone and checks if the private key is corresponding
     to the private key provided by the user"""
-    # Powerdns will accept secrets without trailing newlines and actually append one by itself -
+    # Powerdns will accept secrets without trailing newlines and actually appends one by itself -
     # and it will fix upper/lowercase in non-secret data
     secret = secret.rstrip('\n')
     secret = _lowercase_secret(secret)
