@@ -200,7 +200,7 @@ def config_list_servers(ctx):
     raise SystemExit(1)
 
 
-@cli.command('stats')
+@config.command('stats')
 @click.pass_context
 def config_stats(ctx):
     """
