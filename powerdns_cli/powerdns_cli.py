@@ -976,9 +976,9 @@ def zone_flush_cache(ctx, dns_zone):
 @zone.command('notify')
 @click.pass_context
 @click.argument(
-    'zone',
+    'dns_zone',
     type=click.STRING,
-    metavar='dns_zone'
+    metavar='zone'
 )
 def zone_notify(ctx, dns_zone):
     """
