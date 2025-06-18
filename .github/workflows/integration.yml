@@ -88,9 +88,9 @@ jobs:
         run: powerdns-cli zone flush-cache example.org.
 # Config Tests
       - name: Show config
-        run: powerdns-cli config show
+        run: powerdns-cli config display
       - name: Show stats
-        run: powerdns-cli config show-stats
+        run: powerdns-cli config stats
       - name: List servers
         run: powerdns-cli config list-servers
       - name: Export server
@@ -101,7 +101,7 @@ jobs:
       - name: Add TSIGKey with secrets
         run: powerdns-cli tsigkey add test2 hmac-sha1 -s "kp4/24gyYsEzbuTVJRUMoqGFmN3LYgVDzJ/3oRSP7ys="
       - name: List TSIGKeys
-        run: powerdns-cli tsigkey show
+        run: powerdns-cli tsigkey list
       - name: Delete TSIGKeys
         run: powerdns-cli tsigkey delete test2
       - name: Update TSIGKey secret
@@ -114,7 +114,7 @@ jobs:
         run: powerdns-cli tsigkey export newname
 # Zonemetadata Tests
       - name: Lists zonemetadata
-        run: powerdns-cli zonemetadata show example.org
+        run: powerdns-cli zonemetadata list example.org
       - name: Add zonemetadata
         run: powerdns-cli zonemetadata add example.org ALSO-NOTIFY 192.0.2.1:5305
       - name: Add duplicate zonemetadata
@@ -122,7 +122,7 @@ jobs:
       - name: Extend zonemetadata
         run: powerdns-cli zonemetadata extend example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: List single zonemetadata value
-        run: powerdns-cli zonemetadata show -l "ALSO-NOTIFY" example.org
+        run: powerdns-cli zonemetadata list -l "ALSO-NOTIFY" example.org
       - name: Replace zonemetadata
         run: powerdns-cli zonemetadata update example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: Delete zonemetadata
@@ -133,7 +133,7 @@ jobs:
       - name: Add autoprimary with name
         run: powerdns-cli autoprimary add -a test123 127.0.0.1 example.com
       - name: List autoprimaries
-        run: powerdns-cli autoprimary show
+        run: powerdns-cli autoprimary list
       - name: Delete autoprimary
         run: powerdns-cli autoprimary delete 127.0.0.1 example.org
 # Cryptokey Tests
@@ -148,7 +148,7 @@ jobs:
           example.org 
           -s 'Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: 1nM02+BeuUuppbSgtDBIV3106HMTdLNMqV7rnb4t0iA=\n' ksk
       - name: List cryptokeys
-        run: powerdns-cli cryptokey show example.org
+        run: powerdns-cli cryptokey list example.org
       - name: Delete a cryptokey
         run: powerdns-cli cryptokey delete example.org 1
       - name: Export a cryptokey

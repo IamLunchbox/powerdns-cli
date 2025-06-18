@@ -142,9 +142,9 @@ def autoprimary_delete(
         raise SystemExit(0)
 
 
-@autoprimary.command('show')
+@autoprimary.command('list')
 @click.pass_context
-def autoprimary_show(ctx):
+def autoprimary_list(ctx):
     """
     Lists all currently configured autoprimary servers
     """
@@ -174,9 +174,9 @@ def config_export(ctx, server_id):
     raise SystemExit(1)
 
 
-@config.command('show')
+@config.command('display')
 @click.pass_context
-def config_show(ctx):
+def config_display(ctx):
     """
     Query the configuration of this PowerDNS instance
     """
@@ -200,9 +200,9 @@ def config_list_servers(ctx):
     raise SystemExit(1)
 
 
-@cli.command('show-stats')
+@cli.command('stats')
 @click.pass_context
-def config_show_stats(ctx):
+def config_stats(ctx):
     """
     Displays operational statistics of your dns server
     """
@@ -378,10 +378,10 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
     raise SystemExit(1)
 
 
-@cryptokey.command('show')
+@cryptokey.command('list')
 @click.pass_context
 @click.argument('dns_zone', type=Zone, metavar='zone')
-def cryptokey_show(ctx, dns_zone):
+def cryptokey_list(ctx, dns_zone):
     """
     Lists all currently configured cryptokeys for this zone without displaying secrets
     """
@@ -797,9 +797,9 @@ def tsigkey_export(ctx, key_id):
     raise SystemExit(1)
 
 
-@tsigkey.command('show')
+@tsigkey.command('list')
 @click.pass_context
-def tsigkey_show(ctx):
+def tsigkey_list(ctx):
     """
     Shows the TSIGKeys for this server
     """
@@ -1030,11 +1030,11 @@ def zone_search(ctx, search_string, max_output):
     raise SystemExit(1)
 
 
-@zone.command('show')
+@zone.command('list')
 @click.pass_context
-def zone_show(ctx):
+def zone_list(ctx):
     """
-    List all configured zones on this dns server, does not display their RRSETs
+    Shows all configured zones on this dns server, does not display their RRSETs
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     r = utils.http_get(uri, ctx)
@@ -1134,7 +1134,7 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
 # pylint: enable=unused-argument
 
 
-@metadata.command('show')
+@metadata.command('list')
 @click.argument('dns_zone', type=Zone, metavar='zone')
 @click.option(
     '-l',
@@ -1143,7 +1143,7 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
     help='Limit metadata output to this single element'
 )
 @click.pass_context
-def metadata_show(ctx, dns_zone, limit):
+def metadata_list(ctx, dns_zone, limit):
     """
     Lists the metadata for a given zone. Can optionally be limited to a single key
     """
