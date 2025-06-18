@@ -96,8 +96,7 @@ won't be covered by the integration tests.
 
 ## Todos
 The following things are on my roadmap before a beta release:
-1. Renaming all commands by topic specific grouping
-2. Pytest and Version tests
+1. Pytest and Version tests
 
 After the beta is done, i plan to port the code to implement it in ansible.
 1. PowerDNS ansible module which has similar features to this one
