@@ -24,23 +24,24 @@ Or you use this repositories-main branch for the latest version:
 
 ```shell
 git clone https://github.com/IamLunchbox/powerdns-cli
-python3 powerdns-cli/powerdns_cli/powerdns_cli.py
+pip install .
 ```
 
 Please be advised, that the main branch, especially in alpha phase, might be
 unstable. Once this project progresses to a beta or production-
-ready release you can expect the main branch to be stable, since changes will
+ready release you can expect the main branch to be stable enough, since changes will
 stay in different branches.
 
 ## Usage
 `powerdns-cli` is built with pythons click framework and uses keyword-based functions.
-Therefore, shared flags, as the api key and api url, are positional.  
+Therefore, shared flags, as the api key and api url, are positional and required before the
+first arguments.
 
 To get things going you may, for example, add a zone:  
-`$ powerdns-cli -a MyApiKey -u http://localhost add-zone example.com. 10.0.0.1 MASTER`
+`$ powerdns-cli -a MyApiKey -u http://localhost zone add example.com. 10.0.0.1 MASTER`
 
 The following example does **not** work and will create an error:  
-`$ powerdns-cli add-zone -a MyApiKey -u http://localhost example.com. 10.0.0.1 MASTER`
+`$ powerdns-cli zone add -a MyApiKey -u http://localhost example.com. 10.0.0.1 MASTER`
 
 
 You may provide all flags through your environment variables as well. Use the long
@@ -50,7 +51,7 @@ flag name in upper-case and prefix it with `POWERDNS_CLI_`. For example:
 # This is effecively the same as above
 export POWERDNS_CLI_APIKEY="MyApiKey"
 export POWERDNS_CLI_URL="http://localhost"
-powerdns-cli add-zone example.com. 10.0.0.1 MASTER
+powerdns-cli zone add example.com. 10.0.0.1 MASTER
 ```
 
 If you want to use environment variables for subcommands you will have to add
@@ -62,27 +63,32 @@ the subcommand to the variable string as well:
 The only time you'll be provided with non-json output is, when you request a
 BIND/AFXR-format export.
 
-This script tries to stay idempotent
+This script tries to stay idempotent as well and will not change anything
+if a corresponding configuration is already present upstream.
+This comes with a speed / traffic penalty, since sometimes several requests are
+necessary to get all upstream information.
+
 ### Basic Examples
 ```shell
 # Add a zone
-$ powerdns-cli add-zone example.com. 10.0.0.1 MASTER
+$ powerdns-cli zone add example.com. 10.0.0.1 MASTER
 {"message": "Zone example.com. created"}
 ```
 
 If you are in need of all the possible cli options, you can take a look
 at the [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml).
-The workflow uses all the possible options to test for the api compatibility.
+The workflow / integration test uses all the possible options to test for the api compatibility.
 
 ### Constraints
 Building a simple cli for a large set of options of an api is no easy task.
 Therefore, I had to go for compromises to keep `powerdns-cli` clutter-free.
 
 But you should possibly want to know about these caveats:
-1. It is not possible to simply create a record with several entries. Instead, you have to use `extend-record` several times.
+
+1. It is not possible to simply create a RRSet with several entries. Instead, you have to
+   use `extend-record` several times.
 2. There are no guardrails for removing records from a zone, only for removing a zone altogether.
-3. By default, each record is enabled. You can disable a record, but enabling it requires re-adding it, since enabling would need the same information anyways.
-4. The default TTL is set to 86400. The ttl is set per name:zone:type pair.
+3. The default TTL is set to 86400. The ttl is set per RRSet (name:zone:record-type).
 
 ## Version Support
 All the PowerDNS authoritative nameserver versions, which receive
@@ -98,17 +104,7 @@ won't be covered by the integration tests.
 The following things are on my roadmap before a beta release:
 1. Pytest and Version tests
 
-After the beta is done, i plan to port the code to implement it in ansible.
-1. PowerDNS ansible module which has similar features to this one
-2. unit-tests
-
-Implemented features are:
-- Everything around zone manipulation (creating zones, records and so forth)
-- Exporting and searching current zone configuration
-- Accessing server configuration and statistics
-- Managing TSIG-Keys
-- Zonemetadata
-- Zonecryptokeys
+After the beta is done, I plan to port the code to implement it in Ansible.
 
 ## API-Spec coverage
 
