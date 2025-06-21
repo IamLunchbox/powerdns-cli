@@ -169,7 +169,7 @@ def config():
 
 @config.command('export')
 @click.pass_context
-def config_display(ctx):
+def config_export(ctx):
     """
     Query the configuration of this PowerDNS instance
     """
