@@ -888,7 +888,7 @@ def zone_add(ctx, dns_zone, zonetype, master):
             'masters': master.split(',') if master else [],
         }
     else:
-        click.echo(json.dumps({'error': 'Slave entries are not supported right now'}))
+        click.echo(json.dumps({'message': 'Slave entries are not supported right now'}))
         raise SystemExit(1)
     current_zones = utils.query_zones(ctx)
     if [z for z in current_zones if z['name'] == dns_zone]:
