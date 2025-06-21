@@ -168,20 +168,6 @@ def config():
 
 
 @config.command('export')
-@click.argument('server-id', type=click.STRING)
-@click.pass_context
-def config_export(ctx, server_id):
-    """
-    Exports the base data of the given serverid
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/{server_id}"
-    r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
-
-
-@config.command('display')
 @click.pass_context
 def config_display(ctx):
     """
@@ -194,9 +180,9 @@ def config_display(ctx):
     raise SystemExit(1)
 
 
-@config.command('list-servers')
+@config.command('list')
 @click.pass_context
-def config_list_servers(ctx):
+def config_list(ctx):
     """
     Lists configured dns-servers
     """

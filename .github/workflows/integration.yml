@@ -87,14 +87,12 @@ jobs:
       - name: Flush zone cache
         run: powerdns-cli zone flush-cache example.org.
 # Config Tests
-      - name: Show config
-        run: powerdns-cli config display
       - name: Show stats
         run: powerdns-cli config stats
       - name: List servers
-        run: powerdns-cli config list-servers
+        run: powerdns-cli config list
       - name: Export server
-        run: powerdns-cli config export localhost
+        run: powerdns-cli config export
 # TSIGKey Tests
       - name: Add TSIGKey with defaults
         run: powerdns-cli tsigkey add test1 hmac-md5
