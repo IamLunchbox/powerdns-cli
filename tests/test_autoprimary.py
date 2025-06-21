@@ -17,7 +17,7 @@ def test_autoprimary_add_success(mock_utils):
     runner = CliRunner()
     result = runner.invoke(
         autoprimary_add,
-        ['1.1.1.1', 'ns1.example.com'],
+        ['1.1.1.1', 'ns1.example.com', '--account', 'testaccount'],
         obj={'apihost': 'http://example.com'}
     )
     assert result.exit_code == 0
@@ -27,7 +27,7 @@ def test_autoprimary_add_success(mock_utils):
 
 
 def test_autoprimary_add_already_present(mock_utils):
-    get = mock_utils.mock_http_get(200, [{'ip': '1.1.1.1', 'nameserver': 'ns1.example.com'}])
+    get = mock_utils.mock_http_get(200, [{'ip': '1.1.1.1', 'nameserver': 'ns1.example.com', 'account': 'testaccount'}])
     post = mock_utils.mock_http_post(201, text_output='')
     runner = CliRunner()
     result = runner.invoke(
@@ -54,7 +54,7 @@ def test_autoprimary_list_success(mock_utils):
 
 
 def test_autoprimary_delete_success(mock_utils):
-    get = mock_utils.mock_http_get(200, [{'ip': '2.2.2.2', 'nameserver': 'ns1.example.com'}])
+    get = mock_utils.mock_http_get(200, [{'ip': '2.2.2.2', 'nameserver': 'ns1.example.com', 'account': 'testaccount'}])
     delete = mock_utils.mock_http_delete(204, text_output='')
     runner = CliRunner()
     result = runner.invoke(
@@ -68,7 +68,7 @@ def test_autoprimary_delete_success(mock_utils):
     delete.assert_called()
 
 def test_autoprimary_delete_already_absent(mock_utils):
-    get = mock_utils.mock_http_get(200, [{'ip': '2.2.2.2', 'nameserver': 'ns1.example.com'}])
+    get = mock_utils.mock_http_get(200, [{'ip': '2.2.2.2', 'nameserver': 'ns1.example.com', 'account': 'testaccount'}])
     delete = mock_utils.mock_http_delete(201, text_output='')
     runner = CliRunner()
     result = runner.invoke(
