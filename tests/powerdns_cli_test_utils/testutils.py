@@ -36,4 +36,4 @@ class MockUtils:
         mock_autoprimary_put.text.return_value = text_output
         mock_autoprimary_put.status_code = status_code
         mock_autoprimary_put.headers = {'Content-Type': 'application/json'}
-        return self.mocker.patch('powerdns_cli.utils.http_post', return_value=mock_autoprimary_put)
+        return self.mocker.patch('powerdns_cli.utils.http_put', return_value=mock_autoprimary_put)
