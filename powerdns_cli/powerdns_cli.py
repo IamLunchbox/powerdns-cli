@@ -73,6 +73,13 @@ def cli(ctx, apikey, url, insecure):
     session.verify = insecure
     session.headers = {'X-API-Key': ctx.obj['key']}
     ctx.obj['session'] = session
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/servers"
+    preflight_request = utils.http_get(uri, ctx)
+    if not preflight_request.status_code == 200:
+        click.echo(json.dumps({'message': 'Error, did not successfully connect to sever, '
+                                          f"status {preflight_request.status_code}. "
+                                          'Are your credentials correct?'}))
+        raise SystemExit(1)
 
 
 @cli.group()
