@@ -167,11 +167,12 @@ def is_dnssec_key_present(uri: str, secret: str, ctx: click.Context) -> bool:
     secret = secret.rstrip('\n')
     secret = lowercase_secret(secret)
     present_keys = http_get(uri, ctx)
-    relevant_privkeys = (http_get(f"{uri}/{key['id']}", ctx).json() for key in present_keys.json())
-    return any(
-        lowercase_secret(key['privatekey'].rstrip('\n')) == secret
-        for key in relevant_privkeys
-    )
+    for key in present_keys.json():
+        if secret == lowercase_secret(
+                http_get(f"{uri}/{key['id']}", ctx).json()['privatekey'].rstrip('\n')
+        ):
+            return True
+    return False
 
 
 def is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -> bool:
