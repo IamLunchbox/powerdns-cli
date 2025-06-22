@@ -159,8 +159,7 @@ def make_dnsname(name: str, zone: str) -> str:
     return f'{name}.{zone}'
 
 
-def is_dnssec_key_present(uri: str, key_type: str, bits: int,
-                          algorithm: str, secret: str, ctx: click.Context) -> bool:
+def is_dnssec_key_present(uri: str, secret: str, ctx: click.Context) -> bool:
     """Retrieves all private keys for the given zone and checks if the private key is corresponding
     to the private key provided by the user"""
     # Powerdns will accept secrets without trailing newlines and actually appends one by itself -
@@ -168,14 +167,7 @@ def is_dnssec_key_present(uri: str, key_type: str, bits: int,
     secret = secret.rstrip('\n')
     secret = lowercase_secret(secret)
     present_keys = http_get(uri, ctx)
-    relevant_ids = [
-        keyid for keyid in present_keys.json()
-        if keyid['keytype'] == key_type and
-        (algorithm is None or keyid['algorithm'] == algorithm.upper()) and
-        (bits is None or keyid['bits'] == bits)
-    ]
-    relevant_privkeys = (http_get(f"{uri}/{key['id']}", ctx).json() for key in relevant_ids)
-
+    relevant_privkeys = (http_get(f"{uri}/{key['id']}", ctx).json() for key in present_keys.json())
     return any(
         lowercase_secret(key['privatekey'].rstrip('\n')) == secret
         for key in relevant_privkeys

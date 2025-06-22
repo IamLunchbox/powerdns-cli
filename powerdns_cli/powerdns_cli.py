@@ -265,8 +265,7 @@ def cryptokey_add(
     }.items():
         if val:
             payload[key] = val
-    if secret and utils.is_dnssec_key_present(
-            uri, key_type, bits, algorithm, secret.replace('\\n', '\n'), ctx):
+    if secret and utils.is_dnssec_key_present(uri, secret.replace('\\n', '\n'), ctx):
         click.echo(json.dumps(
             {'message': 'The provided dnssec-key is already present at the backend'}))
         raise SystemExit(0)
