@@ -3,6 +3,7 @@ import pytest
 from click.testing import CliRunner
 from powerdns_cli.powerdns_cli import (
     cryptokey_add,
+    cryptokey_import,
     cryptokey_delete,
     cryptokey_disable,
     cryptokey_enable,
@@ -47,6 +48,8 @@ example_zsk_key = {"active": False, "algorithm": "ED448", "bits": 456, "dnskey":
 
 example_ksk_key = {"active": True, "algorithm": "ECDSAP256SHA256", "bits": 256, "dnskey": "257 3 13 MvuT0qTd9MaGuK6LXfz7DoT90rMPBNBG8I8J9uikDCJZ7V/8lDE27A6gGnf58SqE39JQbtrMy5q3K1FmFmFkQQ==", "ds": ["17803 13 1 9b0b86483e63a4bb8fe38bb07bd34e78bda8f849", "17803 13 2 78fbd0b96ffefc80f25a67a3aeb85827e865976ef0968e80ba61640afc5fc79f", "17803 13 4 9fdb7071aba84fd104252617bbae15f6e494ca338f6b06bd79c22934cd251148cb65bb38f0f7c49404d9ed4a96281b5a"], "flags": 257, "id": 1, "keytype": "csk", "privatekey": "Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: bcp9l62ibGOhdR6WNLE08MjtdIZNeiLtVBuWT8mp9Ts=\n", "published": True, "type": "Cryptokey"}
 
+example_new_key = {"active": False, "algorithm": "ECDSAP256SHA256", "bits": 256, "dnskey": "257 3 13 C7HcQUYZzstwBcbCLG5qmaakVx7HYhlHKvZEsKz1uQUlLQfbc8vLGluIPjxigt0BP5oaeY6INBxNcm+aDPcLeg==", "ds": ["47665 13 1 52d51c6c17a3dcb3f1bbeb1b403609741ac64942", "47665 13 2 d1699162a65d0cccc9b25f8925bc658bd91daa398181fa0274d2aa6edbd2b8b0", "47665 13 4 7ffcef241e57e6b729e35249f091b9ec5f94a6af03bb0ed0f1d0e35d002258bfc7abb0883a2b0786f357e88f1a9a9d09"], "flags": 257, "id": 1, "keytype": "csk", "privatekey": "Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: nh2N6OhdEK/ovCd1v99JSxSum9GBVfabzCLwXnjo1NU=\n", "published": False, "type": "Cryptokey"}
+
 
 def test_cryptokey_add_success(mock_utils):
     get = mock_utils.mock_http_get(200)
@@ -62,13 +65,42 @@ def test_cryptokey_add_success(mock_utils):
     post.assert_called()
 
 
-def test_cryptokey_add_already_present(mock_utils, conditional_mock_utils):
+def test_cryptokey_add_failed(mock_utils, conditional_mock_utils):
+    get = conditional_mock_utils.mock_http_get()
+    error_output = {"error": "The information you provided is incorrect"}
+    post = mock_utils.mock_http_post(500, json_output=error_output)
+    runner = CliRunner()
+    result = runner.invoke(
+        cryptokey_add,
+        ["example.com.", "zsk"],
+        obj={"apihost": "https://example.com"},
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == error_output
+
+
+def test_cryptokey_import_success(mock_utils, conditional_mock_utils):
+    get = conditional_mock_utils.mock_http_get()
+    post = mock_utils.mock_http_post(201, json_output=example_new_key)
+    runner = CliRunner()
+    result = runner.invoke(
+        cryptokey_import,
+        ["example.com.", "zsk", example_new_key["privatekey"]],
+        obj={"apihost": "https://example.com"},
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == example_new_key
+    post.assert_called()
+    get.assert_called()
+
+
+def test_cryptokey_import_already_present(mock_utils, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output={})
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_add,
-        ["example.com.", "zsk", "-s", example_zsk_key["privatekey"]],
+        cryptokey_import,
+        ["example.com.", "zsk", example_zsk_key["privatekey"]],
         obj={"apihost": "https://example.com"},
     )
     assert result.exit_code == 0
@@ -77,19 +109,20 @@ def test_cryptokey_add_already_present(mock_utils, conditional_mock_utils):
     get.assert_called()
 
 
-# def test_cryptokey_add_failure(mock_utils):
-#     get = mock_utils.mock_http_get(404, {"error": "Not found"})
-#     post = mock_utils.mock_http_post(500, {"error": "Internal server error"})
-#     runner = CliRunner()
-#     result = runner.invoke(
-#         cryptokey_add,
-#         ["example.com.", "zsk", "--bits", "2048", "--algorithm", "rsasha256"],
-#         obj={"apihost": "https://example.com"},
-#     )
-#     assert result.exit_code == 1
-#     post.assert_called()
-#
-#
+def test_cryptokey_import_failed(mock_utils, conditional_mock_utils):
+    get = conditional_mock_utils.mock_http_get()
+    error_output = {"error": "The information you provided is incorrect"}
+    post = mock_utils.mock_http_post(500, json_output=error_output)
+    runner = CliRunner()
+    result = runner.invoke(
+        cryptokey_import,
+        ["example.com.", "zsk", example_new_key["privatekey"]],
+        obj={"apihost": "https://example.com"},
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == error_output
+
+
 # def test_cryptokey_delete_success(mock_utils):
 #     get = mock_utils.mock_http_get(200, {"id": 1, "type": "zsk", "active": False})
 #     delete = mock_utils.mock_http_delete(204, text_output="")

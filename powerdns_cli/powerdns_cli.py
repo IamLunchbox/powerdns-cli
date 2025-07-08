@@ -218,13 +218,6 @@ def cryptokey():
               help='Sets the key to active immediately')
 @click.option('-p', '--publish', is_flag=True, default=False,
               help='Sets the key to published')
-@click.option(
-    '-s',
-    '--secret',
-    default='',
-    type=click.STRING,
-    help='Manually set the dnssec private key'
-)
 @click.option('--bits', type=click.INT, help='Set the key size in bits, required for zsk')
 @click.option('--algorithm',
               type=click.Choice([
@@ -243,7 +236,6 @@ def cryptokey_add(
         key_type,
         active,
         publish,
-        secret,
         bits,
         algorithm
 ):
@@ -257,18 +249,12 @@ def cryptokey_add(
         'keytype': key_type
     }
     # Click CLI escapes newline characters
-    secret = secret.replace('\\n', '\n')
     for key, val in {
-        'privatekey': secret,
         'bits': bits,
         'algorithm': algorithm
     }.items():
         if val:
             payload[key] = val
-    if secret and utils.is_dnssec_key_present(uri, secret.replace('\\n', '\n'), ctx):
-        click.echo(json.dumps(
-            {'message': 'The provided dnssec-key is already present at the backend'}))
-        raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
     if utils.create_output(
             r,
@@ -366,6 +352,48 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
     utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@cryptokey.command('import')
+@click.argument('dns_zone', type=Zone, metavar='zone')
+@click.argument('key-type', type=click.Choice(['ksk', 'zsk']))
+@click.argument('private-key', type=click.STRING)
+@click.option('-a', '--active', is_flag=True, default=False,
+              help='Sets the key to active immediately')
+@click.option('-p', '--publish', is_flag=True, default=False,
+              help='Sets the key to published')
+@click.pass_context
+def cryptokey_import(
+        ctx,
+        dns_zone,
+        key_type,
+        private_key,
+        active,
+        publish,
+):
+    """
+    Adds a cryptokey to the zone. Is disabled and not published by default
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    # Click CLI escapes newline characters
+    secret = private_key.replace('\\n', '\n')
+    payload = {
+        'active': active,
+        'published': publish,
+        'privatekey': secret,
+        'keytype': key_type
+    }
+    if utils.is_dnssec_key_present(uri, secret, ctx):
+        click.echo(json.dumps(
+            {'message': 'The provided dnssec-key is already present at the backend'}))
+        raise SystemExit(0)
+    r = utils.http_post(uri, ctx, payload)
+    if utils.create_output(
+            r,
+            (201,),
+    ):
         raise SystemExit(0)
     raise SystemExit(1)
 
