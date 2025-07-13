@@ -412,6 +412,67 @@ def cryptokey_list(ctx, dns_zone):
     raise SystemExit(1)
 
 
+@cryptokey.command('publish')
+@click.pass_context
+@click.argument('dns_zone', type=Zone, metavar='zone')
+@click.argument('cryptokey-id', type=click.INT)
+def cryptokey_publish(ctx, dns_zone, cryptokey_id):
+    """
+    Publishes an already existing cryptokey
+    """
+    uri = (f"{ctx.obj['apihost']}"
+           f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}")
+    payload = {
+        'id': cryptokey_id,
+        'published': True,
+    }
+    r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    if r.json()['published']:
+        click.echo(json.dumps({'message': f"Cryptokey with id {cryptokey_id} already published"}))
+        raise SystemExit(0)
+    r = utils.http_put(uri, ctx, payload)
+    if utils.create_output(r,
+                           (204,),
+                           optional_json={
+                               'message': f'Published id {cryptokey_id} for {dns_zone}'
+                           }
+                           ):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@cryptokey.command('unpublish')
+@click.pass_context
+@click.argument('dns_zone', type=Zone, metavar='zone')
+@click.argument('cryptokey-id', type=click.INT)
+def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
+    """
+    Unpublishes an already existing cryptokey
+    """
+    uri = (f"{ctx.obj['apihost']}"
+           f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}")
+    payload = {
+        'id': cryptokey_id,
+        'published': False,
+    }
+    r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    if not r.json()['published']:
+        click.echo(
+            json.dumps(
+                {'message': f"Cryptokey with id {cryptokey_id} is already unpublished"}
+            )
+        )
+        raise SystemExit(0)
+    r = utils.http_put(uri, ctx, payload)
+    if utils.create_output(r,
+                           (204,),
+                           optional_json={
+                               'message': f'Unpublished id {cryptokey_id} for {dns_zone}'
+                           }):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
 @cli.group()
 def record():
     """Resource records of a zone"""

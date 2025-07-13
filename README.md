@@ -77,13 +77,9 @@ $ powerdns-cli zone add example.com. 10.0.0.1 MASTER
 
 If you are in need of all the possible cli options, you can take a look
 at the [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml).
-The workflow / integration test uses all the possible options to test for the api compatibility.
+The workflow / integration test uses all common cli options to test for the api compatibility.
 
 ### Constraints
-Building a simple cli for a large set of options of an api is no easy task.
-Therefore, I had to go for compromises to keep `powerdns-cli` clutter-free.
-
-But you should possibly want to know about these caveats:
 
 1. It is not possible to simply create a RRSet with several entries. Instead, you have to
    use `extend-record` several times.
@@ -104,18 +100,4 @@ won't be covered by the integration tests.
 The following things are on my roadmap before a beta release:
 1. Pytest and Version tests
 
-After the beta is done, I plan to port the code to implement it in Ansible.
-
-## API-Spec coverage
-
-| Path          | Covered            |
-|---------------|--------------------|
-| autoprimaries | :heavy_check_mark: |
-| config        | :heavy_check_mark: |
-| search        | :heavy_check_mark: |
-| servers       | :heavy_check_mark: |
-| stats         | :heavy_check_mark: |
-| tsigkey       | :heavy_check_mark: |
-| zonecryptokey | :heavy_check_mark: |
-| zonemetadata  | :heavy_check_mark: |
-| zones         | :heavy_check_mark: |
+After the beta is done, I plan to port the code to Ansible.
