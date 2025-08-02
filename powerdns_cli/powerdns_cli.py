@@ -425,6 +425,7 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id):
     payload = {
         'id': cryptokey_id,
         'published': True,
+        'active': True,
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if r.json()['published']:
@@ -498,7 +499,7 @@ def record():
     ),
 )
 @click.argument('content', type=click.STRING)
-@click.option('--ttl', default=86400, type=click.INT, help='Set default time to live')
+@click.option('--ttl', default=86400, type=click.INT, help='Set time to live')
 @click.pass_context
 def record_add(
         ctx,
@@ -775,7 +776,6 @@ def record_extend(
             }
         ]
     }
-
     if utils.is_content_present(uri, ctx, rrset):
         click.echo(json.dumps({'message': f'{name} IN {record_type} {content} already present'}))
         raise SystemExit(0)

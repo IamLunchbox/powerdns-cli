@@ -37,3 +37,11 @@ class MockUtils:
         mock_http_put.status_code = status_code
         mock_http_put.headers = {'Content-Type': 'application/json'}
         return self.mocker.patch('powerdns_cli.utils.http_put', return_value=mock_http_put)
+
+    def mock_http_patch(self, status_code: int, json_output: dict | list = None, text_output: str = '') -> unittest_MagicMock:
+        mock_http_patch = self.mocker.MagicMock(spec=requests.Response)
+        mock_http_patch.json.return_value = json_output
+        mock_http_patch.text.return_value = text_output
+        mock_http_patch.status_code = status_code
+        mock_http_patch.headers = {'Content-Type': 'application/json'}
+        return self.mocker.patch('powerdns_cli.utils.http_patch', return_value=mock_http_patch)
