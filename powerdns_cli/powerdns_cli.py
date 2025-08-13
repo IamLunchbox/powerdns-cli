@@ -831,8 +831,13 @@ def tsigkey_add(
     if secret:
         payload['key'] = secret
     r = utils.http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}", ctx)
+    if r.status_code == 200 and secret:
+        if r.json()['key'] == secret:
+            msg = {'message': f'A TSIGKEY with {name} and your secret is already present'}
+            click.echo(json.dumps(msg))
+        raise SystemExit(0)
     if r.status_code == 200:
-        msg = {'message': f'TSIGKEY {name} already present'}
+        msg = {'message': f'A TSIGKEY with name {name} is already present'}
         click.echo(json.dumps(msg))
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
