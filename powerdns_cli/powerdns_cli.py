@@ -577,7 +577,7 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
     """
     Deletes a record of the precisely given type and content.
     When there are two records, only the specified one will be removed,
-    unless --all is specified
+    unless --all is provided.
     """
     name = utils.make_dnsname(name, dns_zone)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
@@ -788,6 +788,7 @@ def record_extend(
             if record['content'] != rrset['records'][0]['content']
         ]
         rrset['records'].extend(extra_records)
+    # breakpoint()
     r = utils.http_patch(uri, ctx, {'rrsets': [rrset]})
     msg = {'message': f'{name} IN {record_type} {content} extended'}
     if utils.create_output(r, (204,), optional_json=msg):

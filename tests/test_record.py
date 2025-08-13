@@ -1,5 +1,6 @@
 # test_record.py
 import json
+import copy
 import pytest
 from click.testing import CliRunner
 from powerdns_cli.powerdns_cli import (
@@ -12,12 +13,7 @@ from powerdns_cli.powerdns_cli import (
 from powerdns_cli_test_utils import testutils
 
 
-@pytest.fixture
-def mock_utils(mocker):
-    return testutils.MockUtils(mocker)
-
-
-example_zone = {
+example_zone_dict = {
     "account": "",
     "api_rectify": False,
     "catalog": "",
@@ -71,7 +67,17 @@ example_zone = {
 }
 
 
-def test_record_add_success(mock_utils):
+@pytest.fixture
+def mock_utils(mocker):
+    return testutils.MockUtils(mocker)
+
+
+@pytest.fixture
+def example_zone():
+    return copy.deepcopy(example_zone_dict)
+
+
+def test_record_add_success(mock_utils,example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -86,7 +92,7 @@ def test_record_add_success(mock_utils):
     get.assert_called_once()
 
 
-def test_record_add_already_present(mock_utils):
+def test_record_add_already_present(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -101,7 +107,7 @@ def test_record_add_already_present(mock_utils):
     assert "already present" in json.loads(result.output)["message"]
 
 
-def test_record_add_failure(mock_utils):
+def test_record_add_failure(mock_utils, example_zone):
     get = mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
@@ -114,7 +120,7 @@ def test_record_add_failure(mock_utils):
     patch.assert_not_called()
 
 
-def test_record_delete_success(mock_utils):
+def test_record_delete_success(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -128,8 +134,7 @@ def test_record_delete_success(mock_utils):
     get.assert_called()
     patch.assert_called()
 
-
-def test_record_delete_already_absent(mock_utils):
+def test_record_delete_already_absent(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -143,7 +148,7 @@ def test_record_delete_already_absent(mock_utils):
     patch.assert_not_called()
 
 
-def test_record_delete_failure(mock_utils):
+def test_record_delete_failure(mock_utils, example_zone):
     get = mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
@@ -156,7 +161,7 @@ def test_record_delete_failure(mock_utils):
     patch.assert_not_called()
 
 
-def test_record_disable_success(mock_utils):
+def test_record_disable_success(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -185,7 +190,7 @@ def test_record_disable_success(mock_utils):
     get.assert_called()
 
 
-def test_record_disable_already_disabled(mock_utils):
+def test_record_disable_already_disabled(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -200,7 +205,7 @@ def test_record_disable_already_disabled(mock_utils):
     assert "already disabled" in json.loads(result.output)["message"]
 
 
-def test_record_disable_failure(mock_utils):
+def test_record_disable_failure(mock_utils, example_zone):
     get = mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
@@ -213,7 +218,7 @@ def test_record_disable_failure(mock_utils):
     patch.assert_not_called()
 
 
-def test_record_enable_success(mock_utils):
+def test_record_enable_success(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -228,7 +233,7 @@ def test_record_enable_success(mock_utils):
     get.assert_called()
 
 
-def test_record_already_enabled(mock_utils):
+def test_record_already_enabled(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -238,12 +243,12 @@ def test_record_already_enabled(mock_utils):
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
-    assert "created" in json.loads(result.output)["message"]
-    patch.assert_called()
+    assert "already present" in json.loads(result.output)["message"]
+    patch.assert_not_called()
     get.assert_called()
 
 
-def test_record_enabled_failure(mock_utils):
+def test_record_enabled_failure(mock_utils, example_zone):
     get = mock_utils.mock_http_get(404, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -257,86 +262,85 @@ def test_record_enabled_failure(mock_utils):
     get.assert_called()
 
 
-# def test_record_extend_success(mock_utils):
-#     get = mock_utils.mock_http_get(200, example_zone)
-#     patch = mock_utils.mock_http_patch(204, text_output="")
-#     runner = CliRunner()
-#     result = runner.invoke(
-#         record_extend,
-#         ["test", "example.com.", "A", "192.168.1.1"],
-#         obj={"apihost": "http://example.com"},
-#     )
-#     assert result.exit_code == 0
-#     assert "extended" in json.loads(result.output)["message"]
-#     patch.assert_called()
-#     assert patch.call_args_list[0][0][2] == {
-#         "rrsets": [
-#             {
-#                 "name": "test.example.com.",
-#                 "type": "A",
-#                 "ttl": 86400,
-#                 "changetype": "REPLACE",
-#                 "records": [
-#                     {"content": "192.168.1.1", "disabled": False},
-#                     {"content": "1.1.1.1", "disabled": False},
-#                     {"content": "1.1.1.2", "disabled": True},
-#                 ],
-#             }
-#         ]
-#     }
-#     get.assert_called()
-#
-# def test_record_extend_success_with_new_rrset(mock_utils):
-#     get = mock_utils.mock_http_get(200, example_zone)
-#     patch = mock_utils.mock_http_patch(204, text_output="")
-#     runner = CliRunner()
-#     result = runner.invoke(
-#         record_extend,
-#         ["test", "example.com.", "TXT", "v=spf1 -all"],
-#         obj={"apihost": "http://example.com"},
-#     )
-#     assert result.exit_code == 0
-#     assert "extended" in json.loads(result.output)["message"]
-#     patch.assert_called()
-#     assert patch.call_args_list[0][0][2] == {
-#         "rrsets": [
-#             {
-#                 "name": "test.example.com.",
-#                 "type": "TXT",
-#                 "ttl": 86400,
-#                 "changetype": "REPLACE",
-#                 "records": [
-#                     {"content": "v=spf1 -all", "disabled": False},
-#                 ],
-#             }
-#         ]
-#     }
-#     get.assert_called()
-#
-#
-# def test_record_extend_already_present(mock_utils):
-#     get = mock_utils.mock_http_get(200, example_zone)
-#     patch = mock_utils.mock_http_patch(204, text_output="")
-#     runner = CliRunner()
-#     result = runner.invoke(
-#         record_extend,
-#         ["test", "example.com.", "A", "1.1.1.1"],
-#         obj={"apihost": "http://example.com"},
-#     )
-#     assert result.exit_code == 0
-#     patch.assert_not_called()
-#     get.assert_called_once()
-#     assert "already present" in json.loads(result.output)["message"]
-#
-#
-# def test_record_extend_failure(mock_utils):
-#     get = mock_utils.mock_http_get(404, {"error": "Not found"})
-#     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
-#     runner = CliRunner()
-#     result = runner.invoke(
-#         record_extend,
-#         ["@", "example.com.", "A", "192.168.1.1"],
-#         obj={"apihost": "http://example.com"},
-#     )
-#     assert result.exit_code == 1
-#     patch.assert_not_called()
+def test_record_extend_success(mock_utils, example_zone):
+    get = mock_utils.mock_http_get(200, example_zone)
+    patch = mock_utils.mock_http_patch(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        record_extend,
+        ["test", "example.com.", "A", "192.168.1.1"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "extended" in json.loads(result.output)["message"]
+    patch.assert_called()
+    assert patch.call_args_list[0][0][2] == {
+        "rrsets": [
+            {
+                "name": "test.example.com.",
+                "type": "A",
+                "ttl": 86400,
+                "changetype": "REPLACE",
+                "records": [
+                    {"content": "192.168.1.1", "disabled": False},
+                    {"content": "1.1.1.1", "disabled": False},
+                    {"content": "1.1.1.2", "disabled": True},
+                ],
+            }
+        ]
+    }
+    get.assert_called()
+
+def test_record_extend_success_with_new_rrset(mock_utils, example_zone):
+    get = mock_utils.mock_http_get(200, example_zone)
+    patch = mock_utils.mock_http_patch(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        record_extend,
+        ["test4", "example.com.", "A", "192.168.1.1"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "extended" in json.loads(result.output)["message"]
+    patch.assert_called()
+    assert patch.call_args_list[0][0][2] == {
+        "rrsets": [
+            {
+                "name": "test4.example.com.",
+                "type": "A",
+                "ttl": 86400,
+                "changetype": "REPLACE",
+                "records": [
+                    {"content": "192.168.1.1", "disabled": False},
+                ],
+            }
+        ]
+    }
+    get.assert_called()
+
+
+def test_record_extend_idempotence(mock_utils, example_zone):
+    get = mock_utils.mock_http_get(200, example_zone)
+    patch = mock_utils.mock_http_patch(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        record_extend,
+        ["test", "example.com.", "A", "1.1.1.1"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "already present" in json.loads(result.output)["message"]
+    patch.assert_not_called()
+    get.assert_called()
+
+def test_record_extend_failure(mock_utils, example_zone):
+    get = mock_utils.mock_http_get(404, {"error": "Not found"})
+    patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        record_extend,
+        ["@", "example.com.", "A", "192.168.1.1"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    patch.assert_not_called()

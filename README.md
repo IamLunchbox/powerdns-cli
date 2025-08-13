@@ -82,7 +82,7 @@ The workflow / integration test uses all common cli options to test for the api 
 ### Constraints
 
 1. It is not possible to simply create a RRSet with several entries. Instead, you have to
-   use `extend-record` several times.
+   use `powerdns-cli record extend`.
 2. There are no guardrails for removing records from a zone, only for removing a zone altogether.
 3. The default TTL is set to 86400. The ttl is set per RRSet (name:zone:record-type).
 
@@ -100,4 +100,8 @@ won't be covered by the integration tests.
 The following things are on my roadmap before a beta release:
 1. Pytest and Version tests
 
-After the beta is done, I plan to port the code to Ansible.
+The following features are on the roadmap:
+1. I want to convert this code to an Ansible module.
+2. `powerdns-cli record export` to get a specific list of entries.
+3. A docker container with powerdns-cli.
+4. `powerdns-cli version`
