@@ -418,19 +418,19 @@ def cryptokey_list(ctx, dns_zone):
 @click.argument('cryptokey-id', type=click.INT)
 def cryptokey_publish(ctx, dns_zone, cryptokey_id):
     """
-    Publishes an already existing cryptokey
+    Publishes an already existing cryptokey. Implies activating it as well.
     """
     uri = (f"{ctx.obj['apihost']}"
            f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}")
     payload = {
         'id': cryptokey_id,
         'published': True,
-        'active': True,
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if r.json()['published']:
         click.echo(json.dumps({'message': f"Cryptokey with id {cryptokey_id} already published"}))
         raise SystemExit(0)
+    payload['active'] = r.json()['active']
     r = utils.http_put(uri, ctx, payload)
     if utils.create_output(r,
                            (204,),
@@ -464,6 +464,7 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
             )
         )
         raise SystemExit(0)
+    payload['active'] = r.json()['active']
     r = utils.http_put(uri, ctx, payload)
     if utils.create_output(r,
                            (204,),
