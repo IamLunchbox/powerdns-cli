@@ -39,28 +39,31 @@ def example_tsigkey_list():
 
 class ConditionalMock(testutils.MockUtils):
     def mock_http_get(self) -> unittest_MagicMock:
-        # TODO: Add status codes to return
         def side_effect(*args, **kwargs):
             match args[0]:
-                case "https://example.com/api/v1/servers/localhost/tsigkeys":
+                case "http://example.com/api/v1/servers/localhost/tsigkeys":
                     json_output = example_tsigkey_list_list
-                case "https://example.com/api/v1/servers/localhost/tsigkeys/test1":
+                    status_code = 200
+                case "http://example.com/api/v1/servers/localhost/tsigkeys/test1":
                     json_output = example_tsigkey_test_1_dict
-                case "https://example.com/api/v1/servers/localhost/tsigkeys/test2":
+                    status_code = 200
+                case "http://example.com/api/v1/servers/localhost/tsigkeys/test2":
                     json_output = example_tsigkey_test_2_dict
+                    status_code = 200
+                case value if "http://example.com/api/v1/servers/localhost/tsigkeys" in value:
+                    json_output = {"error": "Not found"}
+                    status_code = 404
                 case _:
                     raise NotImplementedError(f"An unexpected url-path was called: {args[0]}")
             mock_http_get = self.mocker.MagicMock(spec=requests.Response)
-            mock_http_get.status_code = 200
+            mock_http_get.status_code = status_code
             mock_http_get.json.return_value = json_output
             mock_http_get.headers = {'Content-Type': 'application/json'}
             return mock_http_get
         return self.mocker.patch('powerdns_cli.utils.http_get', side_effect=side_effect)
 
-
-def test_tsigkey_add_success(mock_utils, example_new_tsigkey):
-    # TODO: dont pass status code here but rather at the side effect level
-    get = mock_utils.mock_http_get(404)
+def test_tsigkey_add_success(mock_utils, conditional_mock_utils, example_new_tsigkey):
+    get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_new_tsigkey)
     runner = CliRunner()
     result = runner.invoke(
@@ -74,28 +77,96 @@ def test_tsigkey_add_success(mock_utils, example_new_tsigkey):
     get.assert_called()
 
 
-# def test_tsigkey_add_already_present(mock_utils):
-#     get = mock_utils.mock_http_get(200, {'name': 'example-key'})
-#     post = mock_utils.mock_http_post(201, text_output='')
-#     runner = CliRunner()
-#     result = runner.invoke(
-#         tsigkey_add,
-#         ['example-key', 'hmac-sha256', '--secret', 'secret'],
-#         obj={'apihost': 'http://example.com'}
-#     )
-#     assert result.exit_code == 0
-#     assert 'already present' in json.loads(result.output)['message']
-#     post.assert_not_called()
-#
-#
-# def test_tsigkey_add_failure(mock_utils):
-#     get = mock_utils.mock_http_get(404, {'error': 'Not found'})
-#     post = mock_utils.mock_http_post(500, {'error': 'Internal server error'})
-#     runner = CliRunner()
-#     result = runner.invoke(
-#         tsigkey_add,
-#         ['example-key', 'hmac-sha256', '--secret', 'secret'],
-#         obj={'apihost': 'http://example.com'}
-#     )
-#     assert result.exit_code == 1
+def test_tsigkey_name_already_present(mock_utils, conditional_mock_utils, example_new_tsigkey):
+    get = conditional_mock_utils.mock_http_get()
+    post = mock_utils.mock_http_post(201, json_output=example_new_tsigkey)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_add,
+        ['test1', 'hmac-sha256'],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    assert "already present" in json.loads(result.output)["message"]
+    post.assert_not_called()
+    get.assert_called()
 
+def test_tsigkey_import_success(mock_utils, conditional_mock_utils, example_new_tsigkey):
+    get = conditional_mock_utils.mock_http_get()
+    post = mock_utils.mock_http_post(201, json_output=example_new_tsigkey)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_add,
+        ['test5', 'hmac-sha256', "-s", example_new_tsigkey["key"]],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == example_new_tsigkey
+    post.assert_called()
+    get.assert_called()
+
+def test_tsigkey_import_already_present(mock_utils, conditional_mock_utils, example_tsigkey_test1):
+    get = conditional_mock_utils.mock_http_get()
+    post = mock_utils.mock_http_post(201, json_output=example_tsigkey_test1)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_add,
+        ['test1', 'hmac-sha256', "-s", example_tsigkey_test1["key"]],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    assert "already present" in json.loads(result.output)["message"]
+    post.assert_not_called()
+    get.assert_called()
+
+def test_tsigkey_delete_success(mock_utils, conditional_mock_utils):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_delete,
+        ['test1'],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    delete.assert_called()
+    get.assert_called()
+
+def test_tsigkey_delete_not_present(mock_utils, conditional_mock_utils):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_delete,
+        ['test5'],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    delete.assert_not_called()
+    get.assert_called()
+
+def test_tsigkey_export_success(mock_utils, conditional_mock_utils, example_tsigkey_test1):
+    get = conditional_mock_utils.mock_http_get()
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_export,
+        ['test1'],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    get.assert_called()
+    assert json.loads(result.output) == example_tsigkey_test1
+
+def test_tsigkey_export_fail(mock_utils, conditional_mock_utils, example_tsigkey_test1):
+    get = conditional_mock_utils.mock_http_get()
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_export,
+        ['test5'],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert "Not found" in json.loads(result.output)["message"]
+    assert result.exit_code != 0
+    get.assert_called()
+
+# Todo: list + update
