@@ -165,8 +165,31 @@ def test_tsigkey_export_fail(mock_utils, conditional_mock_utils, example_tsigkey
         ['test5'],
         obj={'apihost': 'http://example.com'}
     )
-    assert "Not found" in json.loads(result.output)["message"]
+    assert "Not found" in json.loads(result.output)["error"]
     assert result.exit_code != 0
     get.assert_called()
 
-# Todo: list + update
+
+def test_tsigkey_list_success(mock_utils, conditional_mock_utils, example_tsigkey_list):
+    get = conditional_mock_utils.mock_http_get()
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_list,
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    get.assert_called()
+    assert json.loads(result.output) == example_tsigkey_list
+
+def test_tsigkey_list_fail(mock_utils):
+    get = mock_utils.mock_http_get(404,json_output={"message": "Not Found"})
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_list,
+        obj={'apihost': 'http://example.com'}
+    )
+    assert json.loads(result.output)["message"] == "Not Found"
+    assert result.exit_code != 0
+    get.assert_called()
+
+# Todo: update
