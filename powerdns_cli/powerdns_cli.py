@@ -863,7 +863,7 @@ def tsigkey_delete(
         click.echo(json.dumps(msg))
         raise SystemExit(0)
     r = utils.http_delete(uri, ctx)
-    if utils.create_output(r, (204,), optional_json={'message': f'Deleted tsigkey {name}'}):
+    if utils.create_output(r, (204,), optional_json={'message': f'Deleted TSIGKEY {name}'}):
         raise SystemExit(0)
     raise SystemExit(1)
 
@@ -924,12 +924,21 @@ def tsigkey_update(
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
     tsikey_settings = {k: v for k, v in
-                       {'algorithm': algorithm, 'secret': secret, 'name': new_name}.items()
+                       {'algorithm': algorithm, 'key': secret, 'name': new_name}.items()
                        if v}
+    r = utils.http_get(uri, ctx)
+    if r.status_code != 200:
+        msg = {'message': f"Error, a TSIGKEY with name {name} does not exist"}
+        click.echo(json.dumps(msg))
+        raise SystemExit(1)
+    if all(tsikey_settings[setting] == r.json()[setting] for setting in tsikey_settings):
+        msg = {'message': f"The settings TSIGKEY {name} are already present"}
+        click.echo(json.dumps(msg))
+        raise SystemExit(0)
     if new_name:
         r = utils.http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys", ctx)
         if new_name in (key['name'] for key in r.json()):
-            msg = {'message': f"Error, the target {name} already exists. Refusing to override."}
+            msg = {'message': f"Error, the TSIGKEY {name} already exists. Refusing to rewrite."}
             click.echo(json.dumps(msg))
             raise SystemExit(1)
     r = utils.http_put(uri, ctx, tsikey_settings)

@@ -192,4 +192,72 @@ def test_tsigkey_list_fail(mock_utils):
     assert result.exit_code != 0
     get.assert_called()
 
-# Todo: update
+def test_tsigkey_update_success(mock_utils, conditional_mock_utils, example_new_tsigkey):
+    get = conditional_mock_utils.mock_http_get()
+    put = mock_utils.mock_http_put(200, json_output=example_new_tsigkey)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_update,
+        ["test1", "-s", example_new_tsigkey["key"], "-n", "test5", "-a", "hmac-sha256"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    get.assert_called()
+    put.assert_called()
+    assert json.loads(result.output) == example_new_tsigkey
+
+def test_tsigkey_update_item_missing(mock_utils, conditional_mock_utils, example_new_tsigkey):
+    get = conditional_mock_utils.mock_http_get()
+    put = mock_utils.mock_http_put(200, json_output=example_new_tsigkey)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_update,
+        ["test5", "-s", example_new_tsigkey["key"], "-n", "test5", "-a", "hmac-sha256"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 1
+    get.assert_called()
+    put.assert_not_called()
+    assert "not exist" in json.loads(result.output)["message"]
+
+def test_tsigkey_update_idempotence(mock_utils, conditional_mock_utils, example_tsigkey_test1):
+    get = conditional_mock_utils.mock_http_get()
+    put = mock_utils.mock_http_put(200, json_output=example_tsigkey_test1)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_update,
+        ["test1", "-s", example_tsigkey_test1["key"], "-a", "hmac-sha512"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    get.assert_called()
+    put.assert_not_called()
+    assert "already" in json.loads(result.output)["message"]
+
+def test_tsigkey_update_refuse_override(mock_utils, conditional_mock_utils, example_tsigkey_test1):
+    get = conditional_mock_utils.mock_http_get()
+    put = mock_utils.mock_http_put(200, json_output=example_tsigkey_test1)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_update,
+        ["test1", "-n", "test2"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 1
+    get.assert_called()
+    put.assert_not_called()
+    assert "override" in json.loads(result.output)["message"]
+
+def test_tsigkey_update_rename(mock_utils, conditional_mock_utils, example_tsigkey_test1):
+    get = conditional_mock_utils.mock_http_get()
+    put = mock_utils.mock_http_put(200, json_output=example_tsigkey_test1)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_update,
+        ["test1", "-n", "test5"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    get.assert_called()
+    put.assert_called()
+    assert json.loads(result.output) == example_tsigkey_test1
