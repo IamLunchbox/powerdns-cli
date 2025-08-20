@@ -177,9 +177,11 @@ def is_dnssec_key_present(uri: str, secret: str, ctx: click.Context) -> bool:
 def is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -> bool:
     """Checks if an entry is already existing in the metadata for the zone. Will not check
     for identical entries, only if the given metadata information is in the corresponding list"""
-    zone_metadata = http_get(uri, ctx).json()
-    if (new_data['kind'] == zone_metadata['kind'] and
-            new_data['metadata'][0] in zone_metadata['metadata']):
+    zone_metadata = http_get(uri, ctx)
+    if zone_metadata.status_code != 200:
+        return False
+    if (new_data['kind'] == zone_metadata.json()['kind'] and
+            new_data['metadata'][0] in zone_metadata.json()['metadata']):
         return True
     return False
 
