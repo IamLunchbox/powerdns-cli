@@ -1199,13 +1199,13 @@ def metadata_delete(ctx, dns_zone, metadata_key):
         r = utils.http_delete(uri, ctx)
         if utils.create_output(
                 r,
-                (200, 204),
+                (204,),
                 optional_json={'message': f'Deleted metadata key {metadata_key} for {dns_zone}'}
         ):
             raise SystemExit(0)
-    else:
-        click.echo(json.dumps({'message': f'{metadata_key} for {dns_zone} already absent'}))
-        raise SystemExit(0)
+        raise SystemExit(1)
+    click.echo(json.dumps({'message': f'{metadata_key} for {dns_zone} already absent'}))
+    raise SystemExit(0)
 
 
 # pylint: disable=unused-argument
@@ -1281,11 +1281,11 @@ def metadata_update(ctx, dns_zone, metadata_key, metadata_value):
         r = utils.http_put(uri, ctx, payload)
         if utils.create_output(r, (200,)):
             raise SystemExit(0)
-    else:
-        click.echo(json.dumps({
-            'message': f'{metadata_key}:{metadata_value} for {dns_zone} already present'}
-        ))
-        raise SystemExit(0)
+        raise SystemExit(1)
+    click.echo(json.dumps({
+        'message': f'{metadata_key}:{metadata_value} for {dns_zone} already present'}
+    ))
+    raise SystemExit(0)
 
 
 def main():

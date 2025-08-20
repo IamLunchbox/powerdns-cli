@@ -188,8 +188,10 @@ def is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) ->
 
 def is_metadata_content_identical(uri: str, ctx: click.Context, new_data: dict) -> bool:
     """Checks if the metadata entry is identical to the new content"""
-    zone_metadata = http_get(uri, ctx).json()
-    if new_data == zone_metadata:
+    zone_metadata = http_get(uri, ctx)
+    if zone_metadata.status_code != 200:
+        return False
+    if new_data == zone_metadata.json():
         return True
     return False
 

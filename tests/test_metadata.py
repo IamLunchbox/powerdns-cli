@@ -161,3 +161,90 @@ def test_metadata_extend_failed(mock_utils, conditional_mock_utils, example_also
     assert json.loads(result.output) == {"error": "Request failed"}
     post.assert_called()
     get.assert_called()
+
+def test_metadata_update_success(mock_utils, conditional_mock_utils, example_also_notify):
+    get = conditional_mock_utils.mock_http_get()
+    example_also_notify["metadata"] = ["192.168.123.111"]
+    put = mock_utils.mock_http_put(200, json_output=example_also_notify)
+    runner = CliRunner()
+    result = runner.invoke(
+        metadata_update,
+        ['example.com', example_also_notify["kind"], "192.168.123.111"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == example_also_notify
+    put.assert_called()
+    get.assert_called()
+
+
+def test_metadata_update_idempotence(mock_utils, conditional_mock_utils, example_soa_edit_api):
+    get = conditional_mock_utils.mock_http_get()
+    put = mock_utils.mock_http_put(200, json_output=example_soa_edit_api)
+    runner = CliRunner()
+    result = runner.invoke(
+        metadata_update,
+        ['example.com', example_soa_edit_api["kind"], example_soa_edit_api["metadata"][0]],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    assert "already present" in json.loads(result.output)["message"]
+    put.assert_not_called()
+    get.assert_called()
+
+def test_metadata_update_failed(mock_utils, conditional_mock_utils, example_also_notify):
+    get = conditional_mock_utils.mock_http_get()
+    put = mock_utils.mock_http_put(500, json_output={"error": "Not found"})
+    runner = CliRunner()
+    result = runner.invoke(
+        metadata_update,
+        ['example.com', example_also_notify["kind"], "192.168.123.111"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == {"error": "Not found"}
+    put.assert_called()
+    get.assert_called()
+
+def test_metadata_delete_success(mock_utils, conditional_mock_utils, example_also_notify):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(204, json_output={"message": "Deleted"})
+    runner = CliRunner()
+    result = runner.invoke(
+        metadata_delete,
+        ['example.com', example_also_notify["kind"]],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    assert "Deleted" in json.loads(result.output)["message"]
+    delete.assert_called()
+    get.assert_called()
+
+
+def test_metadata_delete_idempotence(mock_utils, conditional_mock_utils, example_also_notify):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(204, json_output={"message": "Deleted"})
+    runner = CliRunner()
+    result = runner.invoke(
+        metadata_delete,
+        ['example.com', "NEW-DATA"],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
+    delete.assert_not_called()
+    get.assert_called()
+
+def test_metadata_delete_failed(mock_utils, conditional_mock_utils, example_also_notify):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(500, json_output={"Error": "failed"})
+    runner = CliRunner()
+    result = runner.invoke(
+        metadata_delete,
+        ['example.com', example_also_notify["kind"]],
+        obj={'apihost': 'http://example.com'}
+    )
+    assert result.exit_code == 1
+    assert "failed" in json.loads(result.output)["Error"]
+    delete.assert_called()
+    get.assert_called()
