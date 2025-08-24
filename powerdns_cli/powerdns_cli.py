@@ -1202,7 +1202,7 @@ def metadata_delete(ctx, dns_zone, metadata_key):
         r = utils.http_delete(uri, ctx)
         if utils.create_output(
             r,
-            (204,),
+            (204, 200),
             optional_json={'message': f"Deleted metadata key {metadata_key} for {dns_zone}"},
         ):
             raise SystemExit(0)
