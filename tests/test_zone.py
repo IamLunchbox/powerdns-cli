@@ -149,7 +149,7 @@ example_zone_list_list = [example_com_zone_dict]
 
 
 @pytest.fixture
-def zone_list():
+def example_zone_list():
     return copy.deepcopy(example_zone_list_list)
 
 
@@ -234,4 +234,69 @@ def test_zone_add_failed(mock_utils, conditional_mock_utils, example_com):
     assert result.exit_code == 1
     assert "Server error" in json.loads(result.output)["error"]
     post.assert_called()
+    get.assert_called_once()
+
+def test_zone_delete_success(mock_utils, conditional_mock_utils, example_org):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_delete,
+        ["example.com", "-f"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "deleted" in json.loads(result.output)["message"]
+    delete.assert_called()
+    get.assert_called_once()
+
+def test_zone_delete_idempotence(mock_utils, conditional_mock_utils, example_com):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_delete,
+        ["example.org"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "already absent" in json.loads(result.output)["message"]
+    delete.assert_not_called()
+    get.assert_called_once()
+
+def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
+    get = conditional_mock_utils.mock_http_get()
+    delete = mock_utils.mock_http_delete(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_delete,
+        ["example.com", "-f"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert "Server error" in json.loads(result.output)["error"]
+    delete.assert_called()
+    get.assert_called_once()
+
+def test_zone_list_success(conditional_mock_utils, example_zone_list):
+    get = conditional_mock_utils.mock_http_get()
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_list,
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == example_zone_list
+    get.assert_called_once()
+
+
+def test_zone_list_failed(mock_utils, example_com):
+    get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_list,
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert "Server error" in json.loads(result.output)["error"]
     get.assert_called_once()
