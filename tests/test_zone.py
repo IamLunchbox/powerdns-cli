@@ -1,21 +1,22 @@
-import json
 import copy
+import json
+from unittest.mock import MagicMock as unittest_MagicMock
+
 import pytest
+import requests
 from click.testing import CliRunner
+from powerdns_cli_test_utils import testutils
+
 from powerdns_cli.powerdns_cli import (
     zone_add,
     zone_delete,
-    zone_list,
     zone_export,
-    zone_notify,
-    zone_search,
-    zone_rectify,
     zone_flush_cache,
+    zone_list,
+    zone_notify,
+    zone_rectify,
+    zone_search,
 )
-from powerdns_cli_test_utils import testutils
-from unittest.mock import MagicMock as unittest_MagicMock
-import requests
-
 
 example_com_zone_dict = {
     "account": "",
@@ -160,6 +161,8 @@ def mock_utils(mocker):
 
 class ConditionalMock(testutils.MockUtils):
     def mock_http_get(self) -> unittest_MagicMock:
+        mock_http_get = self.mocker.MagicMock(spec=requests.Response)
+
         def side_effect(*args, **kwargs):
             match args[0]:
                 case "http://example.com/api/v1/servers/localhost/zones":
@@ -169,18 +172,14 @@ class ConditionalMock(testutils.MockUtils):
                     json_output = copy.deepcopy(example_com_zone_dict)
                     status_code = 200
                 case "http://example.com/api/v1/servers/localhost/zones/example.com./export":
-                    json_output = copy.deepcopy(example_com_zone_bind)
+                    mock_http_get.text = copy.deepcopy(example_com_zone_bind)
+                    json_output = {}
                     status_code = 200
-                case (
-                    value
-                ) if "http://example.com/api/v1/servers/localhost/zones/" in value:
+                case value if "http://example.com/api/v1/servers/localhost/zones/" in value:
                     json_output = {"error": "Not found"}
                     status_code = 404
                 case _:
-                    raise NotImplementedError(
-                        f"An unexpected url-path was called: {args[0]}"
-                    )
-            mock_http_get = self.mocker.MagicMock(spec=requests.Response)
+                    raise NotImplementedError(f"An unexpected url-path was called: {args[0]}")
             mock_http_get.status_code = status_code
             mock_http_get.json.return_value = json_output
             mock_http_get.headers = {"Content-Type": "application/json"}
@@ -208,6 +207,7 @@ def test_zone_add_success(mock_utils, conditional_mock_utils, example_org):
     post.assert_called()
     get.assert_called_once()
 
+
 def test_zone_add_idempotence(mock_utils, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_com)
@@ -221,6 +221,7 @@ def test_zone_add_idempotence(mock_utils, conditional_mock_utils, example_com):
     assert "already present" in json.loads(result.output)["message"]
     post.assert_not_called()
     get.assert_called_once()
+
 
 def test_zone_add_failed(mock_utils, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
@@ -236,6 +237,7 @@ def test_zone_add_failed(mock_utils, conditional_mock_utils, example_com):
     post.assert_called()
     get.assert_called_once()
 
+
 def test_zone_delete_success(mock_utils, conditional_mock_utils, example_org):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, text_output="")
@@ -249,6 +251,7 @@ def test_zone_delete_success(mock_utils, conditional_mock_utils, example_org):
     assert "deleted" in json.loads(result.output)["message"]
     delete.assert_called()
     get.assert_called_once()
+
 
 def test_zone_delete_idempotence(mock_utils, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
@@ -264,6 +267,7 @@ def test_zone_delete_idempotence(mock_utils, conditional_mock_utils, example_com
     delete.assert_not_called()
     get.assert_called_once()
 
+
 def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(500, json_output={"error": "Server error"})
@@ -277,6 +281,7 @@ def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
     assert "Server error" in json.loads(result.output)["error"]
     delete.assert_called()
     get.assert_called_once()
+
 
 def test_zone_list_success(conditional_mock_utils, example_zone_list):
     get = conditional_mock_utils.mock_http_get()
@@ -299,4 +304,174 @@ def test_zone_list_failed(mock_utils, example_com):
     )
     assert result.exit_code == 1
     assert "Server error" in json.loads(result.output)["error"]
+    get.assert_called_once()
+
+
+def test_zone_export_success(mock_utils, conditional_mock_utils, example_com):
+    get = conditional_mock_utils.mock_http_get()
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_export,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == example_com
+    get.assert_called_once()
+
+
+def test_zone_export_bind(mock_utils, conditional_mock_utils, example_com_bind):
+    get = conditional_mock_utils.mock_http_get()
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_export,
+        ["example.com", "-b"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert result.output.rstrip() == example_com_bind.rstrip()
+    get.assert_called_once()
+
+
+def test_zone_export_failed(mock_utils):
+    get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_export,
+        ["example.org"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == {"error": "Server error"}
+    get.assert_called_once()
+
+
+def test_zone_rectify_success(mock_utils):
+    put = mock_utils.mock_http_put(200, json_output={"result": "Rectified"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_rectify,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"result": "Rectified"}
+    put.assert_called_once()
+
+
+def test_zone_rectify_failed(mock_utils):
+    put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_rectify,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == {"error": "Server error"}
+    put.assert_called_once()
+
+
+def test_zone_notify_success(mock_utils):
+    put = mock_utils.mock_http_put(200, json_output={"result": "Notification queued"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_notify,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"result": "Notification queued"}
+    put.assert_called_once()
+
+
+def test_zone_notify_failed(mock_utils):
+    put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_notify,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == {"error": "Server error"}
+    put.assert_called_once()
+
+
+def test_zone_flush_success(mock_utils):
+    put = mock_utils.mock_http_put(200, json_output={"count": 1, "result": "Flushed cache."})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_flush_cache,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"count": 1, "result": "Flushed cache."}
+    put.assert_called_once()
+
+
+def test_zone_flush_failed(mock_utils):
+    put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_flush_cache,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == {"error": "Server error"}
+    put.assert_called_once()
+
+
+def test_zone_search_success(mock_utils):
+    search_output = copy.deepcopy(
+        [
+            {"name": "example.org.", "object_type": "zone", "zone_id": "example.org."},
+            {
+                "content": "a.misconfigured.dns.server.invalid. hostmaster.example.org. 2025082401 10800 3600 604800 3600",
+                "disabled": False,
+                "name": "example.org.",
+                "object_type": "record",
+                "ttl": 3600,
+                "type": "SOA",
+                "zone": "example.org.",
+                "zone_id": "example.org.",
+            },
+        ]
+    )
+    get = mock_utils.mock_http_get(200, json_output=search_output)
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_search,
+        ["example*"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == [
+        {"name": "example.org.", "object_type": "zone", "zone_id": "example.org."},
+        {
+            "content": "a.misconfigured.dns.server.invalid. hostmaster.example.org. 2025082401 10800 3600 604800 3600",
+            "disabled": False,
+            "name": "example.org.",
+            "object_type": "record",
+            "ttl": 3600,
+            "type": "SOA",
+            "zone": "example.org.",
+            "zone_id": "example.org.",
+        },
+    ]
+    get.assert_called_once()
+
+
+def test_zone_search_failed(mock_utils):
+    get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_search,
+        ["example.com"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output) == {"error": "Server error"}
     get.assert_called_once()
