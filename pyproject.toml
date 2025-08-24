@@ -13,7 +13,7 @@ license = {text = "GPL-3.0-or-later"}
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
-version = "0.0.15"
+version = "0.0.16"
 dependencies = [
     "requests==2.32.4",
     "click==8.2.1"
@@ -28,7 +28,8 @@ dev = [
     "tox",
     "bandit",
     "pytest",
-    "pytest-mock"
+    "pytest-mock",
+    "isort"
 ]
 
 [project.scripts]
@@ -38,8 +39,42 @@ powerdns-cli = "powerdns_cli.powerdns_cli:main"
 Homepage = "https://github.com/IamLunchbox/powerdns-cli"
 Issues = "https://github.com/IamLunchbox/powerdns-cli/issues"
 
+[tool.pylint.reports]
+score = false
+
+[tool.pylint.format]
+max-line-length = 100
+
 [tool.pylint."DISABLE"]
 disable = ["too-many-arguments", "too-many-positional-arguments", "no-value-for-parameter", "too-many-lines"]
 
 [tool.bandit]
 exclude_dirs = ["tests"]
+
+[tool.black]
+line-length = 100
+
+[tool.tox]
+env_list = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+[tool.tox.env.lint]
+description = "Linting"
+deps = ["flake8", "pylint", "isort", "black", "coverage", "pytest", "pytest-mock"]
+commands = [
+    ["isort", "--diff", "--check-only", "."],
+    ["flake8", "./powerdns_cli"],
+    ["pylint", "./powerdns_cli"],
+    ["black", "--check", "--diff", "./powerdns_cli"],
+    ["coverage", "run", "-m", "pytest", "tests"]
+]
+ignore_errors = true
+
+[tool.tox.env_run_base]
+description = "Unit tests"
+deps = ["pytest", "pytest-mock"]
+commands = [
+    ["pytest", "tests"],
+]
+
+[tool.isort]
+profile = "black"
