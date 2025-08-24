@@ -55,7 +55,7 @@ exclude_dirs = ["tests"]
 line-length = 100
 
 [tool.tox]
-env_list = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+env_list = ["3.10", "3.11", "3.12", "3.13"]
 
 [tool.tox.env.lint]
 description = "Linting"
