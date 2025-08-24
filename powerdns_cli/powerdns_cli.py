@@ -497,6 +497,7 @@ def record():
             'SRV',
             'TXT',
         ],
+        case_sensitive=False,
     ),
 )
 @click.argument('content', type=click.STRING)
@@ -518,7 +519,7 @@ def record_add(
     name = utils.make_dnsname(name, dns_zone)
     rrset = {
         'name': name,
-        'type': record_type,
+        'type': record_type.upper(),
         'ttl': ttl,
         'changetype': 'REPLACE',
         'records': [
@@ -584,7 +585,7 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
     if delete_all:
         rrset = {
             'name': name,
-            'type': record_type,
+            'type': record_type.upper(),
             'ttl': ttl,
             'changetype': 'DELETE',
             'records': []
@@ -649,6 +650,7 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
             'SRV',
             'TXT',
         ],
+        case_sensitive=False,
     ),
 )
 @click.argument('content', type=click.STRING)
@@ -670,7 +672,7 @@ def record_disable(
 
     rrset = {
         'name': name,
-        'type': record_type,
+        'type': record_type.upper(),
         'ttl': ttl,
         'changetype': 'REPLACE',
         'records': [
@@ -711,6 +713,7 @@ def record_disable(
             'SRV',
             'TXT',
         ],
+        case_sensitive=False,
     ),
 )
 @click.argument('content', type=click.STRING)
@@ -746,6 +749,7 @@ def record_enable(
             'SRV',
             'TXT',
         ],
+        case_sensitive=False,
     ),
 )
 @click.argument('content', type=click.STRING)
@@ -767,7 +771,7 @@ def record_extend(
 
     rrset = {
         'name': name,
-        'type': record_type,
+        'type': record_type.upper(),
         'ttl': ttl,
         'changetype': 'REPLACE',
         'records': [
