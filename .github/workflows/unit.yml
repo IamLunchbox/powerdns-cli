@@ -1,4 +1,4 @@
-name: Lint
+name: Unit Tests
 on:
   pull_request:
   push:
@@ -7,12 +7,20 @@ on:
 
 jobs:
   main:
+    strategy:
+      matrix:
+        python_version:
+          - 3.10
+          - 3.11
+          - 3.12
+          - 3.13
+          - 3.14
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
     - uses: actions/setup-python@v5
       with:
-        python-version: 3.13
+        python-version: {{ matrix.python_version }}
         cache: pip
     - run: pip install .[dev]
-    - run: tox run -e lint
+    - run: tox run
