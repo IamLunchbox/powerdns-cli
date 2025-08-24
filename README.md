@@ -97,11 +97,8 @@ released docker images (see [here](https://hub.docker.com/r/powerdns/)), they
 won't be covered by the integration tests.
 
 ## Todos
-The following things are on my roadmap before a beta release:
-1. Pytest and Version tests
-
 The following features are on the roadmap:
-1. `powerdns-cli version`.
-2. `powerdns-cli record export` to get a specific list of entries.
-3. A docker container with powerdns-cli.
-4. I want to port this code to Ansible.
+1. Compatibility with PowerDNS Auth 5.0
+2. Management of slave zones
+3. Docker container with powerdns-cli.
+4. Porting this to Ansible.
