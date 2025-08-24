@@ -1,4 +1,3 @@
-# test_record.py
 import json
 import copy
 import pytest
