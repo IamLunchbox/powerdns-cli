@@ -1,16 +1,12 @@
 """Utilities library for the main cli functions"""
 
 import json
+
 import click
 import requests
 
 
-def is_autoprimary_present(
-        uri: str,
-        ctx: click.Context,
-        ip: str,
-        nameserver: str
-) -> bool:
+def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: str) -> bool:
     """Checks if the ip and nameserver are already in the autoprimary list"""
     upstream_autoprimaries = http_get(uri, ctx).json()
     for autoprimary in upstream_autoprimaries:
@@ -30,10 +26,9 @@ def confirm(message: str, force: bool) -> None:
             raise SystemExit(1)
 
 
-def does_cryptokey_exist(uri: str,
-                         exit_message: str,
-                         exit_code: int,
-                         ctx: click.Context) -> requests.Response:
+def does_cryptokey_exist(
+    uri: str, exit_message: str, exit_code: int, ctx: click.Context
+) -> requests.Response:
     """Checks if the provided dns cryptokey is already existing in the backend"""
     r = http_get(uri, ctx)
     if r.status_code == 404:
@@ -43,10 +38,11 @@ def does_cryptokey_exist(uri: str,
 
 
 def create_output(
-        content: requests.Response,
-        exp_status_code: tuple[int, ...],
-        output_text: bool = None,
-        optional_json: dict = None) -> bool:
+    content: requests.Response,
+    exp_status_code: tuple[int, ...],
+    output_text: bool = None,
+    optional_json: dict = None,
+) -> bool:
     """Helper function to print a message in the appropriate format.
     Is needed since the powerdns api outputs different content types, not
     json all the time. Sometimes output is empty (each 204 response) or
@@ -69,7 +65,7 @@ def create_output(
     except json.JSONDecodeError:
         click.echo(
             json.dumps(
-                {'error': f'Non json response from server with status {content.status_code}'}
+                {'error': f"Non json response from server with status {content.status_code}"}
             )
         )
     return False
@@ -81,7 +77,7 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
         request = ctx.obj['session'].delete(uri, params=params, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
+        raise SystemExit(json.dumps({'error': f"Request error: {e}"})) from e
 
 
 def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
@@ -90,7 +86,7 @@ def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Resp
         request = ctx.obj['session'].get(uri, params=params, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
+        raise SystemExit(json.dumps({'error': f"Request error: {e}"})) from e
 
 
 def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
@@ -99,7 +95,7 @@ def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response
         request = ctx.obj['session'].patch(uri, json=payload, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
+        raise SystemExit(json.dumps({'error': f"Request error: {e}"})) from e
 
 
 def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
@@ -108,21 +104,18 @@ def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
         request = ctx.obj['session'].post(uri, json=payload, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
+        raise SystemExit(json.dumps({'error': f"Request error: {e}"})) from e
 
 
 def http_put(
-        uri: str,
-        ctx: click.Context,
-        payload: dict = None,
-        params: dict = None
+    uri: str, ctx: click.Context, payload: dict = None, params: dict = None
 ) -> requests.Response:
     """HTTP PUT request"""
     try:
         request = ctx.obj['session'].put(uri, json=payload, params=params, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({'error': f'Request error: {e}'})) from e
+        raise SystemExit(json.dumps({'error': f"Request error: {e}"})) from e
 
 
 def query_zones(ctx) -> list:
@@ -138,7 +131,7 @@ def query_zone_rrsets(uri: str, ctx) -> list[dict]:
     """Queries the configuration of the given zone and returns a list of all RRSETs"""
     r = http_get(uri, ctx)
     if r.status_code != 200:
-        click.echo(json.dumps({'error': r.json()}))
+        click.echo(json.dumps(r.json()))
         raise SystemExit(1)
     return r.json()['rrsets']
 
@@ -156,7 +149,7 @@ def make_dnsname(name: str, zone: str) -> str:
     """Returns either the combination or zone or just a zone when @ is provided as name"""
     if name == '@':
         return zone
-    return f'{name}.{zone}'
+    return f"{name}.{zone}"
 
 
 def is_dnssec_key_present(uri: str, secret: str, ctx: click.Context) -> bool:
@@ -168,20 +161,23 @@ def is_dnssec_key_present(uri: str, secret: str, ctx: click.Context) -> bool:
     secret = lowercase_secret(secret)
     present_keys = http_get(uri, ctx)
     return any(
-        secret == lowercase_secret(
-                http_get(f"{uri}/{key['id']}", ctx).json()['privatekey'].rstrip('\n'))
+        secret
+        == lowercase_secret(http_get(f"{uri}/{key['id']}", ctx).json()['privatekey'].rstrip('\n'))
         for key in present_keys.json()
     )
 
 
 def is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -> bool:
     """Checks if an entry is already existing in the metadata for the zone. Will not check
-    for identical entries, only if the given metadata information is in the corresponding list"""
+    for identical entries, only if the given metadata information is in the corresponding list
+    """
     zone_metadata = http_get(uri, ctx)
     if zone_metadata.status_code != 200:
         return False
-    if (new_data['kind'] == zone_metadata.json()['kind'] and
-            new_data['metadata'][0] in zone_metadata.json()['metadata']):
+    if (
+        new_data['kind'] == zone_metadata.json()['kind']
+        and new_data['metadata'][0] in zone_metadata.json()['metadata']
+    ):
         return True
     return False
 
@@ -220,11 +216,11 @@ def is_content_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
     zone_rrsets = query_zone_rrsets(uri, ctx)
     for rrset in zone_rrsets:
         if (
-                # Check if general entry name, type and ttl are the same
-                all(rrset[key] == new_rrset[key] for key in ('name', 'type', 'ttl'))
-                and
-                # Check if all references within that rrset are identical
-                all(record in rrset['records'] for record in new_rrset['records'])
+            # Check if general entry name, type and ttl are the same
+            all(rrset[key] == new_rrset[key] for key in ('name', 'type', 'ttl'))
+            and
+            # Check if all references within that rrset are identical
+            all(record in rrset['records'] for record in new_rrset['records'])
         ):
             return True
     return False
@@ -235,13 +231,12 @@ def merge_rrsets(uri: str, ctx: click.Context, new_rrset: dict) -> list:
     zone_rrsets = query_zone_rrsets(uri, ctx)
     merged_rrsets = new_rrset['records'].copy()
     for upstream_rrset in zone_rrsets:
-        if all(upstream_rrset[key] == new_rrset[key] for key in
-               ('name', 'type')):
+        if all(upstream_rrset[key] == new_rrset[key] for key in ('name', 'type')):
             merged_rrsets.extend(
                 [
-                    record for record in upstream_rrset['records']
-                    if
-                    record['content'] != new_rrset['records'][0]['content']
+                    record
+                    for record in upstream_rrset['records']
+                    if record['content'] != new_rrset['records'][0]['content']
                 ]
             )
     return merged_rrsets
