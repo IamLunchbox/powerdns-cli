@@ -4,6 +4,7 @@ powerdns-cli: Manage PowerDNS Zones/Records
 """
 import json
 import re
+import ipaddress
 
 import click
 import requests
@@ -16,22 +17,44 @@ class ZoneType(click.ParamType):
 
     name = "zone"
 
-    def convert(self, value, param, ctx):
+    def convert(self, value, param, ctx) -> str:
         try:
-            if not re.match(
+            if ctx.obj["major_version"] >= 5 and not re.match(
+                r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
+                value,
+                re.IGNORECASE,
+            ):
+                raise click.BadParameter("You did not provide a valid zone name.")
+            if ctx.obj["major_version"] <= 4 and not re.match(
                 r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
                 value,
                 re.IGNORECASE,
             ):
                 raise click.BadParameter("You did not provide a valid zone name.")
-            if not value.endswith("."):
+            if not value.endswith(".") and ".." not in value:
                 value += "."
             return value
         except (AttributeError, TypeError):
-            self.fail(f"{value!r} could not be converted to a canonical zone", param, ctx)
+            self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
 
 
 Zone = ZoneType()
+
+
+class IPRangeType(click.ParamType):
+    """Conversion class to ensure, that a provided"""
+
+    name = "iprange"
+
+    def convert(self, value, param, ctx) -> str:
+        try:
+            ipaddress.ip_network(value, strict=False)
+            return value
+        except (ValueError, ipaddress.AddressValueError):
+            self.fail(f"{value!r} is no valid IP-address range", param, ctx)
+
+
+IPRange = IPRangeType()
 
 
 # create click command group with 3 global options
@@ -89,6 +112,15 @@ def cli(ctx, apikey, url, insecure, skip_check):
                 )
             )
             raise SystemExit(1)
+        ctx.obj["major_version"] = int(
+            [
+                server["version"]
+                for server in preflight_request.json()
+                if server["id"] == "localhost"
+            ][0].split(".")[0]
+        )
+    else:
+        ctx.obj["major_version"] = 4
 
 
 @cli.group()
@@ -97,7 +129,7 @@ def autoprimary():
 
 
 @autoprimary.command("add")
-@click.argument("ip", type=click.STRING)
+@click.argument("cidr", type=click.STRING)
 @click.argument("nameserver", type=click.STRING)
 @click.option("-a", "--account", default="", type=click.STRING, help="Option")
 @click.pass_context
@@ -111,7 +143,7 @@ def autoprimary_add(
     Adds an autoprimary upstream dns server
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
-    payload = {"ip": ip, "nameserver": nameserver, "account": account}
+    payload = {"cidr": ip, "nameserver": nameserver, "account": account}
     if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
         click.echo(
             json.dumps(
@@ -130,7 +162,7 @@ def autoprimary_add(
 
 
 @autoprimary.command("delete")
-@click.argument("ip", type=click.STRING)
+@click.argument("cidr", type=click.STRING)
 @click.argument("nameserver", type=click.STRING)
 @click.pass_context
 def autoprimary_delete(ctx, ip, nameserver):
@@ -475,6 +507,85 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
         r,
         (204,),
         optional_json={"message": f"Unpublished id {cryptokey_id} for {dns_zone}"},
+    ):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@cli.group()
+@click.pass_context
+def network(ctx):
+    """Shows and sets up network views to limit access to dns entries"""
+    if ctx.obj["major_version"] < 5:
+        click.echo(json.dumps({"error": "Your authoritative dns-server does not support networks"}))
+        raise SystemExit(1)
+
+
+@network.command("add")
+@click.argument("cidr", type=IPRange)
+@click.argument("view_id", type=click.STRING, metavar="view")
+@click.pass_context
+def network_add(ctx, cidr, view_id):
+    """
+    Add a view of a zone to a specific network.
+    Deleting requires passing an empty string to as view argument.
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    current_network = utils.http_get(uri, ctx)
+    if current_network.status_code == 200 and current_network.json()["view"] == view_id:
+        click.echo(json.dumps({"message": f"Network {cidr} is already assigned to view {view_id}"}))
+        raise SystemExit(0)
+    payload = {"view": view_id}
+    r = utils.http_put(uri, ctx, payload=payload)
+    if utils.create_output(r, (204,), optional_json={"message": f"Added view {view_id} to {cidr}"}):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@network.command("list")
+@click.pass_context
+def network_list(ctx):
+    """
+    List all registered networks and views
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
+    r = utils.http_get(uri, ctx)
+    if utils.create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@network.command("export")
+@click.argument("cidr", type=IPRange)
+@click.pass_context
+def network_export(ctx, cidr):
+    """
+    Show the network and its associated views
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    r = utils.http_get(uri, ctx)
+    if utils.create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@network.command("delete")
+@click.argument("cidr", type=IPRange)
+@click.pass_context
+def network_delete(ctx, cidr):
+    """
+    Add a view of a zone to a specific network.
+    Deleting requires passing an empty string to as view argument.
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    current_network = utils.http_get(uri, ctx)
+    if current_network.status_code == 404:
+        click.echo(json.dumps({"message": f"Network {cidr} absent"}))
+        raise SystemExit(0)
+    payload = {"view": ""}
+    r = utils.http_put(uri, ctx, payload=payload)
+    if utils.create_output(
+        r, (204,), optional_json={"message": f"Removed view association from {cidr}"}
     ):
         raise SystemExit(0)
     raise SystemExit(1)
@@ -1279,7 +1390,97 @@ def print_version():
     # pylint: disable-next=import-outside-toplevel
     import importlib
 
-    click.echo(f"powerdns-cli {importlib.metadata.version('powerdns-cli')}")
+    click.echo(json.dumps({"version": importlib.metadata.version("powerdns-cli")}))
+
+
+@cli.group()
+@click.pass_context
+def view(ctx):
+    """Set view to limit zone access"""
+    if ctx.obj["major_version"] < 5:
+        click.echo(json.dumps({"error": "Your authoritative dns-server does not support views"}))
+        raise SystemExit(1)
+
+
+@view.command("add")
+@click.argument("view_id", type=click.STRING, metavar="view")
+@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.pass_context
+def view_add(ctx, view_id, dns_zone):
+    """Add a zone to a view, creates the view if it did not exist beforehand"""
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    view_content = utils.http_get(uri, ctx)
+    if view_content.status_code == 200 and dns_zone in view_content.json()["zones"]:
+        click.echo(json.dumps({"message": f"{dns_zone} already in {view_id}"}))
+        raise SystemExit(0)
+    payload = {"name": f"{dns_zone}"}
+    r = utils.http_post(uri, ctx, payload=payload)
+    if utils.create_output(r, (204,), optional_json={"message": f"Added {dns_zone} to {view_id}"}):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@view.command("delete")
+@click.argument("view_id", type=click.STRING, metavar="view")
+@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.pass_context
+def view_delete(ctx, view_id, dns_zone):
+    """Deletes a view"""
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    view_content = utils.http_get(uri, ctx)
+    if view_content.status_code == 200 and dns_zone not in view_content.json()["zones"]:
+        click.echo(json.dumps({"message": f"Zone {dns_zone} is not in {view_id}"}))
+        raise SystemExit(0)
+    if view_content.status_code == 404:
+        click.echo(json.dumps({"message": f"View {view_id} is absent"}))
+        raise SystemExit(0)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
+    r = utils.http_delete(uri, ctx)
+    if utils.create_output(
+        r, (204,), optional_json={"message": f"Deleted {dns_zone} from {view_id}"}
+    ):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@view.command("export")
+@click.argument("view_id", type=click.STRING, metavar="view")
+@click.pass_context
+def view_export(ctx, view_id):
+    """
+    Exports a single view for its configured zones
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    r = utils.http_get(uri, ctx)
+    if utils.create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@view.command("list")
+@click.pass_context
+def view_list(ctx):
+    """
+    Shows all views and their configuration as a list
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
+    r = utils.http_get(uri, ctx)
+    if utils.create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+# pylint: disable=unused-argument
+@view.command("update")
+@click.argument("view_id", type=click.STRING, metavar="view")
+@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.pass_context
+def view_update(ctx, view_id, dns_zone):
+    """Update a view to contain the given zone"""
+    ctx.forward(view_add)
+
+
+# pylint: enable=unused-argument
 
 
 def main():

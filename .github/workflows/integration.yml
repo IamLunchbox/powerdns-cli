@@ -9,7 +9,7 @@ on:
 
 jobs:
   # Label of the container job
-  integration-test:
+  common-integration-test:
     services:
       powerdns:
         image: ${{ matrix.powerdns_container }}
@@ -40,6 +40,8 @@ jobs:
           cache: pip
       - name: Build cli
         run: pip install .
+      - name: Show version
+        run: powerdns-cli version
 # Zone Management Tests
       - name: Add master zone
         run: powerdns-cli zone add example.org MASTER
@@ -164,3 +166,55 @@ jobs:
         run: powerdns-cli cryptokey publish example.org 2
       - name: Unpublish cryptokey
         run: powerdns-cli cryptokey unpublish example.org 2
+  advanced-integration-test:
+    services:
+      powerdns:
+        image: ${{ matrix.powerdns_container }}
+        env:
+          PDNS_AUTH_API_KEY: 1FooBarBaz2!
+        ports:
+          - "1053:53"
+          - "1053:53/udp"
+          - "8081:8081"
+        volumes:
+          - ./integration/pdns.conf:/etc/powerdns/pdns.conf
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        powerdns_container:
+          - "docker.io/powerdns/pdns-auth-50:5.0.0"
+    env:
+      POWERDNS_CLI_APIKEY: 1FooBarBaz2!
+      POWERDNS_CLI_URL: http://localhost:8081
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.13.7
+          cache: pip
+      - name: Build cli
+        run: pip install .
+# Zone Management Tests
+      - name: Add master zone
+        run: powerdns-cli zone add example.org MASTER
+      - name: Add native zone
+        run: powerdns-cli zone add example.com. NATIVE
+      - name: Add variant zone
+        run: powerdns-cli zone add example.com..variant1 NATIVE
+      - name: Add view for 10.0.0.0/8
+        run: powerdns-cli network add 10.0.0.0/8 test
+      - name: Add view for 0.0.0.0/0
+        run: powerdns-cli network add 0.0.0.0/0 unrestricted
+      - name: List view for 10.0.0.0/8
+        run: powerdns-cli network export 10.0.0.0/8
+      - name: List views for all networks
+        run: powerdns-cli network list
+      - name: Add example.com to view test
+        run: powerdns-cli view add example.com. test
+      - name: Add example.com..variant1 to view unrestricted
+        run: powerdns-cli view add example.com..variant1 unrestricted
+      - name: List all views
+        run: powerdns-cli view list
+      - name: Show the zones of unrestricted view
+        run: powerdns-cli view export unrestricted
