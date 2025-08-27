@@ -13,36 +13,48 @@ from . import utils
 
 
 class ZoneType(click.ParamType):
-    """Conversion class to ensure, that a provided"""
+    """Conversion class to ensure, that a provided string is a valid dns name"""
 
     name = "zone"
 
     def convert(self, value, param, ctx) -> str:
-        try:
-            if ctx.obj["major_version"] >= 5 and not re.match(
-                r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
-                value,
-                re.IGNORECASE,
-            ):
-                raise click.BadParameter("You did not provide a valid zone name.")
-            if ctx.obj["major_version"] <= 4 and not re.match(
-                r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
-                value,
-                re.IGNORECASE,
-            ):
-                raise click.BadParameter("You did not provide a valid zone name.")
-            if not value.endswith(".") and ".." not in value:
-                value += "."
-            return value
-        except (AttributeError, TypeError):
-            self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
+        if ctx is None:  # Graciously assume that users run the latest powerdns-version
+            try:
+                if not re.match(
+                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
+                    value,
+                    re.IGNORECASE,
+                ):
+                    raise click.BadParameter("You did not provide a valid zone name.")
+            except (AttributeError, TypeError):
+                self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
+        else:
+            try:
+                if ctx.obj.get("major_version", 4) >= 5 and not re.match(
+                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
+                    value,
+                    re.IGNORECASE,
+                ):
+                    raise click.BadParameter("You did not provide a valid zone name.")
+                if ctx.obj.get("major_version", 4) <= 4 and not re.match(
+                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
+                    value,
+                    re.IGNORECASE,
+                ):
+                    raise click.BadParameter("You did not provide a valid zone name.")
+            except (AttributeError, TypeError):
+                self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
+
+        if not value.endswith(".") and ".." not in value:
+            value += "."
+        return value
 
 
 Zone = ZoneType()
 
 
 class IPRangeType(click.ParamType):
-    """Conversion class to ensure, that a provided"""
+    """Conversion class to ensure, that a provided string is a valid ip range"""
 
     name = "iprange"
 
@@ -129,7 +141,7 @@ def autoprimary():
 
 
 @autoprimary.command("add")
-@click.argument("cidr", type=click.STRING)
+@click.argument("ip", type=click.STRING)
 @click.argument("nameserver", type=click.STRING)
 @click.option("-a", "--account", default="", type=click.STRING, help="Option")
 @click.pass_context
@@ -162,7 +174,7 @@ def autoprimary_add(
 
 
 @autoprimary.command("delete")
-@click.argument("cidr", type=click.STRING)
+@click.argument("ip", type=click.STRING)
 @click.argument("nameserver", type=click.STRING)
 @click.pass_context
 def autoprimary_delete(ctx, ip, nameserver):
