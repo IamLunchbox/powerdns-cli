@@ -7,10 +7,10 @@ from powerdns_cli_test_utils import testutils
 
 from powerdns_cli.powerdns_cli import (
     view_add,
-    view_list,
     view_delete,
     view_export,
-    view_update
+    view_list,
+    view_update,
 )
 
 

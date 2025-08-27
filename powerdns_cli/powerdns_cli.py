@@ -2,9 +2,9 @@
 """
 powerdns-cli: Manage PowerDNS Zones/Records
 """
+import ipaddress
 import json
 import re
-import ipaddress
 
 import click
 import requests
