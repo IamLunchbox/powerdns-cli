@@ -31,9 +31,9 @@ def test_autoprimary_add_success(mock_utils):
     post.assert_called()
 
 
-def test_autoprimary_add_already_present(mock_utils):
+def test_autoprimary_add_idempotence(mock_utils):
     get = mock_utils.mock_http_get(
-        200, [{"ip": "1.1.1.1", "nameserver": "ns1.example.com", "account": "testaccount"}]
+        200, json_output=[{"ip": "1.1.1.1", "nameserver": "ns1.example.com", "account": "testaccount"}]
     )
     post = mock_utils.mock_http_post(201, text_output="")
     runner = CliRunner()

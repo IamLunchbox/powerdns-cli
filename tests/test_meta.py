@@ -1,11 +1,11 @@
 import click
 import pytest
 
-from powerdns_cli.powerdns_cli import ZoneType
+from powerdns_cli.powerdns_cli import PowerDNSZoneType
 
 
 def test_valid_zone():
-    testzone = ZoneType()
+    testzone = PowerDNSZoneType()
     canonical_zone = testzone.convert("example.com.", None, None)
     converted_zone = testzone.convert("example.com", None, None)
     assert converted_zone == "example.com."
@@ -13,7 +13,7 @@ def test_valid_zone():
 
 
 def test_invalid_zone():
-    testzone = ZoneType()
+    testzone = PowerDNSZoneType()
     for bad_zone in ("-example.com.", "example.com..", "^example.com.", "example"):
         with pytest.raises(click.BadParameter):
             testzone.convert(bad_zone, None, None)

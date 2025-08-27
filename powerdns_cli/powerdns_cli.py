@@ -12,7 +12,7 @@ import requests
 from . import utils
 
 
-class ZoneType(click.ParamType):
+class PowerDNSZoneType(click.ParamType):
     """Conversion class to ensure, that a provided string is a valid dns name"""
 
     name = "zone"
@@ -50,7 +50,29 @@ class ZoneType(click.ParamType):
         return value
 
 
-Zone = ZoneType()
+PowerDNSZone = PowerDNSZoneType()
+
+
+class AutoprimaryZoneType(click.ParamType):
+    """Conversion class to ensure, that a provided string is a valid dns name"""
+
+    name = "autoprimary_zone"
+
+    def convert(self, value, param, ctx) -> str:
+        try:
+            if not re.match(
+                r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
+                value,
+                re.IGNORECASE,
+            ):
+                raise click.BadParameter("You did not provide a valid zone name.")
+        except (AttributeError, TypeError):
+            self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
+
+        return value.rstrip(".")
+
+
+AutoprimaryZone = AutoprimaryZoneType()
 
 
 class IPRangeType(click.ParamType):
@@ -67,6 +89,22 @@ class IPRangeType(click.ParamType):
 
 
 IPRange = IPRangeType()
+
+
+class IPAddressType(click.ParamType):
+    """Conversion class to ensure, that a provided string is a valid ip range"""
+
+    name = "ipaddress"
+
+    def convert(self, value, param, ctx) -> str:
+        try:
+            ipaddress.ip_address(value)
+            return value
+        except (ValueError, ipaddress.AddressValueError):
+            self.fail(f"{value!r} is no valid IP-address", param, ctx)
+
+
+IPAddress = IPAddressType()
 
 
 # create click command group with 3 global options
@@ -141,8 +179,8 @@ def autoprimary():
 
 
 @autoprimary.command("add")
-@click.argument("ip", type=click.STRING)
-@click.argument("nameserver", type=click.STRING)
+@click.argument("ip", type=IPAddress)
+@click.argument("nameserver", type=AutoprimaryZone)
 @click.option("-a", "--account", default="", type=click.STRING, help="Option")
 @click.pass_context
 def autoprimary_add(
@@ -155,7 +193,7 @@ def autoprimary_add(
     Adds an autoprimary upstream dns server
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
-    payload = {"cidr": ip, "nameserver": nameserver, "account": account}
+    payload = {"ip": ip, "nameserver": nameserver, "account": account}
     if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
         click.echo(
             json.dumps(
@@ -174,8 +212,8 @@ def autoprimary_add(
 
 
 @autoprimary.command("delete")
-@click.argument("ip", type=click.STRING)
-@click.argument("nameserver", type=click.STRING)
+@click.argument("ip", type=IPAddress)
+@click.argument("nameserver", type=AutoprimaryZone)
 @click.pass_context
 def autoprimary_delete(ctx, ip, nameserver):
     """
@@ -261,7 +299,7 @@ def cryptokey():
 
 
 @cryptokey.command("add")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
 @click.option(
     "-a",
@@ -299,7 +337,7 @@ def cryptokey_add(ctx, dns_zone, key_type, active, publish, bits, algorithm):
 
 @cryptokey.command("delete")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("cryptokey-id", type=click.INT)
 def cryptokey_delete(ctx, dns_zone, cryptokey_id):
     """
@@ -322,7 +360,7 @@ def cryptokey_delete(ctx, dns_zone, cryptokey_id):
 
 @cryptokey.command("disable")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("cryptokey-id", type=click.INT)
 def cryptokey_disable(ctx, dns_zone, cryptokey_id):
     """
@@ -352,7 +390,7 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id):
 
 @cryptokey.command("enable")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("cryptokey-id", type=click.INT)
 def cryptokey_enable(ctx, dns_zone, cryptokey_id):
     """
@@ -382,7 +420,7 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id):
 
 @cryptokey.command("export")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("cryptokey-id", type=click.STRING)
 def cryptokey_export(ctx, dns_zone, cryptokey_id):
     """
@@ -400,7 +438,7 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
 
 
 @cryptokey.command("import")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
 @click.argument("private-key", type=click.STRING)
 @click.option(
@@ -448,7 +486,7 @@ def cryptokey_import(
 
 @cryptokey.command("list")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 def cryptokey_list(ctx, dns_zone):
     """
     Lists all currently configured cryptokeys for this zone without displaying secrets
@@ -462,7 +500,7 @@ def cryptokey_list(ctx, dns_zone):
 
 @cryptokey.command("publish")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("cryptokey-id", type=click.INT)
 def cryptokey_publish(ctx, dns_zone, cryptokey_id):
     """
@@ -493,7 +531,7 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id):
 
 @cryptokey.command("unpublish")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("cryptokey-id", type=click.INT)
 def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
     """
@@ -610,7 +648,7 @@ def record():
 
 @record.command("add")
 @click.argument("name", type=click.STRING)
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "record-type",
     type=click.Choice(
@@ -666,7 +704,7 @@ def record_add(
 
 @record.command("delete")
 @click.argument("name", type=click.STRING)
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "record-type",
     type=click.Choice(
@@ -756,7 +794,7 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
 
 @record.command("disable")
 @click.argument("name", type=click.STRING)
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "record-type",
     type=click.Choice(
@@ -814,7 +852,7 @@ def record_disable(
 # pylint: disable=unused-argument
 @record.command("enable")
 @click.argument("name", type=click.STRING)
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "record-type",
     type=click.Choice(
@@ -852,7 +890,7 @@ def record_enable(
 
 @record.command("extend")
 @click.argument("name", type=click.STRING)
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "record-type",
     type=click.Choice(
@@ -915,7 +953,7 @@ def record_extend(
 
 @record.command("export")
 @click.argument("name", type=click.STRING)
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "record-type",
     type=click.Choice(
@@ -1109,7 +1147,7 @@ def zone():
 
 
 @zone.command("add")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "zonetype",
     type=click.Choice(["MASTER", "NATIVE"], case_sensitive=False),
@@ -1147,7 +1185,7 @@ def zone_add(ctx, dns_zone, zonetype, master):
 
 
 @zone.command("delete")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
     "-f",
     "--force",
@@ -1182,7 +1220,7 @@ def zone_delete(ctx, dns_zone, force):
 
 @zone.command("export")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
     "-b",
     "--bind",
@@ -1209,7 +1247,7 @@ def zone_export(ctx, dns_zone, bind):
 
 @zone.command("flush-cache")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 def zone_flush_cache(ctx, dns_zone):
     """Flushes the cache of the given zone"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
@@ -1221,7 +1259,7 @@ def zone_flush_cache(ctx, dns_zone):
 
 @zone.command("notify")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 def zone_notify(ctx, dns_zone):
     """
     Let the server notify its slaves of changes to the given zone
@@ -1238,7 +1276,7 @@ def zone_notify(ctx, dns_zone):
 
 @zone.command("rectify")
 @click.pass_context
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 def zone_rectify(ctx, dns_zone):
     """
     Rectifies a given zone. Will fail on slave zones and zones without dnssec.
@@ -1287,7 +1325,7 @@ def metadata():
 
 
 @metadata.command("add")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("metadata-key", type=click.STRING)
 @click.argument("metadata-value", type=click.STRING)
 @click.pass_context
@@ -1313,7 +1351,7 @@ def metadata_add(ctx, dns_zone, metadata_key, metadata_value):
 
 
 @metadata.command("delete")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("metadata-key", type=click.STRING)
 @click.pass_context
 def metadata_delete(ctx, dns_zone, metadata_key):
@@ -1337,7 +1375,7 @@ def metadata_delete(ctx, dns_zone, metadata_key):
 # pylint: disable=unused-argument
 # noinspection PyUnusedLocal
 @metadata.command("extend")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("metadata-key", type=click.STRING)
 @click.argument("metadata-value", type=click.STRING)
 @click.pass_context
@@ -1352,7 +1390,7 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
 
 
 @metadata.command("list")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
     "-l",
     "--limit",
@@ -1375,7 +1413,7 @@ def metadata_list(ctx, dns_zone, limit):
 
 
 @metadata.command("update")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("metadata-key", type=click.STRING)
 @click.argument("metadata-value", type=click.STRING)
 @click.pass_context
@@ -1416,7 +1454,7 @@ def view(ctx):
 
 @view.command("add")
 @click.argument("view_id", type=click.STRING, metavar="view")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.pass_context
 def view_add(ctx, view_id, dns_zone):
     """Add a zone to a view, creates the view if it did not exist beforehand"""
@@ -1434,7 +1472,7 @@ def view_add(ctx, view_id, dns_zone):
 
 @view.command("delete")
 @click.argument("view_id", type=click.STRING, metavar="view")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.pass_context
 def view_delete(ctx, view_id, dns_zone):
     """Deletes a view"""
@@ -1485,7 +1523,7 @@ def view_list(ctx):
 # pylint: disable=unused-argument
 @view.command("update")
 @click.argument("view_id", type=click.STRING, metavar="view")
-@click.argument("dns_zone", type=Zone, metavar="zone")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.pass_context
 def view_update(ctx, view_id, dns_zone):
     """Update a view to contain the given zone"""

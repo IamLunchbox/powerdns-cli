@@ -10,7 +10,7 @@ def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: st
     """Checks if the ip and nameserver are already in the autoprimary list"""
     upstream_autoprimaries = http_get(uri, ctx).json()
     for autoprimary in upstream_autoprimaries:
-        if autoprimary["nameserver"] == nameserver and autoprimary["ip"] == ip:
+        if autoprimary.get("nameserver", None) == nameserver and autoprimary.get("ip", None) == ip:
             return True
     return False
 
