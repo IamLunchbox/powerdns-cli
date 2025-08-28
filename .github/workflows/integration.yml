@@ -184,8 +184,9 @@ jobs:
           -p 1053:53 -p 1053:53/udp -p 8082:8081
           -e PDNS_AUTH_API_KEY=1FooBarBaz2
           -v ${{ github.workspace }}/integration/pdns.conf:/etc/powerdns/pdns.conf
-          --network "${{ job.container.network }}"
           "${{ matrix.powerdns_container }}"
+#          --network "${{ job.container.network }}"
+# This does only work if job.container.network is defined
       - uses: actions/setup-python@v5
         with:
           python-version: 3.13.7
