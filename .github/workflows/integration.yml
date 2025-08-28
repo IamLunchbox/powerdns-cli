@@ -47,6 +47,8 @@ jobs:
         run: powerdns-cli zone add example.org MASTER
       - name: Add native zone
         run: powerdns-cli zone add example.com. NATIVE
+      - name: Add slave zone
+        run: powerdns-cli zone add example.com. slave
       - name: List zones
         run: powerdns-cli zone list
       - name: Add duplicate native zone
@@ -199,7 +201,7 @@ jobs:
       - name: Add native zone
         run: powerdns-cli zone add example.com. NATIVE
       - name: Add variant zone
-        run: powerdns-cli zone add example.com..variant1 NATIVE
+        run: powerdns-cli zone add example.com..variant1 SLAVE
       - name: Add view for 10.0.0.0/8
         run: powerdns-cli network add 10.0.0.0/8 test
       - name: Add view for 0.0.0.0/0
@@ -209,9 +211,9 @@ jobs:
       - name: List views for all networks
         run: powerdns-cli network list
       - name: Add example.com to view test
-        run: powerdns-cli view add example.com. test
+        run: powerdns-cli view add test example.com.
       - name: Add example.com..variant1 to view unrestricted
-        run: powerdns-cli view add example.com..variant1 unrestricted
+        run: powerdns-cli view add unrestricted example.com..variant1
       - name: List all views
         run: powerdns-cli view list
       - name: Show the zones of unrestricted view
