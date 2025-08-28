@@ -167,28 +167,25 @@ jobs:
       - name: Unpublish cryptokey
         run: powerdns-cli cryptokey unpublish example.org 2
   advanced-integration-test:
-    services:
-      powerdns:
-        image: ${{ matrix.powerdns_container }}
-        env:
-          PDNS_AUTH_API_KEY: 1FooBarBaz2!
-        ports:
-          - "1053:53"
-          - "1053:53/udp"
-          - "8082:8081"
-        volumes:
-          - ${{ github.workspace }}/integration/pdns.conf:/etc/powerdns/pdns.conf
     runs-on: ubuntu-latest
     strategy:
       matrix:
         powerdns_container:
           - "docker.io/powerdns/pdns-auth-50:5.0.0"
     env:
-      POWERDNS_CLI_APIKEY: 1FooBarBaz2!
+      POWERDNS_CLI_APIKEY: 1FooBarBaz2
       POWERDNS_CLI_URL: http://localhost:8082
     steps:
       - name: Clone repository
         uses: actions/checkout@v5
+      - name: Start powerdns service container
+        run: >
+          docker run -d --name powerdns
+          -p 1053:53 -p 1053:53/udp -p 8082:8081
+          -e PDNS_AUTH_API_KEY=1FooBarBaz2
+          -v ${{ github.workspace }}/integration/pdns.conf:/etc/powerdns/pdns.conf
+          --network "${{ job.container.network }}"
+          "${{ matrix.powerdns_container }}"
       - uses: actions/setup-python@v5
         with:
           python-version: 3.13.7
@@ -218,3 +215,8 @@ jobs:
         run: powerdns-cli view list
       - name: Show the zones of unrestricted view
         run: powerdns-cli view export unrestricted
+      - name: Stop and remove manual service container
+        if: always()
+        run: |
+          docker stop powerdns || true
+          docker rm powerdns || true
