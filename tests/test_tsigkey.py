@@ -245,7 +245,7 @@ def test_tsigkey_update_item_missing(mock_utils, conditional_mock_utils, example
     assert result.exit_code == 1
     get.assert_called()
     put.assert_not_called()
-    assert "not exist" in json.loads(result.output)["message"]
+    assert "not exist" in json.loads(result.output)["error"]
 
 
 def test_tsigkey_update_idempotence(mock_utils, conditional_mock_utils, example_tsigkey_test1):
@@ -273,7 +273,7 @@ def test_tsigkey_update_refuse_rewrite(mock_utils, conditional_mock_utils, examp
     assert result.exit_code == 1
     get.assert_called()
     put.assert_not_called()
-    assert "rewrite" in json.loads(result.output)["message"]
+    assert "rewrite" in json.loads(result.output)["error"]
 
 
 def test_tsigkey_update_rename(mock_utils, conditional_mock_utils, example_tsigkey_test1):

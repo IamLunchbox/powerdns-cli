@@ -196,8 +196,10 @@ def conditional_mock_utils(mocker):
                          (
                                  ("example.com", "NATIVE"),
                                  ("example.com", "MASTER"),
+                                 ("example.com", "slave"),
                                  ("example.com..variant1", "NATIVE"),
-                                 ("example.com..variant1", "MASTER"),
+                                 ("example.com..variant1", "mASTER"),
+                                 ("example.com..variant1", "Slave"),
                          )
                          )
 def test_zone_add_success(mock_utils, conditional_mock_utils, example_org, domain, servertype):
