@@ -192,16 +192,18 @@ class ConditionalMock(testutils.MockUtils):
 def conditional_mock_utils(mocker):
     return ConditionalMock(mocker)
 
-@pytest.mark.parametrize("domain,servertype",
-                         (
-                                 ("example.com", "NATIVE"),
-                                 ("example.com", "MASTER"),
-                                 ("example.com", "slave"),
-                                 ("example.com..variant1", "NATIVE"),
-                                 ("example.com..variant1", "mASTER"),
-                                 ("example.com..variant1", "Slave"),
-                         )
-                         )
+
+@pytest.mark.parametrize(
+    "domain,servertype",
+    (
+        ("example.com", "NATIVE"),
+        ("example.com", "MASTER"),
+        ("example.com", "slave"),
+        ("example.com..variant1", "NATIVE"),
+        ("example.com..variant1", "mASTER"),
+        ("example.com..variant1", "Slave"),
+    ),
+)
 def test_zone_add_success(mock_utils, conditional_mock_utils, example_org, domain, servertype):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_org)

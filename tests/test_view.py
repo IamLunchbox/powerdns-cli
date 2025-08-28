@@ -18,12 +18,14 @@ from powerdns_cli.powerdns_cli import (
 def mock_utils(mocker):
     return testutils.MockUtils(mocker)
 
-@pytest.mark.parametrize("returncodes,return_content",
-                         (
-                                 (200, {"zones": ["example.com..variant1"]}),
-                                 (404, {"error": "Not found"}),
-                         )
-                         )
+
+@pytest.mark.parametrize(
+    "returncodes,return_content",
+    (
+        (200, {"zones": ["example.com..variant1"]}),
+        (404, {"error": "Not found"}),
+    ),
+)
 def test_view_add_success(mock_utils, returncodes, return_content):
     get = mock_utils.mock_http_get(returncodes, json_output=return_content)
     post = mock_utils.mock_http_post(204, text_output="")
@@ -38,8 +40,11 @@ def test_view_add_success(mock_utils, returncodes, return_content):
     get.assert_called_once()
     post.assert_called_once()
 
+
 def test_view_add_idempotence(mock_utils):
-    get = mock_utils.mock_http_get(200, json_output={"zones": ["example.com..variant1", "example.com."]})
+    get = mock_utils.mock_http_get(
+        200, json_output={"zones": ["example.com..variant1", "example.com."]}
+    )
     post = mock_utils.mock_http_post(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
@@ -52,8 +57,11 @@ def test_view_add_idempotence(mock_utils):
     get.assert_called_once()
     post.assert_not_called()
 
+
 def test_view_add_failed(mock_utils):
-    get = mock_utils.mock_http_get(200, json_output={"zones": ["example.com..variant1", "example.com."]})
+    get = mock_utils.mock_http_get(
+        200, json_output={"zones": ["example.com..variant1", "example.com."]}
+    )
     post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
@@ -66,12 +74,14 @@ def test_view_add_failed(mock_utils):
     get.assert_called_once()
     post.assert_called_once()
 
-@pytest.mark.parametrize("returncodes,return_content",
-                         (
-                                 (200, {"zones": ["example.com..variant1"]}),
-                                 (404, {"error": "Not found"}),
-                         )
-                         )
+
+@pytest.mark.parametrize(
+    "returncodes,return_content",
+    (
+        (200, {"zones": ["example.com..variant1"]}),
+        (404, {"error": "Not found"}),
+    ),
+)
 def test_view_update_success(mock_utils, returncodes, return_content):
     get = mock_utils.mock_http_get(returncodes, json_output=return_content)
     post = mock_utils.mock_http_post(204, text_output="")
@@ -86,8 +96,11 @@ def test_view_update_success(mock_utils, returncodes, return_content):
     get.assert_called_once()
     post.assert_called_once()
 
+
 def test_view_update_idempotence(mock_utils):
-    get = mock_utils.mock_http_get(200, json_output={"zones": ["example.com..variant1", "example.com."]})
+    get = mock_utils.mock_http_get(
+        200, json_output={"zones": ["example.com..variant1", "example.com."]}
+    )
     post = mock_utils.mock_http_post(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
@@ -100,8 +113,11 @@ def test_view_update_idempotence(mock_utils):
     get.assert_called_once()
     post.assert_not_called()
 
+
 def test_view_update_failed(mock_utils):
-    get = mock_utils.mock_http_get(200, json_output={"zones": ["example.com..variant1", "example.com."]})
+    get = mock_utils.mock_http_get(
+        200, json_output={"zones": ["example.com..variant1", "example.com."]}
+    )
     post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
@@ -114,8 +130,11 @@ def test_view_update_failed(mock_utils):
     get.assert_called_once()
     post.assert_called_once()
 
+
 def test_view_delete_success(mock_utils):
-    get = mock_utils.mock_http_get(200, json_output={"zones": ["example.com..variant1", "example.com."]})
+    get = mock_utils.mock_http_get(
+        200, json_output={"zones": ["example.com..variant1", "example.com."]}
+    )
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
@@ -128,12 +147,14 @@ def test_view_delete_success(mock_utils):
     get.assert_called_once()
     delete.assert_called_once()
 
-@pytest.mark.parametrize("returncodes,return_content,response_keyword",
-                         (
-                                 (200, {"zones": ["example.com..variant1"]}, "is not in"),
-                                 (404, {"error": "Not found"}, "absent"),
-                         )
-                         )
+
+@pytest.mark.parametrize(
+    "returncodes,return_content,response_keyword",
+    (
+        (200, {"zones": ["example.com..variant1"]}, "is not in"),
+        (404, {"error": "Not found"}, "absent"),
+    ),
+)
 def test_view_delete_idempotence(mock_utils, returncodes, return_content, response_keyword):
     get = mock_utils.mock_http_get(returncodes, json_output=return_content)
     delete = mock_utils.mock_http_delete(204, text_output="")
@@ -148,8 +169,11 @@ def test_view_delete_idempotence(mock_utils, returncodes, return_content, respon
     get.assert_called_once()
     delete.assert_not_called()
 
+
 def test_view_delete_failed(mock_utils):
-    get = mock_utils.mock_http_get(200, json_output={"zones": ["example.com..variant1", "example.com."]})
+    get = mock_utils.mock_http_get(
+        200, json_output={"zones": ["example.com..variant1", "example.com."]}
+    )
     delete = mock_utils.mock_http_delete(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
@@ -162,8 +186,9 @@ def test_view_delete_failed(mock_utils):
     get.assert_called_once()
     delete.assert_called_once()
 
+
 def test_view_list_success(mock_utils):
-    output_list ={"views": ["test1", "test2"] }
+    output_list = {"views": ["test1", "test2"]}
     get = mock_utils.mock_http_get(200, json_output=copy.deepcopy(output_list))
     runner = CliRunner()
     result = runner.invoke(
@@ -173,6 +198,7 @@ def test_view_list_success(mock_utils):
     assert result.exit_code == 0
     assert json.loads(result.output) == output_list
     get.assert_called_once()
+
 
 def test_view_list_failed(mock_utils):
     get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
@@ -185,8 +211,9 @@ def test_view_list_failed(mock_utils):
     assert json.loads(result.output)["error"] == "Server error"
     get.assert_called_once()
 
+
 def test_view_export_success(mock_utils):
-    output_dict ={"zones": ["example.com..variant1"]}
+    output_dict = {"zones": ["example.com..variant1"]}
     get = mock_utils.mock_http_get(200, json_output=copy.deepcopy(output_dict))
     runner = CliRunner()
     result = runner.invoke(
@@ -198,8 +225,9 @@ def test_view_export_success(mock_utils):
     assert json.loads(result.output) == output_dict
     get.assert_called_once()
 
+
 def test_view_export_failed(mock_utils):
-    get = mock_utils.mock_http_get(500, json_output={"error":"Server error"})
+    get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         view_export,

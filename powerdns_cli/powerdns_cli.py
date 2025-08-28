@@ -1152,12 +1152,7 @@ def zone():
     type=click.Choice(["MASTER", "NATIVE", "SLAVE"], case_sensitive=False),
 )
 @click.option(
-    "-m",
-    "--master",
-    type=IPAddress,
-    help="Set Zone Masters",
-    default=None,
-    multiple=True
+    "-m", "--master", type=IPAddress, help="Set Zone Masters", default=None, multiple=True
 )
 @click.pass_context
 def zone_add(ctx, dns_zone, zonetype, master):
