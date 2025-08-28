@@ -155,9 +155,8 @@ def cli(ctx, apikey, url, insecure, skip_check):
             click.echo(
                 json.dumps(
                     {
-                        "message": "Error, did not successfully connect to sever, "
-                        f"status {preflight_request.status_code}. "
-                        "Are your credentials correct?"
+                        "error": "No successful connection to sever, "
+                        f"status code {preflight_request.status_code}"
                     }
                 )
             )
@@ -988,7 +987,7 @@ def record_export(
         if rrset["name"] == name and rrset["type"] == record_type.upper():
             click.echo(json.dumps(rrset))
             raise SystemExit(0)
-    click.echo({"message": "Error, no rrset to export"})
+    click.echo({"error": "No rrset to export"})
     raise SystemExit(1)
 
 
@@ -1119,7 +1118,7 @@ def tsigkey_update(ctx, name, algorithm, secret, new_name):
     }
     r = utils.http_get(uri, ctx)
     if r.status_code != 200:
-        msg = {"message": f"Error, a TSIGKEY with name {name} does not exist"}
+        msg = {"error": f"A TSIGKEY with name {name} does not exist"}
         click.echo(json.dumps(msg))
         raise SystemExit(1)
     if all(tsikey_settings[setting] == r.json()[setting] for setting in tsikey_settings):
@@ -1129,7 +1128,7 @@ def tsigkey_update(ctx, name, algorithm, secret, new_name):
     if new_name:
         r = utils.http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys", ctx)
         if new_name in (key["name"] for key in r.json()):
-            msg = {"message": f"Error, the TSIGKEY {name} already exists. Refusing to rewrite."}
+            msg = {"error": f"TSIGKEY {name} already exists. Refusing to rewrite."}
             click.echo(json.dumps(msg))
             raise SystemExit(1)
     r = utils.http_put(uri, ctx, tsikey_settings)
@@ -1150,30 +1149,27 @@ def zone():
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "zonetype",
-    type=click.Choice(["MASTER", "NATIVE"], case_sensitive=False),
+    type=click.Choice(["MASTER", "NATIVE", "SLAVE"], case_sensitive=False),
 )
 @click.option(
     "-m",
     "--master",
-    type=click.STRING,
+    type=IPAddress,
     help="Set Zone Masters",
     default=None,
+    multiple=True
 )
 @click.pass_context
 def zone_add(ctx, dns_zone, zonetype, master):
     """
-    Adds a new zone. Can create a master or native zones, slaves zones are disabled
+    Adds a new zone.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
-    if zonetype.upper() in ("MASTER", "NATIVE"):
-        payload = {
-            "name": dns_zone,
-            "kind": zonetype.capitalize(),
-            "masters": master.split(",") if master else [],
-        }
-    else:
-        click.echo(json.dumps({"message": "Slave entries are not supported right now"}))
-        raise SystemExit(1)
+    payload = {
+        "name": dns_zone,
+        "kind": zonetype.capitalize(),
+        "masters": master,
+    }
     current_zones = utils.query_zones(ctx)
     if [z for z in current_zones if z["name"] == dns_zone]:
         click.echo(json.dumps({"message": f"Zone {dns_zone} already present"}))
