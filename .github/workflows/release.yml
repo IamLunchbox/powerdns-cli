@@ -19,13 +19,17 @@ permissions:
 jobs:
   integration-test:
     uses: ./.github/workflows/integration.yml
+
   unit-test:
     uses: ./.github/workflows/unit.yml
-  release-build:
-    runs-on: ubuntu-latest
+
+  release:
     needs:
       - integration-test
       - unit-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -47,16 +51,19 @@ jobs:
           fi
       - name: Release
         uses: softprops/action-gh-release@v2
+  build:
+    needs:
+      - release
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
           python -m pip install build
           python -m build
-
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
@@ -66,25 +73,22 @@ jobs:
   pypi-publish:
     runs-on: ubuntu-latest
     needs:
-      - release-build
+      - build
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
-
     # Dedicated environments with protections for publishing are strongly recommended.
     # For more information, see: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment#deployment-protection-rules
     environment:
       name: pypi
       # OPTIONAL: uncomment and update to include your PyPI project URL in the deployment status:
       url: https://pypi.org/p/powerdns-cli/
-
     steps:
       - name: Retrieve release distributions
         uses: actions/download-artifact@v5
         with:
           name: release-dists
           path: dist/
-
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
