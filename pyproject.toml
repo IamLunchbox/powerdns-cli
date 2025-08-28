@@ -29,7 +29,8 @@ dev = [
     "bandit",
     "pytest",
     "pytest-mock",
-    "isort"
+    "isort",
+    "black"
 ]
 
 [project.scripts]
