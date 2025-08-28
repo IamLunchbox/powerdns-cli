@@ -99,7 +99,6 @@ won't be covered by the integration tests.
 
 ## Todos
 The following features are on the roadmap:
-1. Compatibility with PowerDNS Auth 5.0
-2. Management of slave zones
-3. Docker container with powerdns-cli.
-4. Porting this to Ansible.
+1. Ability to import json files
+2. Docker container
+3. Ansible module
