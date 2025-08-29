@@ -230,7 +230,10 @@ def autoprimary_delete(ctx, ip, nameserver):
             raise SystemExit(0)
     else:
         click.echo(
-            json.dumps({"message": f"Autoprimary {ip} with nameserver {nameserver} already absent"})
+            json.dumps(
+                {"message": f"Autoprimary {ip} with nameserver {nameserver} already absent"},
+                indent=4,
+            )
         )
         raise SystemExit(0)
 
@@ -375,7 +378,11 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id):
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if not r.json()["active"]:
-        click.echo(json.dumps({"message": f"Cryptokey with id {cryptokey_id} is already inactive"}))
+        click.echo(
+            json.dumps(
+                {"message": f"Cryptokey with id {cryptokey_id} is already inactive"}, indent=4
+            )
+        )
         raise SystemExit(0)
     r = utils.http_put(uri, ctx, payload)
     if utils.create_output(
@@ -405,7 +412,9 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id):
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if r.json()["active"]:
-        click.echo(json.dumps({"message": f"Cryptokey with id {cryptokey_id} is already active"}))
+        click.echo(
+            json.dumps({"message": f"Cryptokey with id {cryptokey_id} is already active"}, indent=4)
+        )
         raise SystemExit(0)
     r = utils.http_put(uri, ctx, payload)
     if utils.create_output(
@@ -471,7 +480,9 @@ def cryptokey_import(
     }
     if utils.is_dnssec_key_present(uri, secret, ctx):
         click.echo(
-            json.dumps({"message": "The provided dnssec-key is already present at the backend"})
+            json.dumps(
+                {"message": "The provided dnssec-key is already present at the backend"}, indent=4
+            )
         )
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
@@ -515,7 +526,9 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id):
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if r.json()["published"]:
-        click.echo(json.dumps({"message": f"Cryptokey with id {cryptokey_id} already published"}))
+        click.echo(
+            json.dumps({"message": f"Cryptokey with id {cryptokey_id} already published"}, indent=4)
+        )
         raise SystemExit(0)
     payload["active"] = r.json()["active"]
     r = utils.http_put(uri, ctx, payload)
@@ -547,7 +560,9 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if not r.json()["published"]:
         click.echo(
-            json.dumps({"message": f"Cryptokey with id {cryptokey_id} is already unpublished"})
+            json.dumps(
+                {"message": f"Cryptokey with id {cryptokey_id} is already unpublished"}, indent=4
+            )
         )
         raise SystemExit(0)
     payload["active"] = r.json()["active"]
@@ -566,7 +581,11 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
 def network(ctx):
     """Shows and sets up network views to limit access to dns entries"""
     if ctx.obj["major_version"] < 5:
-        click.echo(json.dumps({"error": "Your authoritative dns-server does not support networks"}))
+        click.echo(
+            json.dumps(
+                {"error": "Your authoritative dns-server does not support networks"}, indent=4
+            )
+        )
         raise SystemExit(1)
 
 
@@ -582,7 +601,11 @@ def network_add(ctx, cidr, view_id):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 200 and current_network.json()["view"] == view_id:
-        click.echo(json.dumps({"message": f"Network {cidr} is already assigned to view {view_id}"}))
+        click.echo(
+            json.dumps(
+                {"message": f"Network {cidr} is already assigned to view {view_id}"}, indent=4
+            )
+        )
         raise SystemExit(0)
     payload = {"view": view_id}
     r = utils.http_put(uri, ctx, payload=payload)
@@ -629,7 +652,7 @@ def network_delete(ctx, cidr):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 404:
-        click.echo(json.dumps({"message": f"Network {cidr} absent"}))
+        click.echo(json.dumps({"message": f"Network {cidr} absent"}, indent=4))
         raise SystemExit(0)
     payload = {"view": ""}
     r = utils.http_put(uri, ctx, payload=payload)
@@ -690,7 +713,9 @@ def record_add(
         "records": [{"content": content, "disabled": False}],
     }
     if utils.is_content_present(uri, ctx, rrset):
-        click.echo(json.dumps({"message": f"{name} {record_type} {content} already present"}))
+        click.echo(
+            json.dumps({"message": f"{name} {record_type} {content} already present"}, indent=4)
+        )
         raise SystemExit(0)
 
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
@@ -749,7 +774,9 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
             "records": [],
         }
         if not utils.is_matching_rrset_present(uri, ctx, rrset):
-            click.echo(json.dumps({"message": f"{record_type} records in {name} already absent"}))
+            click.echo(
+                json.dumps({"message": f"{record_type} records in {name} already absent"}, indent=4)
+            )
             raise SystemExit(0)
         r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
         msg = {"message": f"All {record_type} records for {name} removed"}
@@ -932,7 +959,9 @@ def record_extend(
         "records": [{"content": content, "disabled": False}],
     }
     if utils.is_content_present(uri, ctx, rrset):
-        click.echo(json.dumps({"message": f"{name} IN {record_type} {content} already present"}))
+        click.echo(
+            json.dumps({"message": f"{name} IN {record_type} {content} already present"}, indent=4)
+        )
         raise SystemExit(0)
     upstream_rrset = utils.is_matching_rrset_present(uri, ctx, rrset)
     if upstream_rrset:
@@ -1167,7 +1196,7 @@ def zone_add(ctx, dns_zone, zonetype, master):
     }
     current_zones = utils.query_zones(ctx)
     if [z for z in current_zones if z["name"] == dns_zone]:
-        click.echo(json.dumps({"message": f"Zone {dns_zone} already present"}))
+        click.echo(json.dumps({"message": f"Zone {dns_zone} already present"}, indent=4))
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
     if utils.create_output(r, (201,), optional_json={"message": f"Zone {dns_zone} created"}):
@@ -1192,16 +1221,14 @@ def zone_delete(ctx, dns_zone, force):
     """
     upstream_zones = utils.query_zones(ctx)
     if dns_zone not in [single_zone["name"] for single_zone in upstream_zones]:
-        click.echo(json.dumps({"message": f"{dns_zone} already absent"}))
+        click.echo(json.dumps({"message": f"{dns_zone} already absent"}, indent=4))
         raise SystemExit(0)
 
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
-    utils.confirm(
-        f"!!!! WARNING !!!!!\n"
-        f"You are attempting to delete {dns_zone}\n"
-        f"Are you sure? [y/N] ",
-        force,
-    )
+    warning = f"!!!! WARNING !!!!!\nYou are attempting to delete {dns_zone}\nAre you sure?"
+    if not force and not click.confirm(warning):
+        click.echo(json.dumps({"message": f"Aborted deleting {dns_zone}"}, indent=4))
+        raise SystemExit(1)
     r = utils.http_delete(uri, ctx)
     msg = {"message": f"{dns_zone} deleted"}
     if utils.create_output(r, (204,), optional_json=msg):
@@ -1359,7 +1386,7 @@ def metadata_delete(ctx, dns_zone, metadata_key):
         ):
             raise SystemExit(0)
         raise SystemExit(1)
-    click.echo(json.dumps({"message": f"{metadata_key} for {dns_zone} already absent"}))
+    click.echo(json.dumps({"message": f"{metadata_key} for {dns_zone} already absent"}, indent=4))
     raise SystemExit(0)
 
 
@@ -1420,7 +1447,9 @@ def metadata_update(ctx, dns_zone, metadata_key, metadata_value):
             raise SystemExit(0)
         raise SystemExit(1)
     click.echo(
-        json.dumps({"message": f"{metadata_key}:{metadata_value} for {dns_zone} already present"})
+        json.dumps(
+            {"message": f"{metadata_key}:{metadata_value} for {dns_zone} already present"}, indent=4
+        )
     )
     raise SystemExit(0)
 
@@ -1439,7 +1468,9 @@ def print_version():
 def view(ctx):
     """Set view to limit zone access"""
     if ctx.obj["major_version"] < 5:
-        click.echo(json.dumps({"error": "Your authoritative dns-server does not support views"}))
+        click.echo(
+            json.dumps({"error": "Your authoritative dns-server does not support views"}, indent=4)
+        )
         raise SystemExit(1)
 
 
@@ -1452,7 +1483,7 @@ def view_add(ctx, view_id, dns_zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone in view_content.json()["zones"]:
-        click.echo(json.dumps({"message": f"{dns_zone} already in {view_id}"}))
+        click.echo(json.dumps({"message": f"{dns_zone} already in {view_id}"}, indent=4))
         raise SystemExit(0)
     payload = {"name": f"{dns_zone}"}
     r = utils.http_post(uri, ctx, payload=payload)
@@ -1470,10 +1501,10 @@ def view_delete(ctx, view_id, dns_zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone not in view_content.json()["zones"]:
-        click.echo(json.dumps({"message": f"Zone {dns_zone} is not in {view_id}"}))
+        click.echo(json.dumps({"message": f"Zone {dns_zone} is not in {view_id}"}, indent=4))
         raise SystemExit(0)
     if view_content.status_code == 404:
-        click.echo(json.dumps({"message": f"View {view_id} is absent"}))
+        click.echo(json.dumps({"message": f"View {view_id} is absent"}, indent=4))
         raise SystemExit(0)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
     r = utils.http_delete(uri, ctx)

@@ -77,7 +77,7 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
         request = ctx.obj["session"].delete(uri, params=params, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"})) from e
+        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
 
 
 def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
@@ -86,7 +86,7 @@ def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Resp
         request = ctx.obj["session"].get(uri, params=params, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"})) from e
+        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
 
 
 def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
@@ -95,7 +95,7 @@ def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response
         request = ctx.obj["session"].patch(uri, json=payload, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"})) from e
+        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
 
 
 def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
@@ -104,7 +104,7 @@ def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
         request = ctx.obj["session"].post(uri, json=payload, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"})) from e
+        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
 
 
 def http_put(
@@ -115,7 +115,7 @@ def http_put(
         request = ctx.obj["session"].put(uri, json=payload, params=params, timeout=10)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"})) from e
+        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
 
 
 def query_zones(ctx) -> list:
