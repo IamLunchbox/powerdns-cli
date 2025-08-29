@@ -251,6 +251,13 @@ def autoprimary_list(ctx):
     raise SystemExit(1)
 
 
+@autoprimary.command("spec")
+def autoprimary_spec():
+    """Open the autoprimary specification on https://redocly.github.io"""
+
+    utils.open_spec("autoprimary")
+
+
 @cli.group()
 def config():
     """Overall server configuration"""
@@ -293,6 +300,13 @@ def config_stats(ctx):
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@config.command("spec")
+def config_spec():
+    """Open the config specification on https://redocly.github.io"""
+
+    utils.open_spec("config")
 
 
 @cli.group()
@@ -541,6 +555,13 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id):
     raise SystemExit(1)
 
 
+@cryptokey.command("spec")
+def cryptokey_spec():
+    """Open the cryptokey specification on https://redocly.github.io"""
+
+    utils.open_spec("cryptokey")
+
+
 @cryptokey.command("unpublish")
 @click.pass_context
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
@@ -661,6 +682,13 @@ def network_delete(ctx, cidr):
     ):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@network.command("spec")
+def network_spec():
+    """Open the network specification on https://redocly.github.io"""
+
+    utils.open_spec("network")
 
 
 @cli.group()
@@ -1020,6 +1048,12 @@ def record_export(
     raise SystemExit(1)
 
 
+@record.command("spec")
+def record_spec():
+    """Open the record specification on https://redocly.github.io"""
+    utils.open_spec("record")
+
+
 @cli.group()
 def tsigkey():
     """Set up tsigkeys"""
@@ -1116,6 +1150,13 @@ def tsigkey_list(ctx):
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@tsigkey.command("spec")
+def tsigkey_spec():
+    """Open the tsigkey specification on https://redocly.github.io"""
+
+    utils.open_spec("tsigkey")
 
 
 @tsigkey.command("update")
@@ -1306,6 +1347,13 @@ def zone_rectify(ctx, dns_zone):
     raise SystemExit(1)
 
 
+@zone.command("spec")
+def zone_spec():
+    """Open the zone specification on https://redocly.github.io"""
+
+    utils.open_spec("zone")
+
+
 @zone.command("search")
 @click.argument("search-string", metavar="STRING")
 @click.option("--max", "max_output", help="Number of items to output", default=5, type=click.INT)
@@ -1430,6 +1478,12 @@ def metadata_list(ctx, dns_zone, limit):
     raise SystemExit(1)
 
 
+@metadata.command("spec")
+def metadata_spec():
+    """Open the metadata specification on https://redocly.github.io"""
+    utils.open_spec("metadata")
+
+
 @metadata.command("update")
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("metadata-key", type=click.STRING)
@@ -1540,6 +1594,13 @@ def view_list(ctx):
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@view.command("spec")
+def view_spec():
+    """Open the view specification on https://redocly.github.io"""
+
+    utils.open_spec("view")
 
 
 # pylint: disable=unused-argument

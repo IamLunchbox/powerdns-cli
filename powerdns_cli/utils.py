@@ -240,3 +240,38 @@ def merge_rrsets(uri: str, ctx: click.Context, new_rrset: dict) -> list:
                 ]
             )
     return merged_rrsets
+
+
+def open_spec(action: str) -> SystemExit:
+    """Opens the api spec on https://redocly.github.io with your default browser"""
+    action = action.lower()
+    match action:
+        case "autoprimary":
+            tag = "/autoprimary"
+        case "cryptokey":
+            tag = "/zonecryptokey"
+        case "config":
+            tag = "/config"
+        case "metadata":
+            tag = "/zonemetadata"
+        case "network":
+            tag = "/networks"
+        case "record":
+            tag = "/zones/operation/patchZone"
+        case "search":
+            tag = "/search"
+        case "tsigkey":
+            tag = "/tsigkey"
+        case "view":
+            tag = "/views"
+        case "zone":
+            tag = "/zones"
+        case _:
+            tag = ""
+    url = (
+        f"https://redocly.github.io/redoc/?url="
+        f"https://raw.githubusercontent.com/PowerDNS/pdns/"
+        f"refs/heads/master/docs/http-api/swagger/authoritative-api-swagger.yaml"
+        f"#tag{tag}"
+    )
+    raise SystemExit(click.launch(url))
