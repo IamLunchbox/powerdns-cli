@@ -50,7 +50,14 @@ jobs:
             exit 1
           fi
       - name: Release
-        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.git_tag.outputs.tag }}
+        run: >
+          gh release create "$tag"
+          --repo="$GITHUB_REPOSITORY"
+          --title="$tag"
+          --generate-notes
   build:
     needs:
       - release
