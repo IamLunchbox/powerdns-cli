@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.13.7
           cache: pip
@@ -191,7 +191,7 @@ jobs:
           "${{ matrix.powerdns_container }}"
 #          --network "${{ job.container.network }}"
 # This does only work if job.container.network is defined
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.13.7
           cache: pip
