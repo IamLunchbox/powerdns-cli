@@ -238,6 +238,23 @@ def autoprimary_delete(ctx, ip, nameserver):
         raise SystemExit(0)
 
 
+@autoprimary.command("import")
+@click.argument("file", type=click.File())
+@click.option("--merge", type=click.BOOL, default=True, help="Merge old settings with new ones")
+@click.pass_context
+def autoprimary_import(ctx, file, merge):
+    """Import a json file with your autoprimary settings"""
+    settings = utils.extract_file(file)
+    if isinstance(settings, list):
+        click.echo(json.dumps({"error": "A list of autoprimaries cannot be imported"}, indent=4))
+        raise SystemExit(1)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    r = utils.import_setting(uri, ctx, settings, "post", merge)
+    if utils.create_output(r, (201,), optional_json={"message": "Setting imported"}):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
 @autoprimary.command("list")
 @click.pass_context
 def autoprimary_list(ctx):
