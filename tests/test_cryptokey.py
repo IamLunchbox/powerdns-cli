@@ -13,7 +13,7 @@ from powerdns_cli.powerdns_cli import (
     cryptokey_disable,
     cryptokey_enable,
     cryptokey_export,
-    cryptokey_import,
+    cryptokey_import_privkey,
     cryptokey_list,
     cryptokey_publish,
     cryptokey_unpublish,
@@ -197,7 +197,7 @@ def test_cryptokey_import_success(mock_utils, conditional_mock_utils, example_ne
     post = mock_utils.mock_http_post(201, json_output=example_new_key)
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_import,
+        cryptokey_import_privkey,
         ["example.com.", "zsk", example_new_key["privatekey"]],
         obj={"apihost": "https://example.com"},
     )
@@ -213,7 +213,7 @@ def test_cryptokey_import_already_present(mock_utils, conditional_mock_utils, ex
     post = mock_utils.mock_http_post(201, json_output={})
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_import,
+        cryptokey_import_privkey,
         ["example.com.", "zsk", example_zsk_key["privatekey"]],
         obj={"apihost": "https://example.com"},
     )
@@ -229,7 +229,7 @@ def test_cryptokey_import_failed(mock_utils, conditional_mock_utils, example_new
     post = mock_utils.mock_http_post(500, json_output=error_output)
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_import,
+        cryptokey_import_privkey,
         ["example.com.", "zsk", example_new_key["privatekey"]],
         obj={"apihost": "https://example.com"},
     )

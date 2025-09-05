@@ -152,7 +152,7 @@ jobs:
       - name: Import a cryptokey secret
         run: >
           powerdns-cli 
-          cryptokey import 
+          cryptokey import-privkey 
           example.org 
           ksk
           'Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: 1nM02+BeuUuppbSgtDBIV3106HMTdLNMqV7rnb4t0iA=\n'

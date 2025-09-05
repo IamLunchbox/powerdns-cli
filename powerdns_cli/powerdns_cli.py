@@ -476,7 +476,34 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
     raise SystemExit(1)
 
 
-@cryptokey.command("import")
+@cryptokey.command("import-pubkey")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@click.argument("file", type=click.File())
+@click.pass_context
+def cryptokey_import_pubkey(ctx, dns_zone, file):
+    """
+    Imports a public cryptokey without known private key from a file
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    settings = utils.extract_file(file)
+    if settings.get("privkey"):
+        click.echo(
+            json.dumps(
+                {"error": "The key 'privatekey' may not be present importing a public key"},
+                indent=4,
+            )
+        )
+        raise SystemExit(1)
+    if isinstance(settings, list):
+        click.echo(json.dumps({"error": "A list of cryptokeys cannot be imported"}, indent=4))
+        raise SystemExit(1)
+    r = utils.import_setting(uri, ctx, settings, "post", merge=False)
+    if utils.create_output(r, (201,), optional_json={"message": "Setting imported"}):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@cryptokey.command("import-privkey")
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
 @click.argument("private-key", type=click.STRING)
@@ -489,7 +516,7 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
 @click.pass_context
-def cryptokey_import(
+def cryptokey_import_privkey(
     ctx,
     dns_zone,
     key_type,
