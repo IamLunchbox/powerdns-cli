@@ -1,7 +1,6 @@
 """Utilities library for the main cli functions"""
 
 import json
-from typing import TextIO
 
 import click
 import requests
@@ -276,59 +275,3 @@ def open_spec(action: str) -> SystemExit:
         f"#tag{tag}"
     )
     raise SystemExit(click.launch(url))
-
-
-def extract_file(input_file: TextIO) -> dict | list:
-    """Extracts a json object from a file input and returns it."""
-    try:
-        return_object = json.load(input_file)
-    except (json.JSONDecodeError, ValueError, TypeError) as e:
-        click.echo(json.dumps({"error": f"Loading the file failed with {e}"}, indent=4))
-        raise SystemExit(1) from e
-    if not isinstance(return_object, (dict, list)):
-        raise ValueError("utils.extract file returned an unexpected filetype")
-    return return_object
-
-
-def import_setting(
-    uri, ctx, content, method: str, replace: bool = False, merge: bool = False
-) -> requests.Response:
-    """Passes the given dictionary to the given uri.
-    Merges the upstream dict or list, if one could be obtained from upstream through a GET-Request.
-    Refuses to overwrite an already existing datapoint."""
-    current_settings = http_get(uri, ctx)
-    if current_settings.status_code == 200 and not any((merge, replace)):
-        click.echo(
-            json.dumps(
-                {"error": "Setting already present, neither merging nor replacing requested"},
-                indent=4,
-            )
-        )
-        raise SystemExit(1)
-    if current_settings.status_code == 200 and not isinstance(
-        content, type(current_settings.json())
-    ):
-        click.echo(
-            json.dumps(
-                {"error": "New settings are not of the same type as the current one"}, indent=4
-            )
-        )
-        raise SystemExit(1)
-    if merge and current_settings.status_code == 200:
-        payload = current_settings.json()
-        if isinstance(payload, list):
-            for entry in content:
-                if entry not in payload:
-                    payload.append(entry)
-        if isinstance(payload, dict):
-            payload.update(content)
-    else:
-        payload = content
-    match method:
-        case "post":
-            r = http_post(uri, ctx, payload=payload)
-        case "put":
-            r = http_put(uri, ctx, payload=payload)
-        case _:
-            raise ValueError(f"A not supported method of {method} was supplied to import_setting")
-    return r
