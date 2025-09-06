@@ -240,19 +240,41 @@ def autoprimary_delete(ctx, ip, nameserver):
 
 @autoprimary.command("import")
 @click.argument("file", type=click.File())
-@click.option("--merge", type=click.BOOL, default=True, help="Merge old settings with new ones")
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all old autoprimaries settings with new ones",
+)
 @click.pass_context
-def autoprimary_import(ctx, file, merge):
-    """Import a json file with your autoprimary settings"""
+def autoprimary_import(ctx, file, replace):
+    """Import a list with your autoprimaries settings"""
     settings = utils.extract_file(file)
-    if isinstance(settings, list):
-        click.echo(json.dumps({"error": "A list of autoprimaries cannot be imported"}, indent=4))
+    if not isinstance(settings, list):
+        click.echo(json.dumps({"error": "There was no list given"}, indent=4))
         raise SystemExit(1)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
-    r = utils.import_setting(uri, ctx, settings, "post", merge)
-    if utils.create_output(r, (201,), optional_json={"message": "Setting imported"}):
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    if replace and upstream_settings == settings:
+        click.echo(json.dumps({"message": "Requested autoprimaries are already present"}, indent=4))
         raise SystemExit(0)
-    raise SystemExit(1)
+    if not replace and all(item in upstream_settings for item in settings):
+        click.echo(json.dumps({"message": "Requested autoprimaries are already present"}, indent=4))
+        raise SystemExit(0)
+    if replace and upstream_settings:
+        existing_upstreams = []
+        for nameserver in upstream_settings:
+            if nameserver in settings:
+                existing_upstreams.append(nameserver)
+            else:
+                utils.http_delete(f"{uri}/{nameserver['ip']}/{nameserver['nameserver']}", ctx)
+        for item in settings:
+            if item not in existing_upstreams:
+                utils.http_post(uri, ctx, payload=item)
+        raise SystemExit(0)
+    for item in settings:
+        utils.http_post(uri, ctx, payload=item)
+    raise SystemExit(0)
 
 
 @autoprimary.command("list")
@@ -497,7 +519,8 @@ def cryptokey_import_pubkey(ctx, dns_zone, file):
     if isinstance(settings, list):
         click.echo(json.dumps({"error": "A list of cryptokeys cannot be imported"}, indent=4))
         raise SystemExit(1)
-    r = utils.import_setting(uri, ctx, settings, "post", merge=False)
+    merged_settings = utils.import_setting(uri, ctx, settings, replace=False)
+    r = utils.send_settings_update(uri, ctx, merged_settings, "post")
     if utils.create_output(r, (201,), optional_json={"message": "Setting imported"}):
         raise SystemExit(0)
     raise SystemExit(1)
@@ -1089,6 +1112,63 @@ def record_export(
             click.echo(json.dumps(rrset))
             raise SystemExit(0)
     click.echo({"error": "No rrset to export"})
+    raise SystemExit(1)
+
+
+@record.command("import")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    default=False,
+    help="Replace old settings with new ones",
+)
+@click.pass_context
+def record_import(ctx, dns_zone, file, replace):
+    """
+    Imports rrsets into a zone
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    new_rrsets = utils.extract_file(file)
+    if isinstance(new_rrsets, list) or not new_rrsets.get("rrsets", None):
+        click.echo(
+            json.dumps(
+                {"error": "You must suply a list of rrsets under the key 'rrsets'"}, indent=4
+            )
+        )
+        raise SystemExit(1)
+    # This function skips the usual deduplication logic from utils.import_settings, since
+    # any patch request automatically extends existing rrsets (except where type and name matches,
+    # those get replaced
+    upstream_zone = utils.read_settings_from_upstream(uri, ctx)
+    for rrset in new_rrsets["rrsets"]:
+        if not replace and rrset in upstream_zone["rrsets"]:
+            click.echo(json.dumps({"message": "Requested rrsets are already present"}, indent=4))
+            raise SystemExit(0)
+    if (
+        replace
+        and all(rrset in upstream_zone["rrsets"] for rrset in new_rrsets["rrsets"])
+        and len(upstream_zone["rrsets"]) == len(new_rrsets["rrsets"])
+    ):
+        click.echo(json.dumps({"message": "Requested rrsets are already present"}, indent=4))
+        raise SystemExit(0)
+
+    for rrset in new_rrsets["rrsets"]:
+        rrset["changetype"] = "REPLACE"
+    if replace:
+        final_recordset = []
+        final_recordset.extend(new_rrsets["rrsets"])
+        for upstream_rrset in upstream_zone["rrsets"]:
+            for new_rrset in new_rrsets["rrsets"]:
+                if not all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
+                    upstream_rrset["changetype"] = "DELETE"
+                    final_recordset.append(upstream_rrset)
+        new_rrsets["rrsets"] = final_recordset
+    r = utils.send_settings_update(uri, ctx, new_rrsets, "patch")
+    if utils.create_output(r, (204,), optional_json={"message": "RRset imported"}):
+        raise SystemExit(0)
     raise SystemExit(1)
 
 

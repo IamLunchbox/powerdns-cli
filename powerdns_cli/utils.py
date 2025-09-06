@@ -295,95 +295,115 @@ def extract_file(input_file: TextIO) -> dict | list:
     return return_object
 
 
-def read_settings_from_upstream(uri: str, ctx: dict, nested_key: str = None) -> dict:
-    """Read settings from an upstream URI, optionally extracting a nested key.
+def read_settings_from_upstream(
+    uri: str, ctx: click.Context, nested_key: str | None = None
+) -> dict:
+    """Fetch settings from upstream URI with optional nested key extraction.
 
     Args:
-        uri: The URI to fetch settings from.
-        ctx: Context to pass to the HTTP request.
-        nested_key: Optional nested key to extract from the response.
+        uri: Endpoint URL to fetch settings from
+        ctx: Click context for HTTP requests
+        nested_key: Optional dot-notation key path to extract (e.g., "parent.child")
 
     Returns:
-        The settings dictionary, or the value of nested_key if specified.
-        Returns an empty dict on failure.
+        Dictionary of settings or specific nested value if key was provided
+        Empty dict if request fails or parsing fails
+
+    Raises:
+        SystemExit: When nested_key doesn't exist in response
     """
-    upstream_settings = http_get(uri, ctx)
+    response = http_get(uri, ctx)
 
-    if upstream_settings.status_code == 200:
-        try:
-            data = upstream_settings.json()
-            return data[nested_key] if nested_key else data
-        except KeyError as e:
-            click.echo(
-                json.dumps({"error": f"Subkey passed to import_settings does not exist: {e}"})
+    if response.status_code != 200:
+        return {}
+
+    try:
+        data = response.json()
+        return data.get(nested_key) if nested_key else data
+    except KeyError as e:
+        click.echo(
+            json.dumps(
+                {"error": f"Requested key does not exist: {e}", "available_keys": list(data.keys())}
             )
-            raise SystemExit(1) from e
-
-    return {}
+        )
+        raise SystemExit(1) from e
 
 
 def import_setting(
     uri: str,
     ctx: click.Context,
     new_settings: dict | list,
-    method: str,
     replace: bool = False,
     merge: bool = False,
-    nested_key: str = None,
-) -> requests.Response:
+) -> dict | list:
     """Passes the given dictionary or list to the specified URI.
 
     Args:
         uri: The endpoint to send the settings to.
         ctx: Context object for HTTP requests.
         new_settings: The new settings to import (dict or list).
-        method: HTTP method to use ('post' or 'put').
         replace: If True, replace existing settings.
-        merge: If True, merge with existing settings.
-        nested_key: If provided, only update the nested key in the settings.
+
+    Returns:
+        dict | list: The updated settings.
+
+    Raises:
+        SystemExit: If settings already exist and neither merge nor replace is requested,
+                   or if the nested key does not exist.
+    """
+    upstream_settings = read_settings_from_upstream(uri, ctx)
+    # Check for conflicts or early exit
+    if upstream_settings:
+        if not any((replace, merge)):
+            click.echo(
+                json.dumps({"message": "Setting already present, refusing to replace"}, indent=4)
+            )
+            raise SystemExit(0)
+
+        if new_settings == upstream_settings or (
+            not replace
+            and (isinstance(upstream_settings, list) and new_settings in upstream_settings)
+        ):
+            click.echo(json.dumps({"message": "Your setting is already present"}, indent=4))
+            raise SystemExit(0)
+
+    # Prepare payload
+    if replace or not upstream_settings:
+        payload = new_settings
+    else:
+        payload = upstream_settings.copy()  # Avoid modifying the original upstream_settings
+        if isinstance(payload, list):
+            # as of now no endpoint does support uploading lists but rather
+            # extends an existing list upstream
+            # until a later endpoint requires it, list items will just result
+            # in a single item being uploaded
+            payload = new_settings
+        elif isinstance(payload, dict):
+            payload.update(new_settings)
+
+    return payload
+
+
+def send_settings_update(
+    uri: str, ctx: click.Context, payload: dict | list, method: str
+) -> requests.Response:
+    """Sends settings update using the specified HTTP method.
+
+    Args:
+        uri: The endpoint to send the request to.
+        ctx: Context object for HTTP requests.
+        payload: The data to send.
+        method: HTTP method to use ('post', 'put', or 'patch').
 
     Returns:
         requests.Response: The HTTP response from the server.
 
     Raises:
-        SystemExit: If settings already exist and neither merge nor replace is requested,
-                   or if the nested key does not exist.
         ValueError: If an unsupported HTTP method is provided.
     """
-    upstream_settings = read_settings_from_upstream(uri, ctx, nested_key)
-    # Check for conflicts
-    if upstream_settings and not any((merge, replace)):
-        click.echo(
-            json.dumps(
-                {"message": "Setting already present"},
-                indent=4,
-            )
-        )
-        raise SystemExit(0)
+    method_handlers = {"post": http_post, "put": http_put, "patch": http_patch}
 
-    # Early exit if settings are already present
-    if isinstance(new_settings, type(upstream_settings)) and new_settings == upstream_settings:
-        click.echo(json.dumps({"message": "Your setting is already present"}, indent=4))
-        raise SystemExit(0)
-    if isinstance(upstream_settings, list) and new_settings in upstream_settings:
-        click.echo(json.dumps({"message": "Your setting is already present"}, indent=4))
-        raise SystemExit(0)
+    if handler := method_handlers.get(method.lower()):
+        return handler(uri, ctx, payload=payload)
 
-    # Prepare payload
-    if merge and upstream_settings:
-        payload = upstream_settings
-        if isinstance(payload, list):
-            for entry in new_settings:
-                if entry not in payload:
-                    payload.append(entry)
-        elif isinstance(payload, dict):
-            payload.update(new_settings)
-    else:
-        payload = new_settings
-
-    # Send request
-    if method == "post":
-        return http_post(uri, ctx, payload=payload)
-    if method == "put":
-        return http_put(uri, ctx, payload=payload)
     raise ValueError(f"Unsupported method: {method}")
