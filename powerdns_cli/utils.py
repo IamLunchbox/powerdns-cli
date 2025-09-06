@@ -9,15 +9,10 @@ import requests
 
 def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: str) -> bool:
     """Checks if the ip and nameserver are already in the autoprimary list"""
-    upstream_autoprimaries = http_get(uri, ctx)
-    if upstream_autoprimaries.status_code == 200:
-        autoprimares = upstream_autoprimaries.json()
-        for autoprimary in autoprimares:
-            if (
-                autoprimary.get("nameserver", None) == nameserver
-                and autoprimary.get("ip", None) == ip
-            ):
-                return True
+    upstream_autoprimaries = http_get(uri, ctx).json()
+    for autoprimary in upstream_autoprimaries:
+        if autoprimary.get("nameserver", None) == nameserver and autoprimary.get("ip", None) == ip:
+            return True
     return False
 
 
@@ -295,64 +290,14 @@ def extract_file(input_file: TextIO) -> dict | list:
     return return_object
 
 
-def read_settings_from_upstream(uri: str, ctx: dict, nested_key: str = None) -> dict:
-    """Read settings from an upstream URI, optionally extracting a nested key.
-
-    Args:
-        uri: The URI to fetch settings from.
-        ctx: Context to pass to the HTTP request.
-        nested_key: Optional nested key to extract from the response.
-
-    Returns:
-        The settings dictionary, or the value of nested_key if specified.
-        Returns an empty dict on failure.
-    """
-    upstream_settings = http_get(uri, ctx)
-
-    if upstream_settings.status_code == 200:
-        try:
-            data = upstream_settings.json()
-            return data[nested_key] if nested_key else data
-        except KeyError as e:
-            click.echo(
-                json.dumps({"error": f"Subkey passed to import_settings does not exist: {e}"})
-            )
-            raise SystemExit(1) from e
-
-    return {}
-
-
 def import_setting(
-    uri: str,
-    ctx: click.Context,
-    new_settings: dict | list,
-    method: str,
-    replace: bool = False,
-    merge: bool = False,
-    nested_key: str = None,
+    uri, ctx, content, method: str, replace: bool = False, merge: bool = False
 ) -> requests.Response:
-    """Passes the given dictionary or list to the specified URI.
-
-    Args:
-        uri: The endpoint to send the settings to.
-        ctx: Context object for HTTP requests.
-        new_settings: The new settings to import (dict or list).
-        method: HTTP method to use ('post' or 'put').
-        replace: If True, replace existing settings.
-        merge: If True, merge with existing settings.
-        nested_key: If provided, only update the nested key in the settings.
-
-    Returns:
-        requests.Response: The HTTP response from the server.
-
-    Raises:
-        SystemExit: If settings already exist and neither merge nor replace is requested,
-                   or if the nested key does not exist.
-        ValueError: If an unsupported HTTP method is provided.
-    """
-    upstream_settings = read_settings_from_upstream(uri, ctx, nested_key)
-    # Check for conflicts
-    if upstream_settings and not any((merge, replace)):
+    """Passes the given dictionary to the given uri.
+    Merges the upstream dict or list, if one could be obtained from upstream through a GET-Request.
+    Refuses to overwrite an already existing datapoint."""
+    current_settings = http_get(uri, ctx)
+    if current_settings.status_code == 200 and not any((merge, replace)):
         click.echo(
             json.dumps(
                 {"error": "Setting already present, neither merging nor replacing requested"},
@@ -360,30 +305,30 @@ def import_setting(
             )
         )
         raise SystemExit(1)
-
-    # Early exit if settings are already present
-    if isinstance(new_settings, type(upstream_settings)) and new_settings == upstream_settings:
-        click.echo(json.dumps({"message": "Your setting is already present"}, indent=4))
-        raise SystemExit(0)
-    if isinstance(upstream_settings, list) and new_settings in upstream_settings:
-        click.echo(json.dumps({"message": "Your setting is already present"}, indent=4))
-        raise SystemExit(0)
-
-    # Prepare payload
-    if merge and upstream_settings:
-        payload = upstream_settings
+    if current_settings.status_code == 200 and not isinstance(
+        content, type(current_settings.json())
+    ):
+        click.echo(
+            json.dumps(
+                {"error": "New settings are not of the same type as the current one"}, indent=4
+            )
+        )
+        raise SystemExit(1)
+    if merge and current_settings.status_code == 200:
+        payload = current_settings.json()
         if isinstance(payload, list):
-            for entry in new_settings:
+            for entry in content:
                 if entry not in payload:
                     payload.append(entry)
-        elif isinstance(payload, dict):
-            payload.update(new_settings)
+        if isinstance(payload, dict):
+            payload.update(content)
     else:
-        payload = new_settings
-
-    # Send request
-    if method == "post":
-        return http_post(uri, ctx, payload=payload)
-    if method == "put":
-        return http_put(uri, ctx, payload=payload)
-    raise ValueError(f"Unsupported method: {method}")
+        payload = content
+    match method:
+        case "post":
+            r = http_post(uri, ctx, payload=payload)
+        case "put":
+            r = http_put(uri, ctx, payload=payload)
+        case _:
+            raise ValueError(f"A not supported method of {method} was supplied to import_setting")
+    return r
