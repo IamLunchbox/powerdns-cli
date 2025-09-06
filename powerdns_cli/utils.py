@@ -355,11 +355,11 @@ def import_setting(
     if upstream_settings and not any((merge, replace)):
         click.echo(
             json.dumps(
-                {"message": "Setting already present"},
+                {"error": "Setting already present, neither merging nor replacing requested"},
                 indent=4,
             )
         )
-        raise SystemExit(0)
+        raise SystemExit(1)
 
     # Early exit if settings are already present
     if isinstance(new_settings, type(upstream_settings)) and new_settings == upstream_settings:
