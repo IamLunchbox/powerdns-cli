@@ -267,13 +267,60 @@ def autoprimary_import(ctx, file, replace):
             if nameserver in settings:
                 existing_upstreams.append(nameserver)
             else:
-                utils.http_delete(f"{uri}/{nameserver['ip']}/{nameserver['nameserver']}", ctx)
-        for item in settings:
-            if item not in existing_upstreams:
-                utils.http_post(uri, ctx, payload=item)
+                upstreams_to_delete.append(nameserver)
+        for nameserver in settings:
+            if nameserver not in existing_upstreams:
+                r = utils.http_post(uri, ctx, payload=nameserver)
+                if not r.status_code == 201:
+                    click.echo(
+                        json.dumps(
+                            {
+                                "error": f"Failed adding nameserver {nameserver}, "
+                                "aborting further configuration changes"
+                            },
+                            indent=4,
+                        )
+                    )
+                    raise SystemExit(1)
+        for nameserver in upstreams_to_delete:
+            r = utils.http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
+            if not r.status_code == 204:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed deleting autoprimary {nameserver}, "
+                            "aborting further configuration changes"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+        click.echo(
+            json.dumps(
+                {"message": "Added and deleted required autoprimaries"},
+                indent=4,
+            )
+        )
         raise SystemExit(0)
-    for item in settings:
-        utils.http_post(uri, ctx, payload=item)
+    for nameserver in settings:
+        r = utils.http_post(uri, ctx, payload=nameserver)
+        if not r.status_code == 201:
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed adding autoprimary {nameserver}, "
+                        "aborting further configuration changes"
+                    },
+                    indent=4,
+                )
+            )
+            raise SystemExit(1)
+    click.echo(
+        json.dumps(
+            {"message": "Successfully added autoprimary configuration"},
+            indent=4,
+        )
+    )
     raise SystemExit(0)
 
 
@@ -715,20 +762,6 @@ def network_list(ctx):
     raise SystemExit(1)
 
 
-@network.command("export")
-@click.argument("cidr", type=IPRange)
-@click.pass_context
-def network_export(ctx, cidr):
-    """
-    Show the network and its associated views
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
-    r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
-
-
 @network.command("delete")
 @click.argument("cidr", type=IPRange)
 @click.pass_context
@@ -749,6 +782,115 @@ def network_delete(ctx, cidr):
     ):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@network.command("export")
+@click.argument("cidr", type=IPRange)
+@click.pass_context
+def network_export(ctx, cidr):
+    """
+    Show the network and its associated views
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    r = utils.http_get(uri, ctx)
+    if utils.create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@network.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all network settings with new ones",
+)
+@click.pass_context
+def network_import(ctx, file, replace):
+    """ """
+    # uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
+    nested_settings = utils.extract_file(file)
+    if not isinstance(nested_settings, dict) or not nested_settings.get("networks", None):
+        click.echo(json.dumps({"error": "Networks must be dict with the key networks"}, indent=4))
+        raise SystemExit(1)
+    settings = nested_settings["networks"]
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)["networks"]
+    if replace and upstream_settings == settings:
+        click.echo(json.dumps({"message": "Requested networks are already present"}, indent=4))
+        raise SystemExit(0)
+    if not replace and all(item in upstream_settings for item in settings):
+        click.echo(json.dumps({"message": "Requested networks are already present"}, indent=4))
+        raise SystemExit(0)
+    if replace and upstream_settings:
+        existing_upstreams = []
+        upstreams_to_delete = []
+        for network_item in upstream_settings:
+            if network_item in settings:
+                existing_upstreams.append(network_item)
+            else:
+                upstreams_to_delete.append(network_item)
+        for network_item in settings:
+            if network_item not in existing_upstreams:
+                r = utils.http_put(
+                    f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
+                )
+                if not r.status_code == 201:
+                    click.echo(
+                        json.dumps(
+                            {
+                                "error": f"Failed adding network {network_item['network']} "
+                                f"to new {network_item['view']} with status {r.status_code} "
+                                f"and body {r.text}, aborting further configuration changes"
+                            },
+                            indent=4,
+                        )
+                    )
+                    raise SystemExit(1)
+        for network_item in upstreams_to_delete:
+            r = utils.http_put(f"{uri}/{network_item['network']}", ctx, payload={"view": ""})
+            if not r.status_code == 204:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed deleting network {network_item['network']} from new "
+                            f"{network_item['view']} with status {r.status_code} and body "
+                            f"{r.text}, aborting further configuration changes"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+        click.echo(
+            json.dumps(
+                {"message": "Added and deleted required network settings"},
+                indent=4,
+            )
+        )
+        raise SystemExit(0)
+    for network_item in settings:
+        r = utils.http_put(
+            f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
+        )
+        if not r.status_code == 204:
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed adding network {network_item['network']} to "
+                        f"{network_item['view']}, aborting further configuration changes"
+                    },
+                    indent=4,
+                )
+            )
+            raise SystemExit(1)
+    click.echo(
+        json.dumps(
+            {"message": "Successfully imported networks to views"},
+            indent=4,
+        )
+    )
+    raise SystemExit(0)
 
 
 @network.command("spec")
@@ -1075,10 +1217,12 @@ def record_extend(
 
 
 @record.command("export")
-@click.argument("name", type=click.STRING)
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
-@click.argument(
-    "record-type",
+@click.option("--name", help="Limit output to chosen names", type=click.STRING)
+@click.option(
+    "record_type",
+    "--type",
+    help="Limit output to chosen record types",
     type=click.Choice(
         [
             "A",
@@ -1107,12 +1251,18 @@ def record_export(
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     name = utils.make_dnsname(name, dns_zone)
     rrsets = utils.query_zone_rrsets(uri, ctx)
+    output_list = []
     for rrset in rrsets:
-        if rrset["name"] == name and rrset["type"] == record_type.upper():
-            click.echo(json.dumps(rrset))
-            raise SystemExit(0)
-    click.echo({"error": "No rrset to export"})
-    raise SystemExit(1)
+        if rrset["name"] == name and rrset["type"] == record_type:
+            output_list.append(rrset)
+        elif rrset["name"] == name:
+            output_list.append(rrset)
+        elif rrset["type"] == record_type:
+            output_list.append(rrset)
+    if not output_list and not any((name, record_type)):
+        output_list = rrsets
+    click.echo(json.dumps(output_list))
+    raise SystemExit(0)
 
 
 @record.command("import")
@@ -1208,7 +1358,7 @@ def tsigkey_add(ctx, name, algorithm, secret):
     payload = {"name": name, "algorithm": algorithm}
     if secret:
         payload["key"] = secret
-    r = utils.http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}", ctx)
+    r = utils.http_get(f"{uri}/{name}", ctx)
     if r.status_code == 200 and secret:
         if r.json()["key"] == secret:
             msg = {"message": f"A TSIGKEY with {name} and your secret is already present"}
@@ -1261,6 +1411,104 @@ def tsigkey_export(ctx, key_id):
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@tsigkey.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all network settings with new ones",
+)
+@click.pass_context
+def tsigkey_import(ctx, file, replace):
+    """ """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    settings = utils.extract_file(file)
+    if not isinstance(settings, list):
+        click.echo(json.dumps({"error": "Tsigkeys must be provided as a list"}, indent=4))
+        raise SystemExit(1)
+    upstream_tsigkey_list = utils.read_settings_from_upstream(uri, ctx)
+    try:
+        upstream_settings = [
+            utils.http_get(f"{uri}/{item['id']}", ctx).json() for item in upstream_tsigkey_list
+        ]
+    except JSONDecodeError as e:
+        click.echo(
+            json.dumps({"error": f"Failed to download tsigkeys for deduplication: {e}"}, indent=4)
+        )
+        raise SystemExit(1) from e
+    if replace and upstream_settings == settings:
+        click.echo(json.dumps({"message": "Requested tsigkeys are already present"}, indent=4))
+        raise SystemExit(0)
+    if not replace and all(item in upstream_settings for item in settings):
+        click.echo(json.dumps({"message": "Requested tsigkeys are already present"}, indent=4))
+        raise SystemExit(0)
+    if replace and upstream_settings:
+        existing_upstreams = []
+        upstreams_to_delete = []
+        for upstream_tsigkey in upstream_settings:
+            if upstream_tsigkey in settings:
+                existing_upstreams.append(upstream_tsigkey)
+            else:
+                upstreams_to_delete.append(upstream_tsigkey)
+        for new_tsigkey in settings:
+            if new_tsigkey not in existing_upstreams:
+                r = utils.http_post(uri, ctx, payload=new_tsigkey)
+                if not r.status_code == 201:
+                    click.echo(
+                        json.dumps(
+                            {
+                                "error": f"Failed adding tsigkey {new_tsigkey['name']} with status "
+                                f"{r.status_code} and body {r.text}, "
+                                "aborting further changes"
+                            },
+                            indent=4,
+                        )
+                    )
+                    raise SystemExit(1)
+        for upstream_tsigkey in upstreams_to_delete:
+            r = utils.http_delete(f"{uri}/{upstream_tsigkey['name']}", ctx)
+            if not r.status_code == 204:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed deleting tsigkey {upstream_tsigkey['name']}"
+                            f" with status {r.status_code} and body {r.text}, "
+                            f"aborting further changes"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+        click.echo(
+            json.dumps(
+                {"message": "Added and deleted required tsigkeys"},
+                indent=4,
+            )
+        )
+        raise SystemExit(0)
+    for new_tsigkey in settings:
+        r = utils.http_post(f"{uri}", ctx, payload=new_tsigkey)
+        if r.status_code != 201 and (r.status_code != 409 and r.text == "Conflict"):
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed adding tsigkey {new_tsigkey['name']}, "
+                        f"aborting further configuration changes"
+                    },
+                    indent=4,
+                )
+            )
+            raise SystemExit(1)
+    click.echo(
+        json.dumps(
+            {"message": "Successfully imported tsigkeys"},
+            indent=4,
+        )
+    )
+    raise SystemExit(0)
 
 
 @tsigkey.command("list")

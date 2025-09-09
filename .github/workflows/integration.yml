@@ -88,6 +88,10 @@ jobs:
         run: powerdns-cli record add disable example.org A 10.0.0.1
       - name: Disable record
         run: powerdns-cli record disable disable example.org A 10.0.0.1
+      - name: Export records
+        run: powerdns-cli record export example.org
+      - name: Export with filters
+        run: powerdns-cli record export --name "@" --type soa example.org
       - name: Export zone as json
         run: powerdns-cli zone export example.org
       - name: Export zone as bind / axfr
