@@ -2,8 +2,6 @@ name: Unit Tests
 on:
   pull_request:
   push:
-    branches:
-      - main
     tags-ignore: # tags are tested in release.yml
       - "*.*.*"
   workflow_call:
