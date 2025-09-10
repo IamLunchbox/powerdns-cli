@@ -383,7 +383,7 @@ def test_record_export_success(mock_utils, example_zone):
     runner = CliRunner()
     result = runner.invoke(
         record_export,
-        ["test2", "example.com.", "A"],
+        ["example.com.","--name", "test2", "--type", "A"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
@@ -397,12 +397,12 @@ def test_record_export_success(mock_utils, example_zone):
     get.assert_called()
 
 
-def test_record_extend_failure(mock_utils, example_zone):
+def test_record_export_failure(mock_utils, example_zone):
     get = mock_utils.mock_http_get(404, {"error": "Not found"})
     runner = CliRunner()
     result = runner.invoke(
         record_export,
-        ["test2", "example.com.", "A"],
+        ["example.com."],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 1
