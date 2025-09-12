@@ -5,6 +5,7 @@ powerdns-cli: Manage PowerDNS Zones/Records
 import ipaddress
 import json
 import re
+from json import JSONDecodeError
 
 import click
 import requests
@@ -251,7 +252,7 @@ def autoprimary_import(ctx, file, replace):
     """Import a list with your autoprimaries settings"""
     settings = utils.extract_file(file)
     if not isinstance(settings, list):
-        click.echo(json.dumps({"error": "There was no list given"}, indent=4))
+        click.echo(json.dumps({"error": "Autoprimaries must be added as a list"}, indent=4))
         raise SystemExit(1)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
@@ -263,6 +264,7 @@ def autoprimary_import(ctx, file, replace):
         raise SystemExit(0)
     if replace and upstream_settings:
         existing_upstreams = []
+        upstreams_to_delete = []
         for nameserver in upstream_settings:
             if nameserver in settings:
                 existing_upstreams.append(nameserver)
@@ -1688,6 +1690,157 @@ def zone_flush_cache(ctx, dns_zone):
     raise SystemExit(1)
 
 
+@zone.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all zone settings with new ones",
+)
+@click.option(
+    "-f",
+    "--force",
+    help="Force execution and skip confirmation",
+    is_flag=True,
+)
+@click.option(
+    "--merge",
+    type=click.BOOL,
+    is_flag=True,
+    help="Merge upstream configuration with new data, only applies if --replace is not set",
+)
+@click.pass_context
+def zone_import(ctx, file, replace, force, merge):
+    """
+    Directly import zones into the server. This action is not idempotent changes your serials!
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
+    settings = utils.extract_file(file)
+    if not isinstance(settings, list):
+        click.echo(json.dumps({"error": "Zones must be provided as a list"}, indent=4))
+        raise SystemExit(1)
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    setting_names = [item["name"] for item in settings]
+    for upstream_zone in upstream_settings:
+        if upstream_zone["name"] in setting_names:
+            r = utils.http_get(f"{uri}/{upstream_zone['name']}", ctx)
+            if r.status_code == 200:
+                upstream_zone.update(r.json())
+            else:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": "Obtaining zone information failed with status "
+                            f"{r.status_code} and text {r.text}"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+    warning = "!!!! WARNING !!!!!\nYou are attempting to change your zones\nAre you sure?"
+    if not force and not click.confirm(warning):
+        click.echo(json.dumps({"message": "Aborted"}, indent=4))
+        raise SystemExit(1)
+    if replace and upstream_settings:
+        existing_upstreams = []
+        upstreams_to_delete = []
+        for zone_entry in upstream_settings:
+            if zone_entry["name"] in setting_names:
+                existing_upstreams.append(zone_entry)
+            else:
+                upstreams_to_delete.append(zone_entry)
+        for zone_entry in settings:
+            if zone_entry["name"] in [upstream["name"] for upstream in existing_upstreams]:
+                r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
+                if not r.status_code == 204:
+                    click.echo(
+                        json.dumps(
+                            {
+                                "error": f"Failed removing zone {zone_entry['name']} with status "
+                                f"{r.status_code}({r.text}), aborting further "
+                                f"configuration changes"
+                            },
+                            indent=4,
+                        )
+                    )
+                    raise SystemExit(1)
+            r = utils.http_post(uri, ctx, payload=zone_entry)
+            if not r.status_code == 201:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed adding zone {zone_entry['name']} with status "
+                            f"{r.status_code}/({r.text}), aborting further "
+                            "configuration changes"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+        for zone_entry in upstreams_to_delete:
+            r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
+            if not r.status_code == 204:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed deleting tsigkey {zone_entry['name']} with status "
+                            f"{r.status_code} and body {r.text}, aborting "
+                            "further configuration changes"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+        click.echo(
+            json.dumps(
+                {"message": "Added and deleted required zones"},
+                indent=4,
+            )
+        )
+        raise SystemExit(0)
+    for zone_entry in settings:
+        payload = None
+        if merge:
+            for existing_zone in upstream_settings:
+                if zone_entry["name"] == existing_zone["name"]:
+                    payload = existing_zone.copy()
+                    payload.update(zone_entry)
+        if not payload:
+            payload = zone_entry.copy()
+        r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
+        if r.status_code != 204:
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed deleting zone {payload['name']}, "
+                        "aborting further configuration changes"
+                    },
+                    indent=4,
+                )
+            )
+            raise SystemExit(1)
+        r = utils.http_post(uri, ctx, payload=payload)
+        if r.status_code != 201:
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed adding zone {payload['name']}, "
+                        f"aborting further configuration changes"
+                    },
+                    indent=4,
+                )
+            )
+            raise SystemExit(1)
+    click.echo(
+        json.dumps(
+            {"message": "Successfully imported zones"},
+            indent=4,
+        )
+    )
+    raise SystemExit(0)
+
+
 @zone.command("notify")
 @click.pass_context
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
@@ -1825,9 +1978,112 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
 
 
 # pylint: enable=unused-argument
+@metadata.command("import")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all metadata settings with new ones",
+)
+@click.pass_context
+def metadata_import(ctx, dns_zone, file, replace):
+    """ """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+    settings = utils.extract_file(file)
+    # Remove SOA_EDIT-API entries from any imports, since they cannot be edited
+    if not isinstance(settings, list):
+        click.echo(json.dumps({"error": "Metadata must be provided as a list"}, indent=4))
+        raise SystemExit(1)
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    if replace and upstream_settings == settings:
+        click.echo(json.dumps({"message": "Requested metadata is already present"}, indent=4))
+        raise SystemExit(0)
+    if not replace and all(item in upstream_settings for item in settings):
+        click.echo(json.dumps({"message": "Requested metadata is already present"}, indent=4))
+        raise SystemExit(0)
+    if "SOA_EDIT_API" in [item['kind'] for item in settings]:
+        dict_entry = [item for item in settings if item['kind'] == "SOA_EDIT_API"][0]
+        position = settings.index(dict_entry)
+        settings.pop(position)
+    if replace and upstream_settings:
+        existing_upstreams = []
+        upstreams_to_delete = []
+        for metadata_entry in upstream_settings:
+            if metadata_entry['kind'] == "SOA_EDIT_API":
+                continue
+            elif metadata_entry in settings:
+                existing_upstreams.append(metadata_entry)
+            else:
+                upstreams_to_delete.append(metadata_entry)
+        for metadata_entry in settings:
+            if metadata_entry not in existing_upstreams:
+                r = utils.http_post(uri, ctx, payload=metadata_entry)
+                if not r.status_code == 201:
+                    click.echo(
+                        json.dumps(
+                            {
+                                "error": f"Failed adding {metadata_entry['kind']} with status "
+                                f"{r.status_code} and body {r.text}, aborting further "
+                                f"configuration changes"
+                            },
+                            indent=4,
+                        )
+                    )
+                    raise SystemExit(1)
+        for metadata_entry in upstreams_to_delete:
+            r = utils.http_delete(f"{uri}/{metadata_entry['kind']}", ctx)
+            if not r.status_code == 204:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed deleting tsigkey {metadata_entry['kind']} with "
+                            f"status {r.status_code} and body {r.text}, "
+                            f"aborting further configuration changes"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+        click.echo(
+            json.dumps(
+                {"message": "Added and deleted required metadata"},
+                indent=4,
+            )
+        )
+        raise SystemExit(0)
+    for metadata_entry in settings:
+        if metadata_entry['kind'] == 'SOA-EDIT-API':
+            continue
+        payload = None
+        for existing_metadata in upstream_settings:
+            if metadata_entry["kind"] == existing_metadata["kind"]:
+                payload = existing_metadata.copy()
+                payload.update(metadata_entry)
+        if not payload:
+            payload = metadata_entry.copy()
+        r = utils.http_post(uri, ctx, payload=payload)
+        if r.status_code != 201:
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed adding metadata {payload['kind']}, "
+                        "aborting further configuration changes"
+                    },
+                    indent=4,
+                )
+            )
+            raise SystemExit(1)
+    click.echo(
+        json.dumps(
+            {"message": "Successfully imported metadata"},
+            indent=4,
+        )
+    )
+    raise SystemExit(0)
 
 
-@metadata.command("list")
 @metadata.command("export")
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
@@ -1955,6 +2211,108 @@ def view_export(ctx, view_id):
         raise SystemExit(0)
     raise SystemExit(1)
 
+
+# TODO
+@view.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all view settings with new ones",
+)
+@click.pass_context
+def view_import(ctx, file, replace):
+    """ """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
+    settings = utils.extract_file(file)
+    if not isinstance(settings, list):
+        click.echo(json.dumps({"error": "Views must be provided as a list"}, indent=4))
+        raise SystemExit(1)
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    if replace and upstream_settings == settings:
+        click.echo(json.dumps({"message": "Requested zones are already present"}, indent=4))
+        raise SystemExit(0)
+    if not replace and all(item in upstream_settings for item in settings):
+        click.echo(json.dumps({"message": "Requested zones are already present"}, indent=4))
+        raise SystemExit(0)
+    if replace and upstream_settings:
+        existing_upstreams = []
+        upstreams_to_delete = []
+        for zone_entry in upstream_settings:
+            if zone_entry in settings:
+                existing_upstreams.append(zone_entry)
+            else:
+                upstreams_to_delete.append(zone_entry)
+        for zone_entry in settings:
+            if zone_entry not in existing_upstreams:
+                r = utils.http_post(uri, ctx, payload=zone_entry)
+                if not r.status_code == 201:
+                    click.echo(
+                        json.dumps(
+                            {
+                                "error": f"Failed adding tsigkey {zone_entry['name']} with status "
+                                f"{r.status_code} and body {r.text}, aborting further "
+                                f"configuration changes"
+                            },
+                            indent=4,
+                        )
+                    )
+                    raise SystemExit(1)
+        for zone_entry in upstreams_to_delete:
+            r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
+            if not r.status_code == 204:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed deleting tsigkey {zone_entry['name']} with "
+                            f"status {r.status_code} and body {r.text}, "
+                            f"aborting further configuration changes"
+                        },
+                        indent=4,
+                    )
+                )
+                raise SystemExit(1)
+        click.echo(
+            json.dumps(
+                {"message": "Added and deleted required zones"},
+                indent=4,
+            )
+        )
+        raise SystemExit(0)
+    for zone_entry in settings:
+        payload = None
+        for existing_zone in upstream_settings:
+            if zone_entry["name"] == existing_zone["name"]:
+                payload = existing_zone.copy()
+                payload.update(zone_entry)
+        if not payload:
+            payload = zone_entry.copy()
+
+        r = utils.http_post(uri, ctx, payload=payload)
+        if r.status_code != 201:
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed adding zone {payload['name']}, "
+                        "aborting further configuration changes"
+                    },
+                    indent=4,
+                )
+            )
+            raise SystemExit(1)
+    click.echo(
+        json.dumps(
+            {"message": "Successfully imported zones"},
+            indent=4,
+        )
+    )
+    raise SystemExit(0)
+
+
+# Todo:
+# Create Rollback Function for imports
+# and log changes beforehand
 
 @view.command("list")
 @click.pass_context
