@@ -387,13 +387,25 @@ def test_record_export_success(mock_utils, example_zone):
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == {
-        "comments": [],
-        "name": "test2.example.com.",
-        "records": [{"content": "2.2.2.2", "disabled": True}],
-        "ttl": 86400,
-        "type": "A",
-    }
+    assert json.loads(result.output) == [
+        {
+            "comments": [],
+            "name": "test.example.com.",
+            "records": [
+                {"content": "1.1.1.1", "disabled": False},
+                {"content": "1.1.1.2", "disabled": True},
+            ],
+            "ttl": 86400,
+            "type": "A",
+        },
+        {
+            "comments": [],
+            "name": "test2.example.com.",
+            "records": [{"content": "2.2.2.2", "disabled": True}],
+            "ttl": 86400,
+            "type": "A",
+        }
+    ]
     get.assert_called()
 
 
