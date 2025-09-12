@@ -125,8 +125,8 @@ jobs:
       - name: Export TSIGKey key
         run: powerdns-cli tsigkey export newname
 # Zonemetadata Tests
-      - name: Lists metadata
-        run: powerdns-cli metadata list example.org
+      - name: Exports metadata
+        run: powerdns-cli metadata export example.org
       - name: Add metadata
         run: powerdns-cli metadata add example.org ALSO-NOTIFY 192.0.2.1:5305
       - name: Add duplicate metadata

@@ -11,7 +11,7 @@ from powerdns_cli.powerdns_cli import (
     metadata_add,
     metadata_delete,
     metadata_extend,
-    metadata_list,
+    metadata_export,
     metadata_update,
 )
 
@@ -137,10 +137,10 @@ def test_metadata_add_failed(mock_utils, conditional_mock_utils, example_new_dat
     get.assert_called()
 
 
-def test_metadata_list_success(conditional_mock_utils, example_metadata):
+def test_metadata_export_success(conditional_mock_utils, example_metadata):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
-    result = runner.invoke(metadata_list, ["example.com"], obj={"apihost": "http://example.com"})
+    result = runner.invoke(metadata_export, ["example.com"], obj={"apihost": "http://example.com"})
     assert result.exit_code == 0
     assert json.loads(result.output) == example_metadata
     get.assert_called()

@@ -1828,6 +1828,7 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
 
 
 @metadata.command("list")
+@metadata.command("export")
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
     "-l",
@@ -1836,7 +1837,7 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
     help="Limit metadata output to this single element",
 )
 @click.pass_context
-def metadata_list(ctx, dns_zone, limit):
+def metadata_export(ctx, dns_zone, limit):
     """
     Lists the metadata for a given zone. Can optionally be limited to a single key
     """
