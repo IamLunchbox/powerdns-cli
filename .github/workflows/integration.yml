@@ -2,7 +2,9 @@ name: Integration test
 on:
   push:
     tags-ignore: # tags are tested in release.yml
-      - "*.*.*"
+      - "**"
+    branches:
+      - "**"
   workflow_call:
   pull_request:
 
