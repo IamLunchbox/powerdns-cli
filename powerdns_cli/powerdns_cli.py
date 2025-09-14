@@ -2180,7 +2180,7 @@ def view_add(ctx, view_id, dns_zone):
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.pass_context
 def view_delete(ctx, view_id, dns_zone):
-    """Deletes a view"""
+    """Deletes a dns-zone from a view"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone not in view_content.json()["zones"]:
@@ -2192,7 +2192,7 @@ def view_delete(ctx, view_id, dns_zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
     r = utils.http_delete(uri, ctx)
     if utils.create_output(
-        r, (204,), optional_json={"message": f"Deleted {dns_zone} from {view_id}"}
+            r, (204,), optional_json={"message": f"Deleted {dns_zone} from {view_id}"}
     ):
         raise SystemExit(0)
     raise SystemExit(1)
@@ -2223,35 +2223,40 @@ def view_export(ctx, view_id):
 )
 @click.pass_context
 def view_import(ctx, file, replace):
-    """ """
+    """Imports views and their contents into the server.
+    Must be a list dictionaries, the key being the view name and the value being a list of associated zones.
+    """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
     settings = utils.extract_file(file)
     if not isinstance(settings, list):
         click.echo(json.dumps({"error": "Views must be provided as a list"}, indent=4))
         raise SystemExit(1)
-    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    upstream_views = utils.read_settings_from_upstream(uri, ctx)['views']
+    upstream_settings = {}
+    for key in upstream_views:
+        upstream_settings[key] = utils.read_settings_from_upstream(f"{uri}/{key}", ctx)['zones']
     if replace and upstream_settings == settings:
-        click.echo(json.dumps({"message": "Requested zones are already present"}, indent=4))
+        click.echo(json.dumps({"message": "Requested view are already present"}, indent=4))
         raise SystemExit(0)
     if not replace and all(item in upstream_settings for item in settings):
-        click.echo(json.dumps({"message": "Requested zones are already present"}, indent=4))
+        click.echo(json.dumps({"message": "Requested view are already present"}, indent=4))
         raise SystemExit(0)
     if replace and upstream_settings:
         existing_upstreams = []
         upstreams_to_delete = []
-        for zone_entry in upstream_settings:
-            if zone_entry in settings:
-                existing_upstreams.append(zone_entry)
+        for view_entry in upstream_settings:
+            if view_entry in settings:
+                existing_upstreams.append(view_entry)
             else:
-                upstreams_to_delete.append(zone_entry)
-        for zone_entry in settings:
-            if zone_entry not in existing_upstreams:
-                r = utils.http_post(uri, ctx, payload=zone_entry)
+                upstreams_to_delete.append(view_entry)
+        for view_entry in settings:
+            if view_entry not in existing_upstreams:
+                r = utils.http_post(f"{uri}/{list(view_entry.keys())[0]}", ctx, payload=list(view_entry.values())[0])
                 if not r.status_code == 201:
                     click.echo(
                         json.dumps(
                             {
-                                "error": f"Failed adding tsigkey {zone_entry['name']} with status "
+                                "error": f"Failed adding view {list(view_entry.keys())[0]} with status "
                                 f"{r.status_code} and body {r.text}, aborting further "
                                 f"configuration changes"
                             },
@@ -2259,8 +2264,9 @@ def view_import(ctx, file, replace):
                         )
                     )
                     raise SystemExit(1)
-        for zone_entry in upstreams_to_delete:
-            r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
+        # todo - iterate
+        for view_entry in upstreams_to_delete:
+            r = utils.http_delete(f"{uri}/{view_entry['name']}", ctx)
             if not r.status_code == 204:
                 click.echo(
                     json.dumps(
