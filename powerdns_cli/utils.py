@@ -71,7 +71,8 @@ def create_output(
     except json.JSONDecodeError:
         click.echo(
             json.dumps(
-                {"error": f"Non json response from server with status {content.status_code}"}
+                {"error": f"Non json response from server with status {content.status_code}"},
+                indent=4
             )
         )
     return False
