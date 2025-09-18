@@ -30,7 +30,8 @@ dev = [
     "pytest",
     "pytest-mock",
     "isort",
-    "black"
+    "black",
+    "coverage"
 ]
 
 [project.scripts]

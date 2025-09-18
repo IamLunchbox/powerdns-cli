@@ -2212,7 +2212,6 @@ def view_export(ctx, view_id):
     raise SystemExit(1)
 
 
-# TODO
 @view.command("import")
 @click.argument("file", type=click.File())
 @click.option(
@@ -2224,61 +2223,80 @@ def view_export(ctx, view_id):
 @click.pass_context
 def view_import(ctx, file, replace):
     """Imports views and their contents into the server.
-    Must be a list dictionaries, the key being the view name and the value being a list of associated zones.
+    Must be a list dictionaries, like so: [{'view_name':['example.org']}]
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
     settings = utils.extract_file(file)
-    if not isinstance(settings, list):
-        click.echo(json.dumps({"error": "Views must be provided as a list"}, indent=4))
+    if not utils.validate_view_import(settings):
+        click.echo(json.dumps({"error": "Views must be provided in the following structure:"
+                                        "[{'view_name':['example.org']}]"}, indent=4))
         raise SystemExit(1)
+    restructured_settings = []
+    for item in settings:
+        restructured_settings.append({"name": next(iter(item.keys())), "views": next(iter(item.values()))})
     upstream_views = utils.read_settings_from_upstream(uri, ctx)['views']
-    upstream_settings = {}
+    upstream_settings = []
     for key in upstream_views:
-        upstream_settings[key] = utils.read_settings_from_upstream(f"{uri}/{key}", ctx)['zones']
-    if replace and upstream_settings == settings:
-        click.echo(json.dumps({"message": "Requested view are already present"}, indent=4))
+        upstream_settings.append({'name': key, 'views':utils.read_settings_from_upstream(f"{uri}/{key}", ctx)['zones']})
+    if replace and upstream_settings == restructured_settings:
+        click.echo(json.dumps({"message": "Requested views are already present"}, indent=4))
         raise SystemExit(0)
-    if not replace and all(item in upstream_settings for item in settings):
-        click.echo(json.dumps({"message": "Requested view are already present"}, indent=4))
+    if not replace and all(utils.is_zone_in_view(view_item, upstream_settings) for view_item in restructured_settings):
+        click.echo(json.dumps({"message": "Requested views are already present"}, indent=4))
         raise SystemExit(0)
     if replace and upstream_settings:
         existing_upstreams = []
         upstreams_to_delete = []
         for view_entry in upstream_settings:
-            if view_entry in settings:
-                existing_upstreams.append(view_entry)
-            else:
+            present_view = {}
+            delete_view = {}
+            view_name, view_items = view_entry.items()[0]
+            if view_name not in [item.keys[0] for item in settings]:
                 upstreams_to_delete.append(view_entry)
+                continue
+            for single_zone in view_items:
+                if single_zone not in [item[view_name] for item in settings if item.keys[0] == view_name]:
+                    delete_view[view_name] = single_zone
+                else:
+                    present_view[view_name] = single_zone
+
+            for new_view_name, new_view_list in settings.items():
+                for single_view in view_items:
+                    existing_upstreams.append(view_entry)
+                else:
+                    upstreams_to_delete.append(view_entry)
         for view_entry in settings:
             if view_entry not in existing_upstreams:
-                r = utils.http_post(f"{uri}/{list(view_entry.keys())[0]}", ctx, payload=list(view_entry.values())[0])
-                if not r.status_code == 201:
+                for zone_entry in next(iter(view_entry.values())):
+                    r = utils.http_post(f"{uri}/{next(iter((view_entry.keys())))}", ctx, payload={
+                        "name":zone_entry})
+                    if not r.status_code == 204:
+                        click.echo(
+                            json.dumps(
+                                {
+                                    "error": f"Failed adding view {list(view_entry.keys())[0]} with status "
+                                    f"{r.status_code} and body '{r.text}', aborting further "
+                                    f"configuration changes",
+                                },
+                                indent=4,
+                            )
+                        )
+                        raise SystemExit(1)
+        for view_entry in upstreams_to_delete:
+            for zone_entry in next(iter(view_entry.values())):
+                r = utils.http_delete(f"{uri}/{next(iter(view_entry.keys()))}/{zone_entry}", ctx)
+                if not r.status_code == 204:
                     click.echo(
                         json.dumps(
                             {
-                                "error": f"Failed adding view {list(view_entry.keys())[0]} with status "
-                                f"{r.status_code} and body {r.text}, aborting further "
-                                f"configuration changes"
+                                "error": f"Failed deleting view {list(view_entry.keys())[0]} with "
+                                f"status {r.status_code} and body '{r.text}', "
+                                f"aborting further configuration changes"
                             },
                             indent=4,
                         )
                     )
                     raise SystemExit(1)
-        # todo - iterate
-        for view_entry in upstreams_to_delete:
-            r = utils.http_delete(f"{uri}/{view_entry['name']}", ctx)
-            if not r.status_code == 204:
-                click.echo(
-                    json.dumps(
-                        {
-                            "error": f"Failed deleting tsigkey {zone_entry['name']} with "
-                            f"status {r.status_code} and body {r.text}, "
-                            f"aborting further configuration changes"
-                        },
-                        indent=4,
-                    )
-                )
-                raise SystemExit(1)
         click.echo(
             json.dumps(
                 {"message": "Added and deleted required zones"},
@@ -2286,27 +2304,27 @@ def view_import(ctx, file, replace):
             )
         )
         raise SystemExit(0)
-    for zone_entry in settings:
-        payload = None
-        for existing_zone in upstream_settings:
-            if zone_entry["name"] == existing_zone["name"]:
-                payload = existing_zone.copy()
-                payload.update(zone_entry)
+    for new_view in restructured_settings:
+        payload = []
+        view_name = new_view["name"]
+        for upstream_view in upstream_settings:
+            if upstream_view["name"] == view_name:
+                payload.append([zone_name for zone_name in new_view["views"] if zone_name not in upstream_view["views"]])
         if not payload:
-            payload = zone_entry.copy()
-
-        r = utils.http_post(uri, ctx, payload=payload)
-        if r.status_code != 201:
-            click.echo(
-                json.dumps(
-                    {
-                        "error": f"Failed adding zone {payload['name']}, "
-                        "aborting further configuration changes"
-                    },
-                    indent=4,
+            payload = new_view['views']
+        for single_zone in payload:
+            r = utils.http_post(f"{uri}/{view_name}", ctx, payload={"name": single_zone})
+            if r.status_code != 204:
+                click.echo(
+                    json.dumps(
+                        {
+                            "error": f"Failed adding zone {single_zone} to {view_name}, "
+                            "aborting further configuration changes"
+                        },
+                        indent=4,
+                    )
                 )
-            )
-            raise SystemExit(1)
+                raise SystemExit(1)
     click.echo(
         json.dumps(
             {"message": "Successfully imported zones"},

@@ -408,3 +408,29 @@ def send_settings_update(
         return handler(uri, ctx, payload=payload)
 
     raise ValueError(f"Unsupported method: {method}")
+
+def is_zone_in_view(new_view: dict, upstream: list[dict]) -> bool:
+    for upstream_view in upstream:
+        if upstream_view["name"] == new_view["name"] and all(item in upstream_view['views'] for item in new_view["views"]):
+            return True
+    return False
+
+def validate_view_import(settings: list) -> bool:
+    if not isinstance(settings, list):
+        return False
+
+    for item in settings:
+        if not isinstance(item, dict):
+            return False
+
+        if len(item) != 1:
+            return False
+
+        key, value = next(iter(item.items()))
+
+        if not isinstance(value, list):
+            return False
+
+        return True
+
+    return True
