@@ -21,6 +21,18 @@ def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: st
     return False
 
 
+def make_canonical(zone: str) -> str:
+    """Ensure a DNS zone name ends with a trailing dot.
+
+    Args:
+        zone: The DNS zone name (e.g., "example.com").
+
+    Returns:
+        The zone name with a trailing dot if not already present.
+    """
+    return zone if zone.endswith(".") else zone + "."
+
+
 def confirm(message: str, force: bool) -> None:
     """Confirmation function to keep users from doing potentially dangerous actions.
     Uses the force flag to determine if a manual confirmation is required."""
@@ -38,7 +50,7 @@ def does_cryptokey_exist(
     """Checks if the provided dns cryptokey is already existing in the backend"""
     r = http_get(uri, ctx)
     if r.status_code == 404:
-        click.echo(json.dumps({"message": exit_message}))
+        print_output({"message": exit_message})
         raise SystemExit(exit_code)
     return r
 
@@ -69,12 +81,7 @@ def create_output(
     try:
         click.echo(json.dumps(content.json()))
     except json.JSONDecodeError:
-        click.echo(
-            json.dumps(
-                {"error": f"Non json response from server with status {content.status_code}"},
-                indent=4
-            )
-        )
+        print_output({"error": f"Non json response from server with status {content.status_code}"})
     return False
 
 
@@ -129,7 +136,7 @@ def query_zones(ctx) -> list:
     """Returns all zones of the dns server"""
     r = http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
     if r.status_code != 200:
-        click.echo(json.dumps({"error": r.json()}))
+        print_output({"error": r.json()})
         raise SystemExit(1)
     return r.json()
 
@@ -138,7 +145,7 @@ def query_zone_rrsets(uri: str, ctx) -> list[dict]:
     """Queries the configuration of the given zone and returns a list of all RRSETs"""
     r = http_get(uri, ctx)
     if r.status_code != 200:
-        click.echo(json.dumps(r.json()))
+        print_output((json.dumps(r.json())))
         raise SystemExit(1)
     return r.json()["rrsets"]
 
@@ -289,7 +296,7 @@ def extract_file(input_file: TextIO) -> dict | list:
     try:
         return_object = json.load(input_file)
     except (json.JSONDecodeError, ValueError, TypeError) as e:
-        click.echo(json.dumps({"error": f"Loading the file failed with {e}"}, indent=4))
+        print_output({"error": f"Loading the file failed with {e}"})
         raise SystemExit(1) from e
     if not isinstance(return_object, (dict, list)):
         raise ValueError("utils.extract file returned an unexpected filetype")
@@ -322,10 +329,8 @@ def read_settings_from_upstream(
         data = response.json()
         return data.get(nested_key) if nested_key else data
     except KeyError as e:
-        click.echo(
-            json.dumps(
-                {"error": f"Requested key does not exist: {e}", "available_keys": list(data.keys())}
-            )
+        print_output(
+            {"error": f"Requested key does not exist: {e}", "available_keys": list(data.keys())}
         )
         raise SystemExit(1) from e
 
@@ -356,16 +361,14 @@ def import_setting(
     # Check for conflicts or early exit
     if upstream_settings:
         if not any((replace, merge)):
-            click.echo(
-                json.dumps({"message": "Setting already present, refusing to replace"}, indent=4)
-            )
+            print_output({"message": "Setting already present, refusing to replace"})
             raise SystemExit(0)
 
         if new_settings == upstream_settings or (
             not replace
             and (isinstance(upstream_settings, list) and new_settings in upstream_settings)
         ):
-            click.echo(json.dumps({"message": "Your setting is already present"}, indent=4))
+            print_output({"message": "Your setting is already present"})
             raise SystemExit(0)
 
     # Prepare payload
@@ -409,28 +412,154 @@ def send_settings_update(
 
     raise ValueError(f"Unsupported method: {method}")
 
+
 def is_zone_in_view(new_view: dict, upstream: list[dict]) -> bool:
-    for upstream_view in upstream:
-        if upstream_view["name"] == new_view["name"] and all(item in upstream_view['views'] for item in new_view["views"]):
-            return True
-    return False
+    """Check if all zones in a new view are present in an upstream view of the same name.
+
+    Args:
+        new_view: Dictionary with 'name' and 'views' (set or list of zones).
+        upstream: List of dictionaries, each with 'name' and 'views' (set or list of zones).
+
+    Returns:
+        bool: True if an upstream view with the same name contains all zones, False otherwise.
+    """
+    return any(
+        upstream_view["name"] == new_view["name"]
+        and all(item in upstream_view["views"] for item in new_view["views"])
+        for upstream_view in upstream
+    )
+
+
 
 def validate_view_import(settings: list) -> bool:
+    """Validate the structure of view import settings.
+
+    Args:
+        settings: A list of dictionaries, each with a single key-value pair.
+                 The value should be a list of views.
+
+    Returns:
+        bool: True if all items are valid, False otherwise.
+    """
     if not isinstance(settings, list):
         return False
 
     for item in settings:
-        if not isinstance(item, dict):
+        if not isinstance(item, dict) or len(item) != 1:
             return False
-
-        if len(item) != 1:
-            return False
-
-        key, value = next(iter(item.items()))
-
+        value = next(iter(item.values()))
         if not isinstance(value, list):
             return False
 
-        return True
-
     return True
+
+
+
+def reformat_view_imports(local_views: list, uri: str, ctx) -> tuple[list[dict], list[dict]]:
+    """Reformat local and upstream view settings for comparison.
+
+    Args:
+        local_views: List of local view configurations.
+        uri: Base URI for upstream API requests.
+        ctx: Click context for HTTP requests.
+
+    Returns:
+        A tuple of two lists: restructured local settings and upstream settings.
+        Each list contains dictionaries with 'name' and 'views' (as sets).
+    """
+    restructured_settings = [
+        {
+            "name": next(iter(item.keys())),
+            "views": {make_canonical(view) for view in next(iter(item.values()))},
+        }
+        for item in local_views
+    ]
+
+    upstream_views = read_settings_from_upstream(uri, ctx)["views"]
+    upstream_settings = [
+        {
+            "name": key,
+            "views": set(read_settings_from_upstream(f"{uri}/{key}", ctx)["zones"]),
+        }
+        for key in upstream_views
+    ]
+
+    return restructured_settings, upstream_settings
+
+
+
+def add_views(
+    views_to_add: list[dict],
+    uri: str,
+    ctx: click.Context,
+    continue_on_error: bool = False,
+) -> None:
+    """Add views to a specified URI, handling errors according to the continue_on_error flag.
+
+    Args:
+        views_to_add: List of dictionaries, each containing 'name' and 'view' keys.
+        uri: Base URI for the POST requests.
+        ctx: Click context for HTTP requests.
+        continue_on_error: If True, log warnings and continue on error; otherwise, abort.
+
+    Raises:
+        SystemExit: If continue_on_error is False and a request fails.
+    """
+    for item in views_to_add:
+        name, view = item["name"], item["view"]
+        r = http_post(f"{uri}/{name}", ctx, payload={"name": view})
+
+        if r.status_code != 204:
+            error_msg = (
+                f"Failed to add view '{view}' to '{name}' "
+                f"(status: {r.status_code}, body: '{r.text}')"
+            )
+            if continue_on_error:
+                click.echo(f"Warning: {error_msg}", err=True)
+            else:
+                print_output({"error": error_msg + ", aborting further changes"})
+                raise SystemExit(1)
+
+
+
+
+def delete_views(
+    views_to_delete: list[dict],
+    uri: str,
+    ctx: click.Context,
+    continue_on_error: bool = False,
+) -> None:
+    """Delete views from a specified URI, handling errors according to the abort_on_error flag.
+
+    Args:
+        views_to_delete: List of dictionaries, each containing 'name' and 'view' keys.
+        uri: Base URI for the delete requests.
+        ctx: Click context for HTTP requests.
+        continue_on_error: If False, abort on the first error; otherwise, log warnings and continue.
+
+    Raises:
+        SystemExit: If continue_on_error is True and a request fails.
+    """
+    for item in views_to_delete:
+        name, view = item["name"], item["view"]
+        r = http_delete(f"{uri}/{name}/{view}", ctx)
+
+        if r.status_code != 204:
+            error_msg = (
+                f"Failed to delete view '{view}' from '{name}' "
+                f"(status: {r.status_code}, body: '{r.text}')"
+            )
+            if continue_on_error:
+                click.echo(f"Warning: {error_msg}", err=True)
+            else:
+                print_output({"error": error_msg + ", aborting further changes"})
+                raise SystemExit(1)
+
+
+def print_output(output: dict | list) -> None:
+    """Pretty-print a dictionary or list as formatted JSON to stdout.
+
+    Args:
+        output: The dictionary or list to be printed.
+    """
+    click.echo(json.dumps(output, indent=4))
