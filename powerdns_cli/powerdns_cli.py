@@ -719,17 +719,19 @@ def network_export(ctx, cidr):
     is_flag=True,
     help="Replace all network settings with new ones",
 )
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
 @click.pass_context
-def network_import(ctx, file, replace):
-    """ """
-    # uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+def network_import(ctx, file, replace, ignore_errors):
+    """Import network and zone assignments"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
     nested_settings = utils.extract_file(file)
+    settings = nested_settings["networks"]
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)["networks"]
     if not isinstance(nested_settings, dict) or not nested_settings.get("networks", None):
         print_output({"error": "Networks must be dict with the key networks"})
         raise SystemExit(1)
-    settings = nested_settings["networks"]
-    upstream_settings = utils.read_settings_from_upstream(uri, ctx)["networks"]
     if replace and upstream_settings == settings:
         print_output({"message": "Requested networks are already present"})
         raise SystemExit(0)
@@ -737,54 +739,9 @@ def network_import(ctx, file, replace):
         print_output({"message": "Requested networks are already present"})
         raise SystemExit(0)
     if replace and upstream_settings:
-        existing_upstreams = []
-        upstreams_to_delete = []
-        for network_item in upstream_settings:
-            if network_item in settings:
-                existing_upstreams.append(network_item)
-            else:
-                upstreams_to_delete.append(network_item)
-        for network_item in settings:
-            if network_item not in existing_upstreams:
-                r = utils.http_put(
-                    f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
-                )
-                if not r.status_code == 201:
-                    print_output(
-                        {
-                            "error": f"Failed adding network {network_item['network']} "
-                            f"to new {network_item['view']} with status {r.status_code} "
-                            f"and body {r.text}, aborting further configuration changes"
-                        }
-                    )
-                    raise SystemExit(1)
-        for network_item in upstreams_to_delete:
-            r = utils.http_put(f"{uri}/{network_item['network']}", ctx, payload={"view": ""})
-            if not r.status_code == 204:
-                print_output(
-                    {
-                        "error": f"Failed deleting network {network_item['network']} from new "
-                        f"{network_item['view']} with status {r.status_code} and body "
-                        f"{r.text}, aborting further configuration changes"
-                    }
-                )
-                raise SystemExit(1)
-        print_output(
-            {"message": "Added and deleted required network settings"},
-        )
-        raise SystemExit(0)
-    for network_item in settings:
-        r = utils.http_put(
-            f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
-        )
-        if not r.status_code == 204:
-            print_output(
-                {
-                    "error": f"Failed adding network {network_item['network']} to "
-                    f"{network_item['view']}, aborting further configuration changes"
-                }
-            )
-            raise SystemExit(1)
+        utils.replace_network_import(uri, ctx, settings, upstream_settings, ignore_errors)
+    else:
+        utils.add_network_import(uri, ctx, settings, upstream_settings, ignore_errors)
     print_output(
         {"message": "Successfully imported networks to views"},
     )

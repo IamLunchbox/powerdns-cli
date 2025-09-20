@@ -304,14 +304,13 @@ def extract_file(input_file: TextIO) -> dict | list:
 
 
 def read_settings_from_upstream(
-    uri: str, ctx: click.Context, nested_key: str | None = None
+    uri: str, ctx: click.Context
 ) -> dict | list:
     """Fetch settings from upstream URI with optional nested key extraction.
 
     Args:
         uri: Endpoint URL to fetch settings from
         ctx: Click context for HTTP requests
-        nested_key: Optional dot-notation key path to extract (e.g., "parent.child")
 
     Returns:
         Dictionary or list of settings or specific nested value if key was provided
@@ -327,7 +326,7 @@ def read_settings_from_upstream(
 
     try:
         data = response.json()
-        return data.get(nested_key) if nested_key else data
+        return data
     except KeyError as e:
         print_output(
             {"error": f"Requested key does not exist: {e}", "available_keys": list(data.keys())}
@@ -696,6 +695,24 @@ def validate_simple_import(settings: list[dict], upstream_settings: list[dict], 
         raise SystemExit(0)
 
 def replace_autoprimary_import(uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool) -> None:
+    """Replaces auto-primary nameserver configurations by adding new entries and removing obsolete ones.
+
+    This function compares the provided `settings` with `upstream_settings` to determine which
+    nameserver configurations to add or delete. It sends POST requests to add new nameservers
+    and DELETE requests to remove obsolete ones. If an error occurs, it either logs the error
+    and continues (if `ignore_errors` is True) or aborts the process.
+
+    Args:
+        uri (str): The base URI for API requests.
+        ctx (click.Context): Click context object for command-line operations.
+        settings (List[Dict[str, Any]]): List of dictionaries representing desired nameserver configurations.
+        upstream_settings (List[Dict[str, Any]]): List of dictionaries representing existing upstream nameserver configurations.
+        ignore_errors (bool): If True, continues execution after errors instead of aborting.
+
+    Raises:
+        SystemExit: If an error occurs during the addition or deletion of a nameserver configuration
+                   and `ignore_errors` is False.
+    """
     existing_upstreams = []
     upstreams_to_delete = []
     for nameserver in upstream_settings:
@@ -720,6 +737,96 @@ def replace_autoprimary_import(uri, ctx, settings: list[dict], upstream_settings
             msg = {
                 "error": f"Failed deleting nameserver {nameserver}"
             }
+            if ignore_errors:
+                print_output(msg, stderr=True)
+            else:
+                print_output(msg)
+                raise SystemExit(1)
+
+def replace_network_import(uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool) -> None:
+    """Replaces network configurations by adding new entries and removing obsolete ones.
+
+    This function compares the provided `settings` with `upstream_settings` to determine which
+    network configurations to add or delete. It sends PUT requests to update or remove network
+    configurations as needed. If an error occurs, it either logs the error and continues
+    (if `ignore_errors` is True) or aborts the process.
+
+    Args:
+        uri (str): The base URI for API requests.
+        ctx (click.Context): Click context object for command-line operations.
+        settings (List[Dict[str, Any]]): List of dictionaries representing desired network configurations.
+        upstream_settings (List[Dict[str, Any]]): List of dictionaries representing existing upstream network configurations.
+        ignore_errors (bool): If True, continues execution after errors instead of aborting.
+
+    Raises:
+        SystemExit: If an error occurs during the addition or deletion of a network configuration
+                   and `ignore_errors` is False.
+    """
+    existing_upstreams = []
+    upstreams_to_delete = []
+    for network_item in upstream_settings:
+        if network_item in settings:
+            existing_upstreams.append(network_item)
+        else:
+            upstreams_to_delete.append(network_item)
+    for network_item in settings:
+        if network_item not in existing_upstreams:
+            r = http_put(
+                f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
+            )
+            if not r.status_code == 201:
+                msg = {
+                        "error": f"Failed adding network {network_item['network']} "
+                                 f"to new {network_item['view']} with status {r.status_code} "
+                                 f"and body {r.text}"
+                    }
+                if ignore_errors:
+                    print_output(msg, stderr=True)
+                else:
+                    print_output(msg)
+                    raise SystemExit(1)
+    for network_item in upstreams_to_delete:
+        r = http_put(f"{uri}/{network_item['network']}", ctx, payload={"view": ""})
+        if not r.status_code == 204:
+            msg = {
+                    "error": f"Failed adding network {network_item['network']} from new "
+                             f"{network_item['view']} with status {r.status_code} and body "
+                             f"{r.text}"
+                }
+            if ignore_errors:
+                print_output(msg, stderr=True)
+            else:
+                print_output(msg)
+                raise SystemExit(1)
+
+def add_network_import(uri, ctx, settings, upstream_settings, ignore_errors: bool) -> None:
+    """Adds network configurations from an import using HTTP PUT requests.
+
+    This function iterates through the provided `settings` and sends a PUT request
+    for each network item to the specified URI. If the request fails, it either
+    logs the error and continues (if `ignore_errors` is True) or aborts the process.
+
+    Args:
+        uri: The base URI for API requests.
+        ctx: Click context object for command-line operations.
+        settings: List of dictionaries representing network configurations to add.
+        upstream_settings: List of dictionaries representing existing upstream network configurations.
+        ignore_errors: If True, continues execution after errors instead of aborting.
+
+    Raises:
+        SystemExit: If an error occurs during the addition of a network configuration
+                   and `ignore_errors` is False.
+    """
+    for network_item in settings:
+        r = http_put(
+            f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
+        )
+        if not r.status_code == 204:
+            msg = {
+                    "error": f"Failed adding network {network_item['network']} from new "
+                             f"{network_item['view']} with status {r.status_code} and body "
+                             f"{r.text}"
+                }
             if ignore_errors:
                 print_output(msg, stderr=True)
             else:
