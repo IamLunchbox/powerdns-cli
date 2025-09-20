@@ -305,7 +305,7 @@ def extract_file(input_file: TextIO) -> dict | list:
 
 def read_settings_from_upstream(
     uri: str, ctx: click.Context, nested_key: str | None = None
-) -> dict:
+) -> dict | list:
     """Fetch settings from upstream URI with optional nested key extraction.
 
     Args:
@@ -314,7 +314,7 @@ def read_settings_from_upstream(
         nested_key: Optional dot-notation key path to extract (e.g., "parent.child")
 
     Returns:
-        Dictionary of settings or specific nested value if key was provided
+        Dictionary or list of settings or specific nested value if key was provided
         Empty dict if request fails or parsing fails
 
     Raises:
@@ -430,7 +430,6 @@ def is_zone_in_view(new_view: dict, upstream: list[dict]) -> bool:
     )
 
 
-
 def validate_view_import(settings: list) -> bool:
     """Validate the structure of view import settings.
 
@@ -452,7 +451,6 @@ def validate_view_import(settings: list) -> bool:
             return False
 
     return True
-
 
 
 def reformat_view_imports(local_views: list, uri: str, ctx) -> tuple[list[dict], list[dict]]:
@@ -485,7 +483,6 @@ def reformat_view_imports(local_views: list, uri: str, ctx) -> tuple[list[dict],
     ]
 
     return restructured_settings, upstream_settings
-
 
 
 def add_views(
@@ -521,8 +518,6 @@ def add_views(
                 raise SystemExit(1)
 
 
-
-
 def delete_views(
     views_to_delete: list[dict],
     uri: str,
@@ -556,10 +551,146 @@ def delete_views(
                 raise SystemExit(1)
 
 
-def print_output(output: dict | list) -> None:
+def print_output(output: dict | list, stderr: bool = False) -> None:
     """Pretty-print a dictionary or list as formatted JSON to stdout.
 
     Args:
         output: The dictionary or list to be printed.
+        stderr: Print output to standard error instead of stdout.
     """
-    click.echo(json.dumps(output, indent=4))
+    click.echo(json.dumps(output, indent=4), err=stderr)
+
+
+def replace_metadata_from_import(
+    uri: str,
+    ctx: click.Context,
+    upstream_settings: list,
+    settings: list,
+    continue_on_error: bool = False,
+) -> None:
+    """Replaces metadata entries from an import, handling additions and deletions as needed.
+
+    This function compares upstream settings with the provided settings list, adds new entries,
+    and deletes obsolete ones. It aborts on errors unless `continue_on_error` is True.
+
+    Args:
+        uri: The base URI for API requests.
+        ctx: Click context object for command-line operations.
+        upstream_settings: List of dictionaries representing existing upstream metadata entries.
+        settings: List of dictionaries representing desired metadata entries.
+        continue_on_error: If True, continues execution after errors instead of aborting.
+                           Defaults to False.
+
+    Raises:
+        SystemExit: If an error occurs during addition or deletion of metadata entries,
+                   unless `continue_on_error` is True.
+    """
+    existing_upstreams = []
+    upstreams_to_delete = []
+    for metadata_entry in upstream_settings:
+        if metadata_entry["kind"] == "SOA_EDIT_API":
+            continue
+        elif metadata_entry in settings:
+            existing_upstreams.append(metadata_entry)
+        else:
+            upstreams_to_delete.append(metadata_entry)
+    for metadata_entry in settings:
+        if metadata_entry not in existing_upstreams:
+            r = http_post(uri, ctx, payload=metadata_entry)
+            if not r.status_code == 201:
+                print_output(
+                    {
+                        "error": f"Failed adding {metadata_entry['kind']} with status "
+                        f"{r.status_code} and body {r.text}, aborting further "
+                        f"configuration changes"
+                    }
+                )
+                raise SystemExit(1)
+    for metadata_entry in upstreams_to_delete:
+        r = http_delete(f"{uri}/{metadata_entry['kind']}", ctx)
+        if not r.status_code == 204:
+            msg = {
+                "error": f"Failed deleting tsigkey {metadata_entry['kind']} with "
+                f"status {r.status_code} and body {r.text}, "
+                f"aborting further configuration changes"
+            }
+            if continue_on_error:
+                print_output(msg, stderr=True)
+            else:
+                print_output(msg)
+                raise SystemExit(1)
+
+
+def add_metadata_from_import(
+    uri: str,
+    ctx: click.Context,
+    upstream_settings: list,
+    settings: list,
+    continue_on_error: bool = False,
+) -> None:
+    """Adds metadata entries from an import, updating existing entries if necessary.
+
+    This function iterates through the provided settings, checks for existing metadata entries
+    in `upstream_settings`, and either updates or adds them via an API call. If an error occurs,
+    it aborts unless `continue_on_error` is True.
+
+    Args:
+        uri: The base URI for API requests.
+        ctx: Click context object for command-line operations.
+        upstream_settings: List of dictionaries representing existing upstream metadata entries.
+        settings: List of dictionaries representing desired metadata entries to add or update.
+        continue_on_error: If True, continues execution after errors instead of aborting.
+                           Defaults to False.
+
+    Raises:
+        SystemExit: If an error occurs during the addition or update of metadata entries,
+                   unless `continue_on_error` is True.
+    """
+    for metadata_entry in settings:
+        if metadata_entry["kind"] == "SOA-EDIT-API":
+            continue
+        payload = None
+        for existing_metadata in upstream_settings:
+            if metadata_entry["kind"] == existing_metadata["kind"]:
+                payload = existing_metadata.copy()
+                payload.update(metadata_entry)
+        if not payload:
+            payload = metadata_entry.copy()
+        r = http_post(uri, ctx, payload=payload)
+        if r.status_code != 201:
+            msg = {
+                "error": f"Failed adding metadata {payload['kind']}, "
+                "aborting further configuration changes"
+            }
+            if continue_on_error:
+                print_output(msg, stderr=True)
+            else:
+                print_output(msg)
+                raise SystemExit(1)
+
+def validate_metadata_import(settings: list[dict], upstream_settings: list[dict], replace: bool) -> None:
+    """Validates metadata import by checking the structure and presence of metadata entries.
+
+    This function ensures that the provided `settings` is a list and checks if the metadata
+    is already present in `upstream_settings`. If `replace` is True, it verifies if the
+    metadata is identical. If not, it checks if all entries in `settings` are already present.
+
+    Args:
+        settings: List of dictionaries representing the metadata entries to validate.
+        upstream_settings: List of dictionaries representing existing upstream metadata entries.
+        replace: If True, checks if the metadata is identical for replacement.
+                 If False, checks if all entries are already present.
+
+    Raises:
+        SystemExit: Exits with code 1 if `settings` is not a list.
+                   Exits with code 0 if metadata is already present.
+    """
+    if not isinstance(settings, list):
+        print_output({"error": "Metadata must be provided as a list"})
+        raise SystemExit(1)
+    if replace and upstream_settings == settings:
+        print_output({"message": "Requested metadata is already present"})
+        raise SystemExit(0)
+    if not replace and all(item in upstream_settings for item in settings):
+        print_output({"message": "Requested metadata is already present"})
+        raise SystemExit(0)

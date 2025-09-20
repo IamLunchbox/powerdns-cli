@@ -1853,82 +1853,25 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
     is_flag=True,
     help="Replace all metadata settings with new ones",
 )
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
 @click.pass_context
-def metadata_import(ctx, dns_zone, file, replace):
-    """ """
+def metadata_import(ctx, dns_zone, file, replace, ignore_errors):
+    """Import metadata for a DNS zone from a file."""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     settings = utils.extract_file(file)
     # Remove SOA_EDIT-API entries from any imports, since they cannot be edited
-    if not isinstance(settings, list):
-        print_output({"error": "Metadata must be provided as a list"})
-        raise SystemExit(1)
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
-    if replace and upstream_settings == settings:
-        print_output({"message": "Requested metadata is already present"})
-        raise SystemExit(0)
-    if not replace and all(item in upstream_settings for item in settings):
-        print_output({"message": "Requested metadata is already present"})
-        raise SystemExit(0)
+    utils.validate_metadata_import(settings, upstream_settings, replace)
     if "SOA_EDIT_API" in [item["kind"] for item in settings]:
         dict_entry = [item for item in settings if item["kind"] == "SOA_EDIT_API"][0]
         position = settings.index(dict_entry)
         settings.pop(position)
     if replace and upstream_settings:
-        existing_upstreams = []
-        upstreams_to_delete = []
-        for metadata_entry in upstream_settings:
-            if metadata_entry["kind"] == "SOA_EDIT_API":
-                continue
-            elif metadata_entry in settings:
-                existing_upstreams.append(metadata_entry)
-            else:
-                upstreams_to_delete.append(metadata_entry)
-        for metadata_entry in settings:
-            if metadata_entry not in existing_upstreams:
-                r = utils.http_post(uri, ctx, payload=metadata_entry)
-                if not r.status_code == 201:
-                    print_output(
-                        {
-                            "error": f"Failed adding {metadata_entry['kind']} with status "
-                            f"{r.status_code} and body {r.text}, aborting further "
-                            f"configuration changes"
-                        }
-                    )
-                    raise SystemExit(1)
-        for metadata_entry in upstreams_to_delete:
-            r = utils.http_delete(f"{uri}/{metadata_entry['kind']}", ctx)
-            if not r.status_code == 204:
-                print_output(
-                    {
-                        "error": f"Failed deleting tsigkey {metadata_entry['kind']} with "
-                        f"status {r.status_code} and body {r.text}, "
-                        f"aborting further configuration changes"
-                    }
-                )
-                raise SystemExit(1)
-        print_output(
-            {"message": "Added and deleted required metadata"},
-        )
-        raise SystemExit(0)
-    for metadata_entry in settings:
-        if metadata_entry["kind"] == "SOA-EDIT-API":
-            continue
-        payload = None
-        for existing_metadata in upstream_settings:
-            if metadata_entry["kind"] == existing_metadata["kind"]:
-                payload = existing_metadata.copy()
-                payload.update(metadata_entry)
-        if not payload:
-            payload = metadata_entry.copy()
-        r = utils.http_post(uri, ctx, payload=payload)
-        if r.status_code != 201:
-            print_output(
-                {
-                    "error": f"Failed adding metadata {payload['kind']}, "
-                    "aborting further configuration changes"
-                }
-            )
-            raise SystemExit(1)
+        utils.replace_metadata_from_import(uri, ctx, upstream_settings, settings, ignore_errors)
+    else:
+        utils.add_metadata_from_import(uri, ctx, upstream_settings, settings, ignore_errors)
     print_output({"message": "Successfully imported metadata"})
     raise SystemExit(0)
 
@@ -1944,7 +1887,7 @@ def metadata_import(ctx, dns_zone, file, replace):
 @click.pass_context
 def metadata_export(ctx, dns_zone, limit):
     """
-    Lists the metadata for a given zone. Can optionally be limited to a single key
+    Lists the metadata for a given zone. Can optionally be limited to a single key.
     """
     if limit:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata/{limit}"
