@@ -145,7 +145,7 @@ def query_zone_rrsets(uri: str, ctx) -> list[dict]:
     """Queries the configuration of the given zone and returns a list of all RRSETs"""
     r = http_get(uri, ctx)
     if r.status_code != 200:
-        print_output((json.dumps(r.json())))
+        print_output(r.json())
         raise SystemExit(1)
     return r.json()["rrsets"]
 
