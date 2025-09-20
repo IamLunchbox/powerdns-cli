@@ -10,7 +10,7 @@ import click
 import requests
 
 from . import utils
-from .utils import print_output as print_output
+from .utils import print_output
 
 
 class PowerDNSZoneType(click.ParamType):
@@ -252,9 +252,7 @@ def autoprimary_import(ctx, file, replace, ignore_errors):
         for nameserver in settings:
             r = utils.http_post(uri, ctx, payload=nameserver)
             if not r.status_code == 201:
-                msg = {
-                    "error": f"Failed adding nameserver {nameserver}"
-                }
+                msg = {"error": f"Failed adding nameserver {nameserver}"}
                 if ignore_errors:
                     print_output(msg, stderr=True)
                 else:
@@ -741,7 +739,7 @@ def network_import(ctx, file, replace, ignore_errors):
     if replace and upstream_settings:
         utils.replace_network_import(uri, ctx, settings, upstream_settings, ignore_errors)
     else:
-        utils.add_network_import(uri, ctx, settings, upstream_settings, ignore_errors)
+        utils.add_network_import(uri, ctx, settings, ignore_errors)
     print_output(
         {"message": "Successfully imported networks to views"},
     )
@@ -1527,8 +1525,11 @@ def zone_flush_cache(ctx, dns_zone):
     is_flag=True,
     help="Merge upstream configuration with new data, only applies if --replace is not set",
 )
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
 @click.pass_context
-def zone_import(ctx, file, replace, force, merge):
+def zone_import(ctx, file, replace, force, merge, ignore_errors):
     """
     Directly import zones into the server. This action is not idempotent changes your serials!
     """
@@ -1539,95 +1540,17 @@ def zone_import(ctx, file, replace, force, merge):
         raise SystemExit(1)
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     setting_names = [item["name"] for item in settings]
-    for upstream_zone in upstream_settings:
-        if upstream_zone["name"] in setting_names:
-            r = utils.http_get(f"{uri}/{upstream_zone['name']}", ctx)
-            if r.status_code == 200:
-                upstream_zone.update(r.json())
-            else:
-                print_output(
-                    {
-                        "error": "Obtaining zone information failed with status "
-                        f"{r.status_code} and text {r.text}"
-                    },
-                )
-                raise SystemExit(1)
+    utils.update_zone_data(uri, ctx, upstream_settings, setting_names)
     warning = "!!!! WARNING !!!!!\nYou are attempting to change your zones\nAre you sure?"
     if not force and not click.confirm(warning):
         print_output({"message": "Aborted"})
         raise SystemExit(1)
     if replace and upstream_settings:
-        existing_upstreams = []
-        upstreams_to_delete = []
-        for zone_entry in upstream_settings:
-            if zone_entry["name"] in setting_names:
-                existing_upstreams.append(zone_entry)
-            else:
-                upstreams_to_delete.append(zone_entry)
-        for zone_entry in settings:
-            if zone_entry["name"] in [upstream["name"] for upstream in existing_upstreams]:
-                r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
-                if not r.status_code == 204:
-                    print_output(
-                        {
-                            "error": f"Failed removing zone {zone_entry['name']} with status "
-                            f"{r.status_code}({r.text}), aborting further "
-                            f"configuration changes"
-                        },
-                    )
-                    raise SystemExit(1)
-            r = utils.http_post(uri, ctx, payload=zone_entry)
-            if not r.status_code == 201:
-                print_output(
-                    {
-                        "error": f"Failed adding zone {zone_entry['name']} with status "
-                        f"{r.status_code}/({r.text}), aborting further "
-                        "configuration changes"
-                    }
-                )
-                raise SystemExit(1)
-        for zone_entry in upstreams_to_delete:
-            r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
-            if not r.status_code == 204:
-                print_output(
-                    {
-                        "error": f"Failed deleting tsigkey {zone_entry['name']} with status "
-                        f"{r.status_code} and body {r.text}, aborting "
-                        "further configuration changes"
-                    }
-                )
-                raise SystemExit(1)
-        print_output(
-            {"message": "Added and deleted required zones"},
+        utils.replace_rrset_import(
+            uri, ctx, settings, upstream_settings, setting_names, ignore_errors
         )
-        raise SystemExit(0)
-    for zone_entry in settings:
-        payload = None
-        if merge:
-            for existing_zone in upstream_settings:
-                if zone_entry["name"] == existing_zone["name"]:
-                    payload = existing_zone.copy()
-                    payload.update(zone_entry)
-        if not payload:
-            payload = zone_entry.copy()
-        r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
-        if r.status_code != 204:
-            print_output(
-                {
-                    "error": f"Failed deleting zone {payload['name']}, "
-                    "aborting further configuration changes"
-                }
-            )
-            raise SystemExit(1)
-        r = utils.http_post(uri, ctx, payload=payload)
-        if r.status_code != 201:
-            print_output(
-                {
-                    "error": f"Failed adding zone {payload['name']}, "
-                    f"aborting further configuration changes"
-                },
-            )
-            raise SystemExit(1)
+    else:
+        utils.add_rrset_import(uri, ctx, settings, upstream_settings, merge, ignore_errors)
     print_output(
         {"message": "Successfully imported zones"},
     )

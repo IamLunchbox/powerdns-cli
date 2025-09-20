@@ -8,15 +8,26 @@ import requests
 
 
 def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: str) -> bool:
-    """Checks if the ip and nameserver are already in the autoprimary list"""
+    """Checks if the specified IP and nameserver are already present in the autoprimary list.
+
+    This function sends a GET request to the provided `uri` to fetch the current list of
+    autoprimary entries. It then checks if any entry matches both the provided `ip` and `nameserver`.
+    Returns `True` if a match is found, otherwise returns `False`.
+
+    Args:
+        uri (str): The URI to fetch the autoprimary list.
+        ctx (click.Context): Click context object for command-line operations.
+        ip (str): The IP address to check for in the autoprimary list.
+        nameserver (str): The nameserver to check for in the autoprimary list.
+
+    Returns:
+        bool: `True` if the IP and nameserver are found in the autoprimary list, otherwise `False`.
+    """
     upstream_autoprimaries = http_get(uri, ctx)
     if upstream_autoprimaries.status_code == 200:
-        autoprimares = upstream_autoprimaries.json()
-        for autoprimary in autoprimares:
-            if (
-                autoprimary.get("nameserver", None) == nameserver
-                and autoprimary.get("ip", None) == ip
-            ):
+        autoprimaries = upstream_autoprimaries.json()
+        for autoprimary in autoprimaries:
+            if autoprimary.get("nameserver") == nameserver and autoprimary.get("ip") == ip:
                 return True
     return False
 
@@ -47,7 +58,24 @@ def confirm(message: str, force: bool) -> None:
 def does_cryptokey_exist(
     uri: str, exit_message: str, exit_code: int, ctx: click.Context
 ) -> requests.Response:
-    """Checks if the provided dns cryptokey is already existing in the backend"""
+    """Checks if the DNS cryptokey already exists in the backend.
+
+    Sends a GET request to the provided `uri` to check for the existence of a DNS cryptokey.
+    If the response status code is 404, it prints the provided `exit_message` and exits
+    with the specified `exit_code`. Otherwise, it returns the response object.
+
+    Args:
+        uri (str): The URI to check for the DNS cryptokey.
+        exit_message (str): The message to display if the cryptokey does not exist.
+        exit_code (int): The exit code to use if the cryptokey does not exist.
+        ctx (click.Context): Click context object for command-line operations.
+
+    Returns:
+        requests.Response: The HTTP response object if the cryptokey exists.
+
+    Raises:
+        SystemExit: If the cryptokey does not exist (HTTP 404 response).
+    """
     r = http_get(uri, ctx)
     if r.status_code == 404:
         print_output({"message": exit_message})
@@ -132,8 +160,22 @@ def http_put(
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
 
 
-def query_zones(ctx) -> list:
-    """Returns all zones of the dns server"""
+def query_zones(ctx: click.Context) -> list:
+    """Fetches and returns all zones configured on the DNS server.
+
+    Sends a GET request to the DNS server's API endpoint to retrieve the list of zones.
+    If the request fails (non-200 status code), it prints the error and exits with a status code of 1.
+    Otherwise, it returns the list of zones as parsed JSON.
+
+    Args:
+        ctx (click.Context): Click context object containing the API host and other configuration.
+
+    Returns:
+        list: A list of zones configured on the DNS server, parsed from the JSON response.
+
+    Raises:
+        SystemExit: If the request to fetch zones fails (non-200 status code).
+    """
     r = http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
     if r.status_code != 200:
         print_output({"error": r.json()})
@@ -142,7 +184,22 @@ def query_zones(ctx) -> list:
 
 
 def query_zone_rrsets(uri: str, ctx) -> list[dict]:
-    """Queries the configuration of the given zone and returns a list of all RRSETs"""
+    """Queries the configuration of the given zone and returns a list of all RRSETs.
+
+    Sends a GET request to the specified `uri` to fetch the zone's RRSETs.
+    If the request fails (non-200 status code), it prints the error response and exits with a status code of 1.
+    Otherwise, it returns the list of RRSETs from the JSON response.
+
+    Args:
+        uri (str): The URI to query for the zone's RRSETs.
+        ctx (click.Context): Click context object for command-line operations.
+
+    Returns:
+        list[dict]: A list of dictionaries, where each dictionary represents an RRSET.
+
+    Raises:
+        SystemExit: If the request to fetch RRSETs fails (non-200 status code).
+    """
     r = http_get(uri, ctx)
     if r.status_code != 200:
         print_output(r.json())
@@ -303,9 +360,7 @@ def extract_file(input_file: TextIO) -> dict | list:
     return return_object
 
 
-def read_settings_from_upstream(
-    uri: str, ctx: click.Context
-) -> dict | list:
+def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
     """Fetch settings from upstream URI with optional nested key extraction.
 
     Args:
@@ -506,15 +561,13 @@ def add_views(
         r = http_post(f"{uri}/{name}", ctx, payload={"name": view})
 
         if r.status_code != 204:
-            error_msg = (
-                f"Failed to add view '{view}' to '{name}' "
-                f"(status: {r.status_code}, body: '{r.text}')"
+            handle_import_early_exit(
+                {
+                    "error": f"Failed to add view '{view}' to '{name}' "
+                    f"(status: {r.status_code}, body: '{r.text}')"
+                },
+                continue_on_error,
             )
-            if continue_on_error:
-                click.echo(f"Warning: {error_msg}", err=True)
-            else:
-                print_output({"error": error_msg + ", aborting further changes"})
-                raise SystemExit(1)
 
 
 def delete_views(
@@ -539,15 +592,13 @@ def delete_views(
         r = http_delete(f"{uri}/{name}/{view}", ctx)
 
         if r.status_code != 204:
-            error_msg = (
-                f"Failed to delete view '{view}' from '{name}' "
-                f"(status: {r.status_code}, body: '{r.text}')"
+            handle_import_early_exit(
+                {
+                    "error": f"Failed to delete view '{view}' from '{name}' "
+                    f"(status: {r.status_code}, body: '{r.text}')"
+                },
+                continue_on_error,
             )
-            if continue_on_error:
-                click.echo(f"Warning: {error_msg}", err=True)
-            else:
-                print_output({"error": error_msg + ", aborting further changes"})
-                raise SystemExit(1)
 
 
 def print_output(output: dict | list, stderr: bool = False) -> None:
@@ -589,7 +640,7 @@ def replace_metadata_from_import(
     for metadata_entry in upstream_settings:
         if metadata_entry["kind"] == "SOA_EDIT_API":
             continue
-        elif metadata_entry in settings:
+        if metadata_entry in settings:
             existing_upstreams.append(metadata_entry)
         else:
             upstreams_to_delete.append(metadata_entry)
@@ -597,27 +648,23 @@ def replace_metadata_from_import(
         if metadata_entry not in existing_upstreams:
             r = http_post(uri, ctx, payload=metadata_entry)
             if not r.status_code == 201:
-                print_output(
+                handle_import_early_exit(
                     {
                         "error": f"Failed adding {metadata_entry['kind']} with status "
-                        f"{r.status_code} and body {r.text}, aborting further "
-                        f"configuration changes"
-                    }
+                        f"{r.status_code} and body {r.text}"
+                    },
+                    continue_on_error,
                 )
-                raise SystemExit(1)
     for metadata_entry in upstreams_to_delete:
         r = http_delete(f"{uri}/{metadata_entry['kind']}", ctx)
-        if not r.status_code == 204:
-            msg = {
-                "error": f"Failed deleting tsigkey {metadata_entry['kind']} with "
-                f"status {r.status_code} and body {r.text}, "
-                f"aborting further configuration changes"
-            }
-            if continue_on_error:
-                print_output(msg, stderr=True)
-            else:
-                print_output(msg)
-                raise SystemExit(1)
+        if r.status_code != 204:
+            handle_import_early_exit(
+                {
+                    "error": f"Failed deleting tsigkey {metadata_entry['kind']} with "
+                    f"status {r.status_code} and body {r.text}"
+                },
+                continue_on_error,
+            )
 
 
 def add_metadata_from_import(
@@ -657,17 +704,18 @@ def add_metadata_from_import(
             payload = metadata_entry.copy()
         r = http_post(uri, ctx, payload=payload)
         if r.status_code != 201:
-            msg = {
-                "error": f"Failed adding metadata {payload['kind']}, "
-                "aborting further configuration changes"
-            }
-            if continue_on_error:
-                print_output(msg, stderr=True)
-            else:
-                print_output(msg)
-                raise SystemExit(1)
+            handle_import_early_exit(
+                {
+                    "error": f"Failed adding metadata {payload['kind']}, "
+                    "aborting further configuration changes"
+                },
+                continue_on_error,
+            )
 
-def validate_simple_import(settings: list[dict], upstream_settings: list[dict], replace: bool) -> None:
+
+def validate_simple_import(
+    settings: list[dict], upstream_settings: list[dict], replace: bool
+) -> None:
     """Validates metadata import by checking the structure and presence of metadata entries.
 
     This function ensures that the provided `settings` is a list and checks if the metadata
@@ -694,7 +742,10 @@ def validate_simple_import(settings: list[dict], upstream_settings: list[dict], 
         print_output({"message": "Requested data is already present"})
         raise SystemExit(0)
 
-def replace_autoprimary_import(uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool) -> None:
+
+def replace_autoprimary_import(
+    uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool
+) -> None:
     """Replaces auto-primary nameserver configurations by adding new entries and removing obsolete ones.
 
     This function compares the provided `settings` with `upstream_settings` to determine which
@@ -723,27 +774,21 @@ def replace_autoprimary_import(uri, ctx, settings: list[dict], upstream_settings
     for nameserver in settings:
         if nameserver not in existing_upstreams:
             r = http_post(uri, ctx, payload=nameserver)
-            if not r.status_code == 201:
-                msg = {
-                    "error": f"Failed adding nameserver {nameserver}"}
-                if ignore_errors:
-                    print_output(msg, stderr=True)
-                else:
-                    print_output(msg)
-                    raise SystemExit(1)
+            if r.status_code != 201:
+                handle_import_early_exit(
+                    {"error": f"Failed adding nameserver {nameserver}"}, ignore_errors
+                )
     for nameserver in upstreams_to_delete:
         r = http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
         if not r.status_code == 204:
-            msg = {
-                "error": f"Failed deleting nameserver {nameserver}"
-            }
-            if ignore_errors:
-                print_output(msg, stderr=True)
-            else:
-                print_output(msg)
-                raise SystemExit(1)
+            handle_import_early_exit(
+                {"error": f"Failed deleting nameserver {nameserver}"}, ignore_errors
+            )
 
-def replace_network_import(uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool) -> None:
+
+def replace_network_import(
+    uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool
+) -> None:
     """Replaces network configurations by adding new entries and removing obsolete ones.
 
     This function compares the provided `settings` with `upstream_settings` to determine which
@@ -774,32 +819,29 @@ def replace_network_import(uri, ctx, settings: list[dict], upstream_settings: li
             r = http_put(
                 f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
             )
-            if not r.status_code == 201:
-                msg = {
+            if r.status_code != 201:
+                handle_import_early_exit(
+                    {
                         "error": f"Failed adding network {network_item['network']} "
-                                 f"to new {network_item['view']} with status {r.status_code} "
-                                 f"and body {r.text}"
-                    }
-                if ignore_errors:
-                    print_output(msg, stderr=True)
-                else:
-                    print_output(msg)
-                    raise SystemExit(1)
+                        f"to new {network_item['view']} with status {r.status_code} "
+                        f"and body {r.text}"
+                    },
+                    ignore_errors,
+                )
     for network_item in upstreams_to_delete:
         r = http_put(f"{uri}/{network_item['network']}", ctx, payload={"view": ""})
-        if not r.status_code == 204:
-            msg = {
+        if r.status_code != 204:
+            handle_import_early_exit(
+                {
                     "error": f"Failed adding network {network_item['network']} from new "
-                             f"{network_item['view']} with status {r.status_code} and body "
-                             f"{r.text}"
-                }
-            if ignore_errors:
-                print_output(msg, stderr=True)
-            else:
-                print_output(msg)
-                raise SystemExit(1)
+                    f"{network_item['view']} with status {r.status_code} and body "
+                    f"{r.text}"
+                },
+                ignore_errors,
+            )
 
-def add_network_import(uri, ctx, settings, upstream_settings, ignore_errors: bool) -> None:
+
+def add_network_import(uri, ctx, settings, ignore_errors: bool) -> None:
     """Adds network configurations from an import using HTTP PUT requests.
 
     This function iterates through the provided `settings` and sends a PUT request
@@ -821,14 +863,113 @@ def add_network_import(uri, ctx, settings, upstream_settings, ignore_errors: boo
         r = http_put(
             f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
         )
-        if not r.status_code == 204:
-            msg = {
+        if r.status_code != 204:
+            handle_import_early_exit(
+                {
                     "error": f"Failed adding network {network_item['network']} from new "
-                             f"{network_item['view']} with status {r.status_code} and body "
-                             f"{r.text}"
-                }
-            if ignore_errors:
-                print_output(msg, stderr=True)
+                    f"{network_item['view']} with status {r.status_code} and body "
+                    f"{r.text}"
+                },
+                ignore_errors,
+            )
+
+
+def update_zone_data(uri, ctx, upstream_settings, setting_names) -> None:
+    for upstream_zone in upstream_settings:
+        if upstream_zone["name"] in setting_names:
+            r = http_get(f"{uri}/{upstream_zone['name']}", ctx)
+            if r.status_code == 200:
+                upstream_zone.update(r.json())
             else:
-                print_output(msg)
+                print_output(
+                    {
+                        "error": "Obtaining zone information failed with status "
+                        f"{r.status_code} and text {r.text}"
+                    },
+                )
                 raise SystemExit(1)
+
+
+def replace_rrset_import(
+    uri, ctx, settings, upstream_settings, setting_names, ignore_errors
+) -> None:
+    existing_upstreams = []
+    upstreams_to_delete = []
+    for zone_entry in upstream_settings:
+        if zone_entry["name"] in setting_names:
+            existing_upstreams.append(zone_entry)
+        else:
+            upstreams_to_delete.append(zone_entry)
+    for zone_entry in settings:
+        if zone_entry["name"] in [upstream["name"] for upstream in existing_upstreams]:
+            r = http_delete(f"{uri}/{zone_entry['name']}", ctx)
+            if r.status_code != 204:
+                handle_import_early_exit(
+                    {
+                        "error": f"Failed removing zone {zone_entry['name']} with status "
+                        f"{r.status_code}({r.text}), aborting further "
+                        f"configuration changes"
+                    },
+                    ignore_errors,
+                )
+
+        r = http_post(uri, ctx, payload=zone_entry)
+        if r.status_code != 201:
+            handle_import_early_exit(
+                {
+                    "error": f"Failed adding zone {zone_entry['name']} with status "
+                    f"{r.status_code}/({r.text}), aborting further "
+                    "configuration changes"
+                },
+                ignore_errors,
+            )
+
+    for zone_entry in upstreams_to_delete:
+        r = http_delete(f"{uri}/{zone_entry['name']}", ctx)
+        if r.status_code != 204:
+            handle_import_early_exit(
+                {
+                    "error": f"Failed deleting tsigkey {zone_entry['name']} with status "
+                    f"{r.status_code} and body {r.text}, aborting "
+                    "further configuration changes"
+                },
+                ignore_errors,
+            )
+
+
+def add_rrset_import(uri, ctx, settings, upstream_settings, merge, ignore_errors) -> None:
+    for zone_entry in settings:
+        payload = None
+        if merge:
+            for existing_zone in upstream_settings:
+                if zone_entry["name"] == existing_zone["name"]:
+                    payload = existing_zone.copy()
+                    payload.update(zone_entry)
+        if not payload:
+            payload = zone_entry.copy()
+        r = http_delete(f"{uri}/{zone_entry['name']}", ctx)
+        if r.status_code != 204:
+            handle_import_early_exit(
+                {
+                    "error": f"Failed deleting zone {payload['name']}, "
+                    "aborting further configuration changes"
+                },
+                ignore_errors,
+            )
+        r = http_post(uri, ctx, payload=payload)
+        if r.status_code != 201:
+            handle_import_early_exit(
+                {
+                    "error": f"Failed adding zone {payload['name']}, "
+                    f"aborting further configuration changes"
+                },
+                ignore_errors,
+            )
+
+
+def handle_import_early_exit(message: dict, ignore_errors: bool) -> None:
+    if ignore_errors:
+        print_output(message, stderr=True)
+    else:
+        print_output(message)
+        raise SystemExit(1)
