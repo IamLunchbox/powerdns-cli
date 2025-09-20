@@ -668,7 +668,7 @@ def add_metadata_from_import(
                 print_output(msg)
                 raise SystemExit(1)
 
-def validate_metadata_import(settings: list[dict], upstream_settings: list[dict], replace: bool) -> None:
+def validate_simple_import(settings: list[dict], upstream_settings: list[dict], replace: bool) -> None:
     """Validates metadata import by checking the structure and presence of metadata entries.
 
     This function ensures that the provided `settings` is a list and checks if the metadata
@@ -686,11 +686,42 @@ def validate_metadata_import(settings: list[dict], upstream_settings: list[dict]
                    Exits with code 0 if metadata is already present.
     """
     if not isinstance(settings, list):
-        print_output({"error": "Metadata must be provided as a list"})
+        print_output({"error": "Data must be provided as a list"})
         raise SystemExit(1)
     if replace and upstream_settings == settings:
-        print_output({"message": "Requested metadata is already present"})
+        print_output({"message": "Requested data is already present"})
         raise SystemExit(0)
     if not replace and all(item in upstream_settings for item in settings):
-        print_output({"message": "Requested metadata is already present"})
+        print_output({"message": "Requested data is already present"})
         raise SystemExit(0)
+
+def replace_autoprimary_import(uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool) -> None:
+    existing_upstreams = []
+    upstreams_to_delete = []
+    for nameserver in upstream_settings:
+        if nameserver in settings:
+            existing_upstreams.append(nameserver)
+        else:
+            upstreams_to_delete.append(nameserver)
+    for nameserver in settings:
+        if nameserver not in existing_upstreams:
+            r = http_post(uri, ctx, payload=nameserver)
+            if not r.status_code == 201:
+                msg = {
+                    "error": f"Failed adding nameserver {nameserver}"}
+                if ignore_errors:
+                    print_output(msg, stderr=True)
+                else:
+                    print_output(msg)
+                    raise SystemExit(1)
+    for nameserver in upstreams_to_delete:
+        r = http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
+        if not r.status_code == 204:
+            msg = {
+                "error": f"Failed deleting nameserver {nameserver}"
+            }
+            if ignore_errors:
+                print_output(msg, stderr=True)
+            else:
+                print_output(msg)
+                raise SystemExit(1)

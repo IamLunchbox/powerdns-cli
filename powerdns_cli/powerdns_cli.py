@@ -236,64 +236,30 @@ def autoprimary_delete(ctx, ip, nameserver):
     is_flag=True,
     help="Replace all old autoprimaries settings with new ones",
 )
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
 @click.pass_context
-def autoprimary_import(ctx, file, replace):
+def autoprimary_import(ctx, file, replace, ignore_errors):
     """Import a list with your autoprimaries settings"""
     settings = utils.extract_file(file)
-    if not isinstance(settings, list):
-        print_output({"error": "Autoprimaries must be added as a list"})
-        raise SystemExit(1)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
-    if replace and upstream_settings == settings:
-        print_output({"message": "Requested autoprimaries are already present"})
-        raise SystemExit(0)
-    if not replace and all(item in upstream_settings for item in settings):
-        print_output({"message": "Requested autoprimaries are already present"})
-        raise SystemExit(0)
+    utils.validate_simple_import(settings, upstream_settings, replace)
     if replace and upstream_settings:
-        existing_upstreams = []
-        upstreams_to_delete = []
-        for nameserver in upstream_settings:
-            if nameserver in settings:
-                existing_upstreams.append(nameserver)
-            else:
-                upstreams_to_delete.append(nameserver)
+        utils.replace_autoprimary_import(uri, ctx, settings, upstream_settings, ignore_errors)
+    else:
         for nameserver in settings:
-            if nameserver not in existing_upstreams:
-                r = utils.http_post(uri, ctx, payload=nameserver)
-                if not r.status_code == 201:
-                    print_output(
-                        {
-                            "error": f"Failed adding nameserver {nameserver}, "
-                            "aborting further configuration changes"
-                        },
-                    )
+            r = utils.http_post(uri, ctx, payload=nameserver)
+            if not r.status_code == 201:
+                msg = {
+                    "error": f"Failed adding nameserver {nameserver}"
+                }
+                if ignore_errors:
+                    print_output(msg, stderr=True)
+                else:
+                    print_output(msg)
                     raise SystemExit(1)
-        for nameserver in upstreams_to_delete:
-            r = utils.http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
-            if not r.status_code == 204:
-                print_output(
-                    {
-                        "error": f"Failed deleting autoprimary {nameserver}, "
-                        "aborting further configuration changes"
-                    },
-                )
-                raise SystemExit(1)
-        print_output(
-            {"message": "Added and deleted required autoprimaries"},
-        )
-        raise SystemExit(0)
-    for nameserver in settings:
-        r = utils.http_post(uri, ctx, payload=nameserver)
-        if not r.status_code == 201:
-            print_output(
-                {
-                    "error": f"Failed adding autoprimary {nameserver}, "
-                    "aborting further configuration changes"
-                },
-            )
-            raise SystemExit(1)
     print_output({"message": "Successfully added autoprimary configuration"})
     raise SystemExit(0)
 
@@ -1126,9 +1092,9 @@ def record_extend(
     upstream_rrset = utils.is_matching_rrset_present(uri, ctx, rrset)
     if upstream_rrset:
         extra_records = [
-            record
-            for record in upstream_rrset["records"]
-            if record["content"] != rrset["records"][0]["content"]
+            item
+            for item in upstream_rrset["records"]
+            if item["content"] != rrset["records"][0]["content"]
         ]
         rrset["records"].extend(extra_records)
     # breakpoint()
@@ -1863,7 +1829,7 @@ def metadata_import(ctx, dns_zone, file, replace, ignore_errors):
     settings = utils.extract_file(file)
     # Remove SOA_EDIT-API entries from any imports, since they cannot be edited
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
-    utils.validate_metadata_import(settings, upstream_settings, replace)
+    utils.validate_simple_import(settings, upstream_settings, replace)
     if "SOA_EDIT_API" in [item["kind"] for item in settings]:
         dict_entry = [item for item in settings if item["kind"] == "SOA_EDIT_API"][0]
         position = settings.index(dict_entry)
