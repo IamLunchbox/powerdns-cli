@@ -383,7 +383,7 @@ def test_record_export_success(mock_utils, example_zone):
     runner = CliRunner()
     result = runner.invoke(
         record_export,
-        ["example.com.","--name", "test2", "--type", "A"],
+        ["example.com.", "--name", "test2", "--type", "A"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
@@ -404,7 +404,7 @@ def test_record_export_success(mock_utils, example_zone):
             "records": [{"content": "2.2.2.2", "disabled": True}],
             "ttl": 86400,
             "type": "A",
-        }
+        },
     ]
     get.assert_called()
 

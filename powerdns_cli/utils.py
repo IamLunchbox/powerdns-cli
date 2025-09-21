@@ -939,7 +939,7 @@ def replace_rrset_import(
             if r.status_code != 204:
                 handle_import_early_exit(
                     {
-                        "error": f"Failed removing zone {zone_entry['name']} with status "
+                        "error": f"Failed removing rrset {zone_entry['name']} with status "
                         f"{r.status_code}({r.text}), aborting further "
                         f"configuration changes"
                     },
@@ -950,7 +950,7 @@ def replace_rrset_import(
         if r.status_code != 201:
             handle_import_early_exit(
                 {
-                    "error": f"Failed adding zone {zone_entry['name']} with status "
+                    "error": f"Failed adding rrset {zone_entry['name']} with status "
                     f"{r.status_code}/({r.text}), aborting further "
                     "configuration changes"
                 },
@@ -962,7 +962,7 @@ def replace_rrset_import(
         if r.status_code != 204:
             handle_import_early_exit(
                 {
-                    "error": f"Failed deleting tsigkey {zone_entry['name']} with status "
+                    "error": f"Failed deleting rrset {zone_entry['name']} with status "
                     f"{r.status_code} and body {r.text}, aborting "
                     "further configuration changes"
                 },
@@ -1109,7 +1109,7 @@ def add_tsigkey_import(uri: str, ctx: click.Context, settings: list, ignore_erro
 
     for new_tsigkey in settings:
         r = http_post(f"{uri}", ctx, payload=new_tsigkey)
-        if r.status_code != 201 and (r.status_code != 409 and r.text == "Conflict"):
+        if r.status_code not in (201, 409):
             handle_import_early_exit(
                 {
                     "error": f"Failed adding tsigkey {new_tsigkey['name']}, "
@@ -1152,6 +1152,10 @@ def replace_view_import(
                     views_to_add.append({"name": old_view["name"], "view": item})
                 for item in old_view["views"].difference(new_view["views"]):
                     views_to_delete.append({"name": old_view["name"], "view": item})
+            if new_view["name"] not in [viewset["name"] for viewset in upstream_settings]:
+                for item in new_view["views"]:
+                    views_to_add.append({"name": new_view["name"], "view": item})
+
     add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)
     delete_views(views_to_delete, uri, ctx, continue_on_error=ignore_errors)
 

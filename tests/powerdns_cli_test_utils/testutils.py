@@ -1,10 +1,11 @@
-from unittest.mock import MagicMock as unittest_MagicMock
-
+import copy
+from unittest.mock import MagicMock as unittest_MagicMock, MagicMock
+from io import IOBase
 import requests
 
 
 class MockUtils:
-    def __init__(self, mocker):
+    def __init__(self, mocker: MagicMock):
         self.mocker = mocker
 
     def mock_http_get(
@@ -56,3 +57,16 @@ class MockUtils:
         mock_http_patch.status_code = status_code
         mock_http_patch.headers = {"Content-Type": "application/json"}
         return self.mocker.patch("powerdns_cli.utils.http_patch", return_value=mock_http_patch)
+
+
+class MockFile:
+    def __init__(self, mocker: MagicMock):
+        self.mocker = mocker
+
+    def mock_file_opener(self):
+        return self.mocker.patch("builtins.open", MagicMock(spec=IOBase))
+
+    def mock_settings_import(self, file_contents: dict | list):
+        return self.mocker.patch(
+            "powerdns_cli.utils.extract_file", return_value=copy.deepcopy(file_contents)
+        )

@@ -1,3 +1,4 @@
+import copy
 import json
 
 import pytest
@@ -8,7 +9,13 @@ from powerdns_cli.powerdns_cli import (
     autoprimary_add,
     autoprimary_delete,
     autoprimary_list,
+    autoprimary_import,
 )
+
+
+@pytest.fixture
+def file_mock(mocker):
+    return testutils.MockFile(mocker)
 
 
 @pytest.fixture
@@ -84,3 +91,24 @@ def test_autoprimary_delete_already_absent(mock_utils):
     assert "already absent" in json.loads(result.output)["message"]
     get.assert_called()
     delete.assert_not_called()
+
+
+def test_autoprimary_import_success(mock_utils, file_mock):
+    get = mock_utils.mock_http_get(
+        200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com", "account": "testaccount"}]
+    )
+    post = mock_utils.mock_http_post(201, {"success": True})
+    file_contents = [
+        {"ip": "1.1.1.1", "nameserver": "ns.example.com"},
+        {"ip": "1.1.1.2", "nameserver": "ns3.example.com"},
+    ]
+    file_mock.mock_file_opener()
+    file_mock.mock_settings_import(copy.deepcopy(file_contents))
+    runner = CliRunner()
+    result = runner.invoke(autoprimary_import, ["testfile"], obj={"apihost": "http://example.com"})
+    assert result.exit_code == 0
+    assert "autoprimary" in json.loads(result.output)["message"]
+    get.assert_called()
+    post.assert_called()
+    for item in file_contents:
+        assert item in [post_request[2]["payload"] for post_request in post.mock_calls]
