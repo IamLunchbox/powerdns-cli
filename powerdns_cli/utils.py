@@ -11,7 +11,7 @@ def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: st
     """Checks if the specified IP and nameserver are already present in the autoprimary list.
 
     This function sends a GET request to the provided `uri` to fetch the current list of
-    autoprimary entries. It then checks if any entry matches both the provided `ip` and `nameserver`.
+    autoprimary entries. It then checks if any entry matches the provided `ip` and `nameserver`.
     Returns `True` if a match is found, otherwise returns `False`.
 
     Args:
@@ -164,7 +164,7 @@ def query_zones(ctx: click.Context) -> list:
     """Fetches and returns all zones configured on the DNS server.
 
     Sends a GET request to the DNS server's API endpoint to retrieve the list of zones.
-    If the request fails (non-200 status code), it prints the error and exits with a status code of 1.
+    If the request fails (non-200 status code), it prints the error and exits with a status code 1.
     Otherwise, it returns the list of zones as parsed JSON.
 
     Args:
@@ -187,7 +187,7 @@ def query_zone_rrsets(uri: str, ctx) -> list[dict]:
     """Queries the configuration of the given zone and returns a list of all RRSETs.
 
     Sends a GET request to the specified `uri` to fetch the zone's RRSETs.
-    If the request fails (non-200 status code), it prints the error response and exits with a status code of 1.
+    If response status is not 200, it prints the error response and exits with a status code of 1.
     Otherwise, it returns the list of RRSETs from the JSON response.
 
     Args:
@@ -746,7 +746,7 @@ def validate_simple_import(
 def replace_autoprimary_import(
     uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool
 ) -> None:
-    """Replaces auto-primary nameserver configurations by adding new entries and removing obsolete ones.
+    """Replaces nameserver configurations by adding new entries and removing obsolete ones.
 
     This function compares the provided `settings` with `upstream_settings` to determine which
     nameserver configurations to add or delete. It sends POST requests to add new nameservers
@@ -756,8 +756,8 @@ def replace_autoprimary_import(
     Args:
         uri (str): The base URI for API requests.
         ctx (click.Context): Click context object for command-line operations.
-        settings (List[Dict[str, Any]]): List of dictionaries representing desired nameserver configurations.
-        upstream_settings (List[Dict[str, Any]]): List of dictionaries representing existing upstream nameserver configurations.
+        settings (List[Dict]): List of dictionaries representing desired nameserver configurations.
+        upstream_settings (List[Dict]): List of dictionaries representing upstream configurations.
         ignore_errors (bool): If True, continues execution after errors instead of aborting.
 
     Raises:
@@ -799,8 +799,8 @@ def replace_network_import(
     Args:
         uri (str): The base URI for API requests.
         ctx (click.Context): Click context object for command-line operations.
-        settings (List[Dict[str, Any]]): List of dictionaries representing desired network configurations.
-        upstream_settings (List[Dict[str, Any]]): List of dictionaries representing existing upstream network configurations.
+        settings (List[Dict]): List of dictionaries representing desired network configurations.
+        upstream_settings (List[Dict]): List of dictionaries representing upstream configurations.
         ignore_errors (bool): If True, continues execution after errors instead of aborting.
 
     Raises:
@@ -841,7 +841,7 @@ def replace_network_import(
             )
 
 
-def add_network_import(uri, ctx, settings, ignore_errors: bool) -> None:
+def add_network_import(uri: str, ctx: click.Context, settings: list, ignore_errors: bool) -> None:
     """Adds network configurations from an import using HTTP PUT requests.
 
     This function iterates through the provided `settings` and sends a PUT request
@@ -852,7 +852,6 @@ def add_network_import(uri, ctx, settings, ignore_errors: bool) -> None:
         uri: The base URI for API requests.
         ctx: Click context object for command-line operations.
         settings: List of dictionaries representing network configurations to add.
-        upstream_settings: List of dictionaries representing existing upstream network configurations.
         ignore_errors: If True, continues execution after errors instead of aborting.
 
     Raises:
@@ -874,7 +873,25 @@ def add_network_import(uri, ctx, settings, ignore_errors: bool) -> None:
             )
 
 
-def update_zone_data(uri, ctx, upstream_settings, setting_names) -> None:
+def update_zone_data(
+    uri: str, ctx: click.Context, upstream_settings: list, setting_names: list
+) -> None:
+    """
+    Update upstream zone settings with detailed zone data from the API.
+
+    For each upstream zone that exists in the setting_names, fetches the complete
+    zone configuration from the API and updates the upstream_settings in place.
+    This is typically used to enrich basic zone listings with full configuration data.
+
+    Args:
+        uri: Base API endpoint URI for zones
+        ctx: Click context object containing authentication and configuration
+        upstream_settings: List of upstream zone configurations to update in place
+        setting_names: Set of zone names that should be updated
+
+    Raises:
+        SystemExit: If any API call fails or returns invalid data
+    """
     for upstream_zone in upstream_settings:
         if upstream_zone["name"] in setting_names:
             r = http_get(f"{uri}/{upstream_zone['name']}", ctx)
@@ -891,8 +908,24 @@ def update_zone_data(uri, ctx, upstream_settings, setting_names) -> None:
 
 
 def replace_rrset_import(
-    uri, ctx, settings, upstream_settings, setting_names, ignore_errors
+    uri: str,
+    ctx: click.Context,
+    settings: list,
+    upstream_settings: list,
+    setting_names: list,
+    ignore_errors: bool,
 ) -> None:
+    """
+    Replace RRset zones by removing existing ones and adding new configurations.
+
+    Args:
+        uri: API endpoint URI
+        ctx: Click context object
+        settings: List of new zone configurations to import
+        upstream_settings: List of existing upstream zone configurations
+        setting_names: Set of zone names from the new settings
+        ignore_errors: If True, continue processing despite errors
+    """
     existing_upstreams = []
     upstreams_to_delete = []
     for zone_entry in upstream_settings:
@@ -937,7 +970,26 @@ def replace_rrset_import(
             )
 
 
-def add_rrset_import(uri, ctx, settings, upstream_settings, merge, ignore_errors) -> None:
+def add_rrset_import(
+    uri: str,
+    ctx: click.Context,
+    settings: list,
+    upstream_settings: list,
+    merge: bool,
+    ignore_errors: bool,
+) -> None:
+    """
+    Import RRset zones with optional merging and error handling.
+
+    Args:
+        uri: API endpoint URI
+        ctx: Click context object
+        settings: List of zone configurations to import
+        upstream_settings: List of existing upstream zone configurations
+        merge: If True, merge new settings with existing ones
+        ignore_errors: If True, continue processing despite errors
+    """
+
     for zone_entry in settings:
         payload = None
         if merge:
@@ -968,8 +1020,161 @@ def add_rrset_import(uri, ctx, settings, upstream_settings, merge, ignore_errors
 
 
 def handle_import_early_exit(message: dict, ignore_errors: bool) -> None:
+    """
+    Handle import errors with configurable behavior based on ignore_errors flag.
+
+    When ignore_errors is False (strict mode):
+    - Prints error to stdout and exits immediately with code 1
+    - Stops all further processing
+
+    When ignore_errors is True (permissive mode):
+    - Prints error to stderr but continues execution
+    - Allows processing of remaining items
+
+    Args:
+        message: Dictionary containing error information (typically with 'error' key)
+        ignore_errors: If True, log error and continue; if False, log error and exit
+    """
     if ignore_errors:
         print_output(message, stderr=True)
     else:
         print_output(message)
         raise SystemExit(1)
+
+
+def replace_tsigkey_import(
+    uri: str, ctx: click.Context, settings: list, upstream_settings: list, ignore_errors: bool
+) -> None:
+    """
+    Replace TSIG keys by performing a complete synchronization operation.
+
+    This function ensures the upstream configuration exactly matches the provided settings by:
+    1. Identifying which keys already exist and match (no action needed)
+    2. Adding new keys that don't exist upstream
+    3. Removing upstream keys that aren't in the new settings
+
+    Args:
+        uri: API endpoint URI for TSIG keys
+        ctx: Click context object containing authentication and configuration
+        settings: List of desired TSIG key configurations
+        upstream_settings: List of current upstream TSIG key configurations
+        ignore_errors: If True, continue processing despite individual failures
+    """
+    existing_upstreams = []
+    upstreams_to_delete = []
+    for upstream_tsigkey in upstream_settings:
+        if upstream_tsigkey in settings:
+            existing_upstreams.append(upstream_tsigkey)
+        else:
+            upstreams_to_delete.append(upstream_tsigkey)
+    for new_tsigkey in settings:
+        if new_tsigkey not in existing_upstreams:
+            r = http_post(uri, ctx, payload=new_tsigkey)
+            if r.status_code != 201:
+                handle_import_early_exit(
+                    {
+                        "error": f"Failed adding tsigkey {new_tsigkey['name']} with status "
+                        f"{r.status_code} and body {r.text}, "
+                        "aborting further changes"
+                    },
+                    ignore_errors,
+                )
+
+    for upstream_tsigkey in upstreams_to_delete:
+        r = http_delete(f"{uri}/{upstream_tsigkey['name']}", ctx)
+        if r.status_code != 204:
+            handle_import_early_exit(
+                {
+                    "error": f"Failed deleting tsigkey {upstream_tsigkey['name']}"
+                    f" with status {r.status_code} and body {r.text}, "
+                    f"aborting further changes"
+                },
+                ignore_errors,
+            )
+
+
+def add_tsigkey_import(uri: str, ctx: click.Context, settings: list, ignore_errors: bool) -> None:
+    """
+    Import TSIG keys by adding them to the upstream configuration.
+
+    Accepts both successful creation (201) and conflicts (409) as valid outcomes,
+    allowing for idempotent operations where existing keys are not modified.
+
+    Args:
+        uri: API endpoint URI for TSIG keys
+        ctx: Click context object containing authentication and configuration
+        settings: List of TSIG key configurations to import
+        ignore_errors: If True, continue processing despite errors
+    """
+
+    for new_tsigkey in settings:
+        r = http_post(f"{uri}", ctx, payload=new_tsigkey)
+        if r.status_code != 201 and (r.status_code != 409 and r.text == "Conflict"):
+            handle_import_early_exit(
+                {
+                    "error": f"Failed adding tsigkey {new_tsigkey['name']}, "
+                    f"aborting further configuration changes"
+                },
+                ignore_errors,
+            )
+
+
+def replace_view_import(
+    uri: str, ctx: click.Context, settings: list, upstream_settings: list, ignore_errors: bool
+) -> None:
+    """
+    Replace views by comparing current settings with upstream settings.
+
+    This function performs a differential update:
+    - Deletes views that exist in upstream but not in current settings
+    - Adds new views that exist in current but not in upstream settings
+    - For matching view names, adds/removes individual views based on set difference
+
+    Args:
+        uri: Database URI or connection string
+        ctx: Click context object for CLI operations
+        settings: Current view configuration (target state)
+        upstream_settings: Previous view configuration (current state)
+        ignore_errors: Whether to continue processing if errors occur
+    """
+    views_to_add = []
+    views_to_delete = []
+    for old_view in upstream_settings:
+        # if a view name is not in the name set, delete it and its contents completely
+        if old_view["name"] not in [viewset["name"] for viewset in settings]:
+            for item in old_view["views"]:
+                views_to_delete.append({"name": old_view["name"], "view": item})
+            continue
+        # the new view name is present, intersect the content
+        for new_view in settings:
+            if old_view["name"] == new_view["name"]:
+                for item in new_view["views"].difference(old_view["views"]):
+                    views_to_add.append({"name": old_view["name"], "view": item})
+                for item in old_view["views"].difference(new_view["views"]):
+                    views_to_delete.append({"name": old_view["name"], "view": item})
+    add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)
+    delete_views(views_to_delete, uri, ctx, continue_on_error=ignore_errors)
+
+
+def add_view_import(uri: str, ctx: click.Context, settings: list, ignore_errors: bool) -> None:
+    """
+    Import views from settings configuration.
+
+    Args:
+        uri: The database URI or connection string
+        ctx: Click context object for CLI operations
+        settings: List of view configuration dictionaries, each containing
+                 'name' and 'views' keys
+        ignore_errors: Whether to continue processing if errors occur
+
+    Raises:
+        SystemExit: If subsequent requests encounter an error and ignore_errors is True
+    """
+    views_to_add = [
+        {"name": view_entry["name"], "view": view_item}
+        for view_entry in settings
+        for view_item in view_entry["views"]
+    ]
+
+    if views_to_add:
+        add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)

@@ -1258,14 +1258,14 @@ def tsigkey_export(ctx, key_id):
     is_flag=True,
     help="Replace all network settings with new ones",
 )
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
 @click.pass_context
-def tsigkey_import(ctx, file, replace):
-    """ """
+def tsigkey_import(ctx, file, replace, ignore_errors):
+    """Import TSIG keys from a file, with optional replacement of existing keys."""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
     settings = utils.extract_file(file)
-    if not isinstance(settings, list):
-        print_output({"error": "Tsigkeys must be provided as a list"})
-        raise SystemExit(1)
     upstream_tsigkey_list = utils.read_settings_from_upstream(uri, ctx)
     try:
         upstream_settings = [
@@ -1274,57 +1274,11 @@ def tsigkey_import(ctx, file, replace):
     except JSONDecodeError as e:
         print_output({"error": f"Failed to download tsigkeys for deduplication: {e}"})
         raise SystemExit(1) from e
-    if replace and upstream_settings == settings:
-        print_output({"message": "Requested tsigkeys are already present"})
-        raise SystemExit(0)
-    if not replace and all(item in upstream_settings for item in settings):
-        print_output({"message": "Requested tsigkeys are already present"})
-        raise SystemExit(0)
+    utils.validate_simple_import(settings, upstream_settings, replace)
     if replace and upstream_settings:
-        existing_upstreams = []
-        upstreams_to_delete = []
-        for upstream_tsigkey in upstream_settings:
-            if upstream_tsigkey in settings:
-                existing_upstreams.append(upstream_tsigkey)
-            else:
-                upstreams_to_delete.append(upstream_tsigkey)
-        for new_tsigkey in settings:
-            if new_tsigkey not in existing_upstreams:
-                r = utils.http_post(uri, ctx, payload=new_tsigkey)
-                if not r.status_code == 201:
-                    print_output(
-                        {
-                            "error": f"Failed adding tsigkey {new_tsigkey['name']} with status "
-                            f"{r.status_code} and body {r.text}, "
-                            "aborting further changes"
-                        }
-                    )
-                    raise SystemExit(1)
-        for upstream_tsigkey in upstreams_to_delete:
-            r = utils.http_delete(f"{uri}/{upstream_tsigkey['name']}", ctx)
-            if not r.status_code == 204:
-                print_output(
-                    {
-                        "error": f"Failed deleting tsigkey {upstream_tsigkey['name']}"
-                        f" with status {r.status_code} and body {r.text}, "
-                        f"aborting further changes"
-                    }
-                )
-                raise SystemExit(1)
-        print_output(
-            {"message": "Added and deleted required tsigkeys"},
-        )
-        raise SystemExit(0)
-    for new_tsigkey in settings:
-        r = utils.http_post(f"{uri}", ctx, payload=new_tsigkey)
-        if r.status_code != 201 and (r.status_code != 409 and r.text == "Conflict"):
-            print_output(
-                {
-                    "error": f"Failed adding tsigkey {new_tsigkey['name']}, "
-                    f"aborting further configuration changes"
-                }
-            )
-            raise SystemExit(1)
+        utils.replace_tsigkey_import(uri, ctx, settings, upstream_settings, ignore_errors)
+    else:
+        utils.add_tsigkey_import(uri, ctx, settings, ignore_errors)
     print_output(
         {"message": "Successfully imported tsigkeys"},
     )
@@ -1881,47 +1835,13 @@ def view_import(ctx, file, replace, ignore_errors):
         raise SystemExit(0)
 
     if replace and upstream_settings:
-        views_to_add = []
-        views_to_delete = []
-        for old_view in upstream_settings:
-            # if a view name is not in the name set, delete it and its contents completely
-            if old_view["name"] not in [viewset["name"] for viewset in restructured_settings]:
-                [
-                    views_to_delete.append({"name": old_view["name"], "view": item})
-                    for item in old_view["views"]
-                ]
-                continue
-            # the new view name is present, intersect the content
-            for new_view in restructured_settings:
-                if old_view["name"] == new_view["name"]:
-                    [
-                        views_to_add.append({"name": old_view["name"], "view": item})
-                        for item in new_view["views"].difference(old_view["views"])
-                    ]
-                    [
-                        views_to_delete.append({"name": old_view["name"], "view": item})
-                        for item in old_view["views"].difference(new_view["views"])
-                    ]
-        utils.add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)
-        utils.delete_views(views_to_delete, uri, ctx, continue_on_error=ignore_errors)
-        print_output({"message": "Added and deleted required zones"})
-        raise SystemExit(0)
-    views_to_add = []
-    for view_entry in restructured_settings:
-        [
-            views_to_add.append({"name": view_entry["name"], "view": item})
-            for item in view_entry["views"]
-        ]
-    utils.add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)
+        utils.replace_view_import(uri, ctx, restructured_settings, upstream_settings, ignore_errors)
+    else:
+        utils.add_view_import(uri, ctx, restructured_settings, ignore_errors)
     print_output(
         {"message": "Successfully imported zones"},
     )
     raise SystemExit(0)
-
-
-# Todo:
-# Create Rollback Function for imports
-# and log changes beforehand
 
 
 @view.command("list")
