@@ -82,9 +82,7 @@ class MockUtils:
 class MockFile:
     def __init__(self, mocker: MagicMock):
         self.mocker = mocker
-
-    def mock_file_opener(self):
-        return self.mocker.patch("builtins.open", MagicMock(spec=IOBase))
+        self.mocker.patch("builtins.open", MagicMock(spec=IOBase))
 
     def mock_settings_import(self, file_contents: dict | list):
         return self.mocker.patch(

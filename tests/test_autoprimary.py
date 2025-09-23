@@ -116,7 +116,6 @@ def test_autoprimary_import_success(mock_utils, file_mock, file_contents):
         ),
     )
     post = mock_utils.mock_http_post(201, {"success": True})
-    file_mock.mock_file_opener()
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(autoprimary_import, ["testfile"], obj={"apihost": "http://example.com"})
@@ -149,7 +148,6 @@ def test_autoprimary_import_idempotence(mock_utils, file_mock, file_contents):
         ),
     )
     post = mock_utils.mock_http_post(201, {"success": True})
-    file_mock.mock_file_opener()
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(autoprimary_import, ["testfile"], obj={"apihost": "http://example.com"})
@@ -231,7 +229,6 @@ def test_autoprimary_import_replace_success(
     )
     post = mock_utils.mock_http_post(201, {"success": True})
     delete = mock_utils.mock_http_delete(204, {"success": True})
-    file_mock.mock_file_opener()
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
@@ -266,7 +263,6 @@ def test_autoprimary_import_replace_idempotence(mock_utils, file_mock):
     ]
     post = mock_utils.mock_http_post(201, {"success": True})
     delete = mock_utils.mock_http_delete(204, {"success": True})
-    file_mock.mock_file_opener()
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
@@ -316,7 +312,6 @@ def test_autoprimary_import_error(mock_utils, file_mock, get_status, post_status
     ]
     post = mock_utils.mock_http_post(post_status, {"success": True})
     delete = mock_utils.mock_http_delete(delete_status, {"success": True})
-    file_mock.mock_file_opener()
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
@@ -350,7 +345,6 @@ def test_autoprimary_import_ignore_error(
     ]
     post = mock_utils.mock_http_post(post_status, {"success": True})
     delete = mock_utils.mock_http_delete(delete_status, {"success": True})
-    file_mock.mock_file_opener()
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
