@@ -7,6 +7,12 @@ import requests
 class MockUtils:
     def __init__(self, mocker: MagicMock):
         self.mocker = mocker
+        self.mocker.patch("powerdns_cli.utils.http_get", side_effect=SystemExit("http_get was unexpectedly called!"))
+        self.mocker.patch("powerdns_cli.utils.http_post", side_effect=SystemExit("http_post was unexpectedly called!"))
+        self.mocker.patch("powerdns_cli.utils.http_put", side_effect=SystemExit("http_put was unexpectedly called!"))
+        self.mocker.patch("powerdns_cli.utils.http_delete", side_effect=SystemExit("http_delete was unexpectedly called!"))
+        self.mocker.patch("powerdns_cli.utils.http_patch", side_effect=SystemExit("http_patch was unexpectedly called!"))
+
 
     def mock_http_get(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
