@@ -10,8 +10,8 @@ from powerdns_cli_test_utils import testutils
 from powerdns_cli.powerdns_cli import (
     metadata_add,
     metadata_delete,
-    metadata_extend,
     metadata_export,
+    metadata_extend,
     metadata_update,
 )
 

@@ -1,6 +1,5 @@
 import copy
 import json
-
 from typing import NamedTuple
 
 import pytest
@@ -10,8 +9,8 @@ from powerdns_cli_test_utils import testutils
 from powerdns_cli.powerdns_cli import (
     autoprimary_add,
     autoprimary_delete,
-    autoprimary_list,
     autoprimary_import,
+    autoprimary_list,
 )
 
 

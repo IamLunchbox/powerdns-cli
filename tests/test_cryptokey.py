@@ -252,9 +252,7 @@ def test_cryptokey_import_pubkey_success(
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
     example_new_key.pop("privatekey")
-    file_mock.mock_settings_import(
-        copy.deepcopy([example_new_key])
-    )
+    file_mock.mock_settings_import(copy.deepcopy([example_new_key]))
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import_pubkey,
@@ -262,7 +260,7 @@ def test_cryptokey_import_pubkey_success(
         obj={"apihost": "https://example.com"},
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)['message']
+    assert "imported" in json.loads(result.output)["message"]
     post.assert_called()
     get.assert_called()
 

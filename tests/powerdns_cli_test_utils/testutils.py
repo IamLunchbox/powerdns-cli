@@ -1,6 +1,8 @@
 import copy
-from unittest.mock import MagicMock as unittest_MagicMock, MagicMock
 from io import IOBase
+from unittest.mock import MagicMock
+from unittest.mock import MagicMock as unittest_MagicMock
+
 import requests
 
 

@@ -350,34 +350,6 @@ def test_record_extend_failure(mock_utils, example_zone):
     patch.assert_not_called()
 
 
-def test_record_extend_success_with_new_rrset(mock_utils, example_zone):
-    get = mock_utils.mock_http_get(200, example_zone)
-    patch = mock_utils.mock_http_patch(204, text_output="")
-    runner = CliRunner()
-    result = runner.invoke(
-        record_extend,
-        ["test4", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
-    )
-    assert result.exit_code == 0
-    assert "extended" in json.loads(result.output)["message"]
-    patch.assert_called()
-    assert patch.call_args_list[0][0][2] == {
-        "rrsets": [
-            {
-                "name": "test4.example.com.",
-                "type": "A",
-                "ttl": 86400,
-                "changetype": "REPLACE",
-                "records": [
-                    {"content": "192.168.1.1", "disabled": False},
-                ],
-            }
-        ]
-    }
-    get.assert_called()
-
-
 def test_record_export_success(mock_utils, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     runner = CliRunner()

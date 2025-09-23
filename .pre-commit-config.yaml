@@ -1,4 +1,4 @@
-files: (powerdns_cli|test)/.*\.py
+files: powerdns_cli/.*\.py
 fail_fast: true
 repos:
   - repo: https://github.com/psf/black-pre-commit-mirror
