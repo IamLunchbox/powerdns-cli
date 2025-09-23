@@ -339,8 +339,8 @@ def cryptokey():
 
 
 @cryptokey.command("add")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
     "-a",
     "--active",
@@ -356,9 +356,9 @@ def cryptokey():
     help="Set the key size in bits, required for zsk",
 )
 @click.pass_context
-def cryptokey_add(ctx, dns_zone, key_type, active, publish, bits, algorithm):
+def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm):
     """
-    Adds a cryptokey to the zone. Is disabled and not published by default
+    Adds a cryptokey to the zone. Is disabled and not published by default.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     payload = {"active": active, "published": publish, "keytype": key_type}
@@ -483,7 +483,8 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
 @click.pass_context
 def cryptokey_import_pubkey(ctx, dns_zone, file):
     """
-    Imports a public cryptokey without known private key from a file
+    Imports a public cryptokey without a known private key from a file.
+    Contents are exactly as a cryptokey export.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     settings = utils.extract_file(file)
@@ -495,16 +496,16 @@ def cryptokey_import_pubkey(ctx, dns_zone, file):
     if isinstance(settings, list):
         print_output({"error": "A list of cryptokeys cannot be imported"})
         raise SystemExit(1)
-    merged_settings = utils.import_setting(uri, ctx, settings, replace=False)
-    r = utils.send_settings_update(uri, ctx, merged_settings, "post")
+    merged_settings = utils.import_cryptokey_pubkeys(uri, ctx, settings, replace=False)
+    r = utils.http_post(uri, ctx, payload=merged_settings)
     if utils.create_output(r, (201,), optional_json={"message": "Setting imported"}):
         raise SystemExit(0)
     raise SystemExit(1)
 
 
 @cryptokey.command("import-privkey")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("private-key", type=click.STRING)
 @click.option(
     "-a",
@@ -1156,7 +1157,7 @@ def record_import(ctx, dns_zone, file, replace):
                     upstream_rrset["changetype"] = "DELETE"
                     final_recordset.append(upstream_rrset)
         new_rrsets["rrsets"] = final_recordset
-    r = utils.send_settings_update(uri, ctx, new_rrsets, "patch")
+    r = utils.http_patch(uri, ctx, payload=new_rrsets)
     if utils.create_output(r, (204,), optional_json={"message": "RRset imported"}):
         raise SystemExit(0)
     raise SystemExit(1)

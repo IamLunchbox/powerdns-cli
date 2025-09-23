@@ -219,7 +219,9 @@ import_testcases = (
 )
 
 
-@pytest.mark.parametrize("upstream_content,file_contents,added_content,delete_paths", import_testcases)
+@pytest.mark.parametrize(
+    "upstream_content,file_contents,added_content,delete_paths", import_testcases
+)
 def test_autoprimary_import_replace_success(
     mock_utils, file_mock, upstream_content, file_contents, added_content, delete_paths
 ):
@@ -259,9 +261,9 @@ def test_autoprimary_import_replace_idempotence(mock_utils, file_mock):
         ),
     )
     file_contents = [
-            {"ip": "2.2.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
-            {"ip": "1.1.1.1", "nameserver": "ns.example.com"},
-        ]
+        {"ip": "2.2.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
+        {"ip": "1.1.1.1", "nameserver": "ns.example.com"},
+    ]
     post = mock_utils.mock_http_post(201, {"success": True})
     delete = mock_utils.mock_http_delete(204, {"success": True})
     file_mock.mock_file_opener()
@@ -276,10 +278,12 @@ def test_autoprimary_import_replace_idempotence(mock_utils, file_mock):
     post.assert_not_called()
     delete.assert_not_called()
 
+
 class ErrorCodes(NamedTuple):
     get_status: int
     post_status: int
     delete_status: int
+
 
 returncodes = (
     ErrorCodes(
@@ -291,11 +295,12 @@ returncodes = (
         get_status=200,
         post_status=201,
         delete_status=500,
-    )
+    ),
 )
 
+
 @pytest.mark.parametrize("get_status,post_status,delete_status", returncodes)
-def test_autoprimary_import_error(mock_utils, file_mock, get_status,post_status,delete_status):
+def test_autoprimary_import_error(mock_utils, file_mock, get_status, post_status, delete_status):
     get = mock_utils.mock_http_get(
         get_status,
         copy.deepcopy(
@@ -306,9 +311,9 @@ def test_autoprimary_import_error(mock_utils, file_mock, get_status,post_status,
         ),
     )
     file_contents = [
-            {"ip": "3.3.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
-            {"ip": "1.1.2.2", "nameserver": "ns.example.com"},
-        ]
+        {"ip": "3.3.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
+        {"ip": "1.1.2.2", "nameserver": "ns.example.com"},
+    ]
     post = mock_utils.mock_http_post(post_status, {"success": True})
     delete = mock_utils.mock_http_delete(delete_status, {"success": True})
     file_mock.mock_file_opener()
@@ -325,8 +330,11 @@ def test_autoprimary_import_error(mock_utils, file_mock, get_status,post_status,
     if get_status == 500:
         delete.assert_called()
 
+
 @pytest.mark.parametrize("get_status,post_status,delete_status", returncodes)
-def test_autoprimary_import_ignore_error(mock_utils, file_mock, get_status,post_status,delete_status):
+def test_autoprimary_import_ignore_error(
+    mock_utils, file_mock, get_status, post_status, delete_status
+):
     get = mock_utils.mock_http_get(
         get_status,
         copy.deepcopy(
@@ -337,16 +345,18 @@ def test_autoprimary_import_ignore_error(mock_utils, file_mock, get_status,post_
         ),
     )
     file_contents = [
-            {"ip": "3.3.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
-            {"ip": "1.1.2.2", "nameserver": "ns.example.com"},
-        ]
+        {"ip": "3.3.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
+        {"ip": "1.1.2.2", "nameserver": "ns.example.com"},
+    ]
     post = mock_utils.mock_http_post(post_status, {"success": True})
     delete = mock_utils.mock_http_delete(delete_status, {"success": True})
     file_mock.mock_file_opener()
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
-        autoprimary_import, ["testfile", "--replace", "--ignore-errors"], obj={"apihost": "http://example.com"}
+        autoprimary_import,
+        ["testfile", "--replace", "--ignore-errors"],
+        obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
     get.assert_called()

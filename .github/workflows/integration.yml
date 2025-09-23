@@ -134,7 +134,7 @@ jobs:
       - name: Extend metadata
         run: powerdns-cli metadata extend example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: List single metadata value
-        run: powerdns-cli metadata list -l "ALSO-NOTIFY" example.org
+        run: powerdns-cli metadata export example.org
       - name: Replace metadata
         run: powerdns-cli metadata update example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: Delete metadata
@@ -150,15 +150,15 @@ jobs:
         run: powerdns-cli autoprimary delete 127.0.0.1 example.org
 # Cryptokey Tests
       - name: Add ZSK cryptokey
-        run: powerdns-cli cryptokey add --algorithm ecdsap256sha256 --bits 256 example.org zsk
+        run: powerdns-cli cryptokey add --algorithm ecdsap256sha256 --bits 256 zsk example.org
       - name: Add ksk cryptokey
-        run: powerdns-cli cryptokey add example.org ksk
+        run: powerdns-cli cryptokey add ksk example.org
       - name: Import a cryptokey secret
         run: >
           powerdns-cli 
           cryptokey import-privkey 
-          example.org 
           ksk
+          example.org 
           'Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: 1nM02+BeuUuppbSgtDBIV3106HMTdLNMqV7rnb4t0iA=\n'
       - name: List cryptokeys
         run: powerdns-cli cryptokey list example.org

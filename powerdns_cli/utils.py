@@ -389,7 +389,7 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
         raise SystemExit(1) from e
 
 
-def import_setting(
+def import_cryptokey_pubkeys(
     uri: str,
     ctx: click.Context,
     new_settings: dict | list,
@@ -440,31 +440,6 @@ def import_setting(
             payload.update(new_settings)
 
     return payload
-
-
-def send_settings_update(
-    uri: str, ctx: click.Context, payload: dict | list, method: str
-) -> requests.Response:
-    """Sends settings update using the specified HTTP method.
-
-    Args:
-        uri: The endpoint to send the request to.
-        ctx: Context object for HTTP requests.
-        payload: The data to send.
-        method: HTTP method to use ('post', 'put', or 'patch').
-
-    Returns:
-        requests.Response: The HTTP response from the server.
-
-    Raises:
-        ValueError: If an unsupported HTTP method is provided.
-    """
-    method_handlers = {"post": http_post, "put": http_put, "patch": http_patch}
-
-    if handler := method_handlers.get(method.lower()):
-        return handler(uri, ctx, payload=payload)
-
-    raise ValueError(f"Unsupported method: {method}")
 
 
 def is_zone_in_view(new_view: dict, upstream: list[dict]) -> bool:
