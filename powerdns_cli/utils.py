@@ -392,9 +392,7 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
 def import_cryptokey_pubkeys(
     uri: str,
     ctx: click.Context,
-    new_settings: dict | list,
-    replace: bool = False,
-    merge: bool = False,
+    new_settings: dict,
 ) -> dict | list:
     """Passes the given dictionary or list to the specified URI.
 
@@ -402,7 +400,6 @@ def import_cryptokey_pubkeys(
         uri: The endpoint to send the settings to.
         ctx: Context object for HTTP requests.
         new_settings: The new settings to import (dict or list).
-        replace: If True, replace existing settings.
 
     Returns:
         dict | list: The updated settings.
@@ -411,33 +408,14 @@ def import_cryptokey_pubkeys(
         SystemExit: If settings already exist and neither merge nor replace is requested,
                    or if the nested key does not exist.
     """
-    upstream_settings = read_settings_from_upstream(uri, ctx)
+    upstream_settings: list = read_settings_from_upstream(uri, ctx)
     # Check for conflicts or early exit
-    if upstream_settings:
-        if not any((replace, merge)):
-            print_output({"message": "Setting already present, refusing to replace"})
-            raise SystemExit(0)
-
-        if new_settings == upstream_settings or (
-            not replace
-            and (isinstance(upstream_settings, list) and new_settings in upstream_settings)
-        ):
-            print_output({"message": "Your setting is already present"})
-            raise SystemExit(0)
+    if new_settings in upstream_settings:
+        print_output({"message": "Your setting is already present"})
+        raise SystemExit(0)
 
     # Prepare payload
-    if replace or not upstream_settings:
-        payload = new_settings
-    else:
-        payload = upstream_settings.copy()  # Avoid modifying the original upstream_settings
-        if isinstance(payload, list):
-            # as of now no endpoint does support uploading lists but rather
-            # extends an existing list upstream
-            # until a later endpoint requires it, list items will just result
-            # in a single item being uploaded
-            payload = new_settings
-        elif isinstance(payload, dict):
-            payload.update(new_settings)
+    payload = new_settings
 
     return payload
 

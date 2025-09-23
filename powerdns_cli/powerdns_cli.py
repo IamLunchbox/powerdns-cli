@@ -484,21 +484,22 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
 def cryptokey_import_pubkey(ctx, dns_zone, file):
     """
     Imports a public cryptokey without a known private key from a file.
-    Contents are exactly as a cryptokey export.
+    Contents are exactly as a cryptokey export. Only accepts a list with a single item.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     settings = utils.extract_file(file)
-    if settings.get("privkey"):
+    if isinstance(settings, dict):
+        print_output({"error": "The setting must be part of a list"})
+        raise SystemExit(1)
+    settings = settings[0]
+    if settings.get("privatekey") or settings.get("privkey"):
         print_output(
-            {"error": "The key 'privatekey' may not be present importing a public key"},
+            {"error": "Keys 'privatekey' 'privkey' may not be present importing a public key"},
         )
         raise SystemExit(1)
-    if isinstance(settings, list):
-        print_output({"error": "A list of cryptokeys cannot be imported"})
-        raise SystemExit(1)
-    merged_settings = utils.import_cryptokey_pubkeys(uri, ctx, settings, replace=False)
+    merged_settings = utils.import_cryptokey_pubkeys(uri, ctx, settings)
     r = utils.http_post(uri, ctx, payload=merged_settings)
-    if utils.create_output(r, (201,), optional_json={"message": "Setting imported"}):
+    if utils.create_output(r, (201,), optional_json={"message": "Pubkey imported"}):
         raise SystemExit(0)
     raise SystemExit(1)
 
