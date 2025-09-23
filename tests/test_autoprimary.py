@@ -324,3 +324,31 @@ def test_autoprimary_import_error(mock_utils, file_mock, get_status,post_status,
 
     if get_status == 500:
         delete.assert_called()
+
+@pytest.mark.parametrize("get_status,post_status,delete_status", returncodes)
+def test_autoprimary_import_ignore_error(mock_utils, file_mock, get_status,post_status,delete_status):
+    get = mock_utils.mock_http_get(
+        get_status,
+        copy.deepcopy(
+            [
+                {"ip": "2.2.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
+                {"ip": "1.1.1.1", "nameserver": "ns.example.com"},
+            ]
+        ),
+    )
+    file_contents = [
+            {"ip": "3.3.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
+            {"ip": "1.1.2.2", "nameserver": "ns.example.com"},
+        ]
+    post = mock_utils.mock_http_post(post_status, {"success": True})
+    delete = mock_utils.mock_http_delete(delete_status, {"success": True})
+    file_mock.mock_file_opener()
+    file_mock.mock_settings_import(copy.deepcopy(file_contents))
+    runner = CliRunner()
+    result = runner.invoke(
+        autoprimary_import, ["testfile", "--replace", "--ignore-errors"], obj={"apihost": "http://example.com"}
+    )
+    assert result.exit_code == 0
+    get.assert_called()
+    assert delete.call_count == 2
+    assert post.call_count == 2
