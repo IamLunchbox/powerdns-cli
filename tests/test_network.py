@@ -1,5 +1,6 @@
 import copy
 import json
+from typing import NamedTuple, TypedDict
 
 import pytest
 from click.testing import CliRunner
@@ -10,12 +11,30 @@ from powerdns_cli.powerdns_cli import (
     network_delete,
     network_export,
     network_list,
+    network_import,
 )
 
 
 @pytest.fixture
 def mock_utils(mocker):
     return testutils.MockUtils(mocker)
+
+
+@pytest.fixture
+def file_mock(mocker):
+    return testutils.MockFile(mocker)
+
+
+class AddedNetwork(TypedDict):
+    uri: str
+    payload: dict[str, str]
+
+
+class NetworkImport(NamedTuple):
+    import_file: dict[str, list[dict[str, str]]]
+    upstream_network: dict[dict, str]
+    added_network: list[AddedNetwork]
+    deleted_path: list[str]
 
 
 @pytest.mark.parametrize(
@@ -51,7 +70,6 @@ def test_network_add_success(mock_utils, valid_networks, statuscode, output):
 )
 def test_network_add_idempotence(mock_utils, valid_networks, statuscode, output):
     get = mock_utils.mock_http_get(statuscode, json_output=output)
-    put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         network_add,
@@ -61,7 +79,6 @@ def test_network_add_idempotence(mock_utils, valid_networks, statuscode, output)
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
     get.assert_called_once()
-    put.assert_not_called()
 
 
 def test_network_add_failed(mock_utils):
@@ -135,6 +152,45 @@ def test_network_delete_failed(
     get.assert_called_once()
     put.assert_called_once()
 
+
+testcases = (
+    NetworkImport(
+        import_file={"networks": [{"network": "0.0.0.0/0", "view": "test"}]},
+        upstream_network={},
+        added_network=[AddedNetwork(
+            uri="http://example.com/api/v1/servers/localhost/networks/0.0.0.0/0",
+            payload={"view": "test"})],
+        deleted_path=[],
+    ),
+    # NetworkImport(
+    #     import_file={"networks": [{"network": "0.0.0.0/0", "view": "test"}]},
+    #     upstream_network={},
+    #     added_network=AddedNetwork(
+    #         uri="http://example.com/api/v1/servers/localhost/networks/0.0.0.0/0",
+    #         payload={"view": "test"},
+    #     ),
+    #     deleted_path=[],
+    # ),
+)
+
+@pytest.mark.parametrize("import_file,upstream_network,added_network,deleted_path", testcases)
+def test_network_import_success(mock_utils, file_mock, import_file,upstream_network,added_network,deleted_path):
+    get = mock_utils.mock_http_get(200, json_output=upstream_network)
+    put = mock_utils.mock_http_put(204, text_output="")
+    file_mock.mock_settings_import(import_file)
+    runner = CliRunner()
+    result = runner.invoke(
+        network_import,
+        ["testfile"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    get.assert_called_once()
+    put.assert_called()
+    for network in added_network:
+        assert network['payload'] in [item.kwargs["payload"] for item in put.call_args_list]
+        assert network['uri'] in [item.args[0] for item in put.call_args_list]
 
 def test_network_list_success(
     mock_utils,

@@ -700,7 +700,7 @@ def network_delete(ctx, cidr):
 @click.pass_context
 def network_export(ctx, cidr):
     """
-    Show the network and its associated views
+    Show the network and its associated views, defaults to /32 if no netmask is provided.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     r = utils.http_get(uri, ctx)
@@ -722,14 +722,19 @@ def network_export(ctx, cidr):
 )
 @click.pass_context
 def network_import(ctx, file, replace, ignore_errors):
-    """Import network and zone assignments"""
+    """Import network and zone assignments.
+    File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
     nested_settings = utils.extract_file(file)
-    settings = nested_settings["networks"]
-    upstream_settings = utils.read_settings_from_upstream(uri, ctx)["networks"]
     if not isinstance(nested_settings, dict) or not nested_settings.get("networks", None):
         print_output({"error": "Networks must be dict with the key networks"})
         raise SystemExit(1)
+    settings = nested_settings["networks"]
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    if isinstance(upstream_settings.get("networks", None), list):
+        upstream_settings = upstream_settings["networks"]
+    else:
+        upstream_settings = []
     if replace and upstream_settings == settings:
         print_output({"message": "Requested networks are already present"})
         raise SystemExit(0)

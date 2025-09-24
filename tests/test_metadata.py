@@ -100,6 +100,7 @@ class ConditionalMock(testutils.MockUtils):
 
         return self.mocker.patch("powerdns_cli.utils.http_get", side_effect=side_effect)
 
+
 class ExitCodes(NamedTuple):
     http_get_code: int
     http_post_code: int
@@ -205,10 +206,19 @@ testcodes_to_ignore = (
     ExitCodes(http_get_code=200, http_post_code=500, http_delete_code=500),
     ExitCodes(http_get_code=200, http_post_code=201, http_delete_code=500),
     ExitCodes(http_get_code=200, http_post_code=500, http_delete_code=500),
-
 )
-@pytest.mark.parametrize("http_get_code,http_post_code,http_delete_code",testcodes_to_ignore)
-def test_metadata_import_failed(mock_utils, http_get_code,http_post_code,http_delete_code, file_mock, example_new_data, example_metadata):
+
+
+@pytest.mark.parametrize("http_get_code,http_post_code,http_delete_code", testcodes_to_ignore)
+def test_metadata_import_failed(
+    mock_utils,
+    http_get_code,
+    http_post_code,
+    http_delete_code,
+    file_mock,
+    example_new_data,
+    example_metadata,
+):
     get = mock_utils.mock_http_get(http_get_code, json_output=example_metadata)
     post = mock_utils.mock_http_post(http_post_code, json_output={"error": "Request failed"})
     file_mock.mock_settings_import(copy.deepcopy([example_new_data]))
@@ -221,6 +231,7 @@ def test_metadata_import_failed(mock_utils, http_get_code,http_post_code,http_de
     assert result.exit_code == 0
     get.assert_called()
     post.assert_called()
+
 
 import_testcases = (
     TC(
@@ -361,12 +372,14 @@ def test_metadata_import_replace_early_exit(
     if http_post_code == 100:
         post.assert_not_called()
 
+
 testcodes_to_ignore = (
     ExitCodes(http_get_code=200, http_post_code=500, http_delete_code=204),
     ExitCodes(http_get_code=200, http_post_code=201, http_delete_code=500),
     ExitCodes(http_get_code=200, http_post_code=500, http_delete_code=500),
-
 )
+
+
 @pytest.mark.parametrize("http_get_code,http_delete_code,http_post_code", testcodes_to_ignore)
 def test_metadata_import_replace_ignore_errors(
     mock_utils,
