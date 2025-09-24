@@ -83,8 +83,7 @@ class IPRangeType(click.ParamType):
 
     def convert(self, value, param, ctx) -> str:
         try:
-            ipaddress.ip_network(value, strict=False)
-            return value
+            return str(ipaddress.ip_network(value, strict=False))
         except (ValueError, ipaddress.AddressValueError):
             self.fail(f"{value!r} is no valid IP-address range", param, ctx)
 
@@ -99,8 +98,7 @@ class IPAddressType(click.ParamType):
 
     def convert(self, value, param, ctx) -> str:
         try:
-            ipaddress.ip_address(value)
-            return value
+            return str(ipaddress.ip_address(value))
         except (ValueError, ipaddress.AddressValueError):
             self.fail(f"{value!r} is no valid IP-address", param, ctx)
 
