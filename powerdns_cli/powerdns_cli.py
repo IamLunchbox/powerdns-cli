@@ -1663,13 +1663,9 @@ def metadata_import(ctx, dns_zone, file, replace, ignore_errors):
     """Import metadata for a DNS zone from a file."""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     settings = utils.extract_file(file)
-    # Remove SOA_EDIT-API entries from any imports, since they cannot be edited
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     utils.validate_simple_import(settings, upstream_settings, replace)
-    if "SOA_EDIT_API" in [item["kind"] for item in settings]:
-        dict_entry = [item for item in settings if item["kind"] == "SOA_EDIT_API"][0]
-        position = settings.index(dict_entry)
-        settings.pop(position)
+    utils.metadata_remove_soa_edit_api(settings, upstream_settings)
     if replace and upstream_settings:
         utils.replace_metadata_from_import(uri, ctx, upstream_settings, settings, ignore_errors)
     else:

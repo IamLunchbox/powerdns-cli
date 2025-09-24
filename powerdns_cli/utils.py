@@ -376,7 +376,11 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
     """
     response = http_get(uri, ctx)
 
-    if response.status_code != 200:
+    if response.status_code not in (200, 404):
+        print_output({"error": f"Fetching the settings failed with {response.status_code}"})
+        raise SystemExit(1)
+
+    if response.status_code == 404:
         return {}
 
     try:
@@ -613,7 +617,7 @@ def replace_metadata_from_import(
         if r.status_code != 204:
             handle_import_early_exit(
                 {
-                    "error": f"Failed deleting tsigkey {metadata_entry['kind']} with "
+                    "error": f"Failed deleting metadata {metadata_entry['kind']} with "
                     f"status {r.status_code} and body {r.text}"
                 },
                 continue_on_error,
@@ -1135,3 +1139,29 @@ def add_view_import(uri: str, ctx: click.Context, settings: list, ignore_errors:
 
     if views_to_add:
         add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)
+
+
+def metadata_remove_soa_edit_api(settings: dict, upstream_settings: dict) -> None:
+    """
+    Removes any entries with the kind 'SOA-EDIT-API' from settings and upstream_settings.
+
+    The function iterates through both `settings` and `upstream_settings` to find and remove
+    entries where the 'kind' key has the value 'SOA-EDIT-API'. This is done because 'SOA-EDIT-API'
+    cannot be edited through the api and should not be present in the configuration.
+
+    Args:
+        settings (dict): Dictionary from which 'SOA-EDIT-API' entries are to be removed.
+        upstream_settings (dict): Upstream settings from which 'SOA-EDIT-API' entries are removed.
+
+    Returns:
+        None: This function modifies the input dictionaries in place and does not return a value.
+
+    """
+    if "SOA-EDIT-API" in [item["kind"] for item in settings]:
+        dict_entry = [item for item in settings if item["kind"] == "SOA-EDIT-API"][0]
+        position = settings.index(dict_entry)
+        settings.pop(position)
+    if "SOA-EDIT-API" in [item["kind"] for item in upstream_settings]:
+        dict_entry = [item for item in upstream_settings if item["kind"] == "SOA-EDIT-API"][0]
+        position = upstream_settings.index(dict_entry)
+        upstream_settings.pop(position)
