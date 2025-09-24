@@ -10,19 +10,9 @@ on:
 
 jobs:
   main:
-    strategy:
-      matrix:
-        python_version:
-          - 3.10.18
-          - 3.11.13
-          - 3.12.11
-          - 3.13.7
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
     - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python_version }}
-        cache: pip
     - run: pip install .[dev]
     - run: tox run
