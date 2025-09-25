@@ -771,6 +771,17 @@ def replace_network_import(
             existing_upstreams.append(network_item)
         else:
             upstreams_to_delete.append(network_item)
+    for network_item in upstreams_to_delete:
+        r = http_put(f"{uri}/{network_item['network']}", ctx, payload={"view": ""})
+        if r.status_code != 204:
+            handle_import_early_exit(
+                {
+                    "error": f"Failed adding network {network_item['network']} from new "
+                    f"{network_item['view']} with status {r.status_code} and body "
+                    f"{r.text}"
+                },
+                ignore_errors,
+            )
     for network_item in settings:
         if network_item not in existing_upstreams:
             r = http_put(
@@ -785,17 +796,6 @@ def replace_network_import(
                     },
                     ignore_errors,
                 )
-    for network_item in upstreams_to_delete:
-        r = http_put(f"{uri}/{network_item['network']}", ctx, payload={"view": ""})
-        if r.status_code != 204:
-            handle_import_early_exit(
-                {
-                    "error": f"Failed adding network {network_item['network']} from new "
-                    f"{network_item['view']} with status {r.status_code} and body "
-                    f"{r.text}"
-                },
-                ignore_errors,
-            )
 
 
 def add_network_import(uri: str, ctx: click.Context, settings: list, ignore_errors: bool) -> None:

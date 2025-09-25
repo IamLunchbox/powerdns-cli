@@ -726,7 +726,9 @@ def network_import(ctx, file, replace, ignore_errors):
     File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
     nested_settings = utils.extract_file(file)
-    if not isinstance(nested_settings, dict) or not nested_settings.get("networks", None):
+    if not isinstance(nested_settings, dict) or not isinstance(
+        nested_settings.get("networks", None), list
+    ):
         print_output({"error": "Networks must be dict with the key networks"})
         raise SystemExit(1)
     settings = nested_settings["networks"]
