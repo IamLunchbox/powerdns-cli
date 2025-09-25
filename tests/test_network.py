@@ -293,12 +293,170 @@ def test_network_import_early_exit(
     get.assert_called_once()
     put.assert_called_once()
 
-    # NetworkImport(
-    #     import_file={"networks": []},
-    #     upstream_network={},
-    #     added_network=[],
-    #     deleted_path=["http://example.com/api/v1/servers/localhost/networks/0.0.0.0/0"],
-    # ),
+
+def test_network_import_ignore_errors(mock_utils, file_mock):
+    get = mock_utils.mock_http_get(
+        200,
+        json_output={"networks": []},
+    )
+    put = mock_utils.mock_http_put(500, text_output="")
+    file_mock.mock_settings_import(
+        {
+            "networks": [
+                {"network": "0.0.0.0/0", "view": "test"},
+                {"network": "fe80::/10", "view": "test1"},
+            ]
+        }
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        network_import,
+        ["testfile", "--ignore-errors"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.stdout)["message"]
+    assert len(result.stderr) > 0
+    assert put.call_count == 2
+    get.assert_called_once()
+
+
+testcases_replace = (
+    NetworkImport(
+        import_file={"networks": []},
+        upstream_network={"networks": [{"network": "0.0.0.0/0", "view": "test"}]},
+        added_network=[],
+        deleted_path=["http://example.com/api/v1/servers/localhost/networks/0.0.0.0/0"],
+    ),
+) + testcases
+
+
+@pytest.mark.parametrize(
+    "import_file,upstream_network,added_network,deleted_path", testcases_replace
+)
+def test_network_import_replace_success(
+    mock_utils, file_mock, import_file, upstream_network, added_network, deleted_path
+):
+    get = mock_utils.mock_http_get(200, json_output=upstream_network)
+    put = mock_utils.mock_http_put(204, text_output="")
+    file_mock.mock_settings_import(import_file)
+    runner = CliRunner()
+    result = runner.invoke(
+        network_import,
+        ["testfile", "--replace"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    get.assert_called_once()
+    assert put.call_count == len(added_network) + len(deleted_path)
+    for network in added_network:
+        assert network["payload"] in [item.kwargs["payload"] for item in put.call_args_list]
+        assert network["uri"] in [item.args[0] for item in put.call_args_list]
+
+    for path in deleted_path:
+        assert path in [item.args[0] for item in put.call_args_list]
+
+
+testcases_idempotence_replace = (
+    NetworkImportIdempotence(
+        import_file={"networks": [{"network": "0.0.0.0/0", "view": "test"}]},
+        upstream_network={"networks": [{"network": "0.0.0.0/0", "view": "test"}]},
+    ),
+    NetworkImportIdempotence(
+        import_file={"networks": []},
+        upstream_network={"networks": []},
+    ),
+)
+
+
+@pytest.mark.parametrize("import_file,upstream_network", testcases_idempotence_replace)
+def test_network_import_replace_idempotence(mock_utils, file_mock, import_file, upstream_network):
+    get = mock_utils.mock_http_get(200, json_output=upstream_network)
+    file_mock.mock_settings_import(import_file)
+    runner = CliRunner()
+    result = runner.invoke(
+        network_import,
+        ["testfile", "--replace"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
+    get.assert_called_once()
+
+
+def test_network_import_replace_failed(mock_utils, file_mock):
+    get = mock_utils.mock_http_get(
+        200,
+        json_output={
+            "networks": [
+                {"network": "0.0.0.0/0", "view": "test"},
+                {"network": "fe80::/10", "view": "test1"},
+            ]
+        },
+    )
+    put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
+    file_mock.mock_settings_import({"networks": []})
+    runner = CliRunner()
+    result = runner.invoke(
+        network_import,
+        ["testfile", "--replace"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    get.assert_called_once()
+    put.assert_called()
+
+
+def test_network_import_replace_early_exit(
+    mock_utils,
+    file_mock,
+):
+    get = mock_utils.mock_http_get(
+        200,
+        json_output={
+            "networks": [
+                {"network": "0.0.0.0/0", "view": "test"},
+                {"network": "fe80::/10", "view": "test1"},
+            ]
+        },
+    )
+    put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
+    file_mock.mock_settings_import({"networks": []})
+    runner = CliRunner()
+    result = runner.invoke(
+        network_import,
+        ["testfile", "--replace"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    get.assert_called_once()
+    put.assert_called_once()
+
+
+def test_network_import_replace_ignore_errors(mock_utils, file_mock):
+    get = mock_utils.mock_http_get(
+        200,
+        json_output={
+            "networks": [
+                {"network": "0.0.0.0/0", "view": "test"},
+                {"network": "fe80::/10", "view": "test1"},
+            ]
+        },
+    )
+    put = mock_utils.mock_http_put(500, text_output="")
+    file_mock.mock_settings_import({"networks": []})
+    runner = CliRunner()
+    result = runner.invoke(
+        network_import,
+        ["testfile", "--replace", "--ignore-errors"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.stdout)["message"]
+    assert len(result.stderr) > 0
+    get.assert_called_once()
+    assert put.call_count == 2
 
 
 def test_network_list_success(

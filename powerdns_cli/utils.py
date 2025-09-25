@@ -787,7 +787,7 @@ def replace_network_import(
             r = http_put(
                 f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
             )
-            if r.status_code != 201:
+            if r.status_code != 204:
                 handle_import_early_exit(
                     {
                         "error": f"Failed adding network {network_item['network']} "
