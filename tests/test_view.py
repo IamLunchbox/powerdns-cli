@@ -1,5 +1,6 @@
 import copy
 import json
+from typing import NamedTuple
 
 import pytest
 from click.testing import CliRunner
@@ -9,6 +10,7 @@ from powerdns_cli.powerdns_cli import (
     view_add,
     view_delete,
     view_export,
+    view_import,
     view_list,
     view_update,
 )
@@ -18,6 +20,18 @@ from powerdns_cli.powerdns_cli import (
 def mock_utils(mocker):
     return testutils.MockUtils(mocker)
 
+
+@pytest.fixture
+def file_mock(mocker):
+    return testutils.MockFile(mocker)
+
+
+
+class ViewImports(NamedTuple):
+    file_contents: list[dict[str, list[str]]]
+    upstream_views: list[dict[str, list[str]]]
+    added_views: list[dict]
+    delete_path: list[str]
 
 @pytest.mark.parametrize(
     "returncodes,return_content",
@@ -74,6 +88,68 @@ def test_view_add_failed(mock_utils):
     get.assert_called_once()
     post.assert_called_once()
 
+
+testcases = (
+    ViewImports(
+        file_contents=[{"test1": ["example.org"]}, {"test2": ["example.com", "test.info"]}],
+        upstream_views=[],
+        added_views=[
+            {
+                "path": "http://example.com/api/v1/servers/localhost/views/test1",
+                "name": "example.org.",
+            },
+            {
+                "path": "http://example.com/api/v1/servers/localhost/views/test2",
+                "name": "example.com.",
+            },
+            {
+                "path": "http://example.com/api/v1/servers/localhost/views/test2",
+                "name": "example.org.",
+            }
+        ],
+        delete_path=[],
+    ),
+    ViewImports(
+        file_contents=[{"test1": ["example.org"]}, {"test2": ["example.com", "test.info"]}],
+        upstream_views=[{'name': "test1", 'views': {"example.org"}}],
+        added_views=[
+            {
+                "path": "http://example.com/api/v1/servers/localhost/views/test1",
+                "name": "example.org.",
+            },
+            {
+                "path": "http://example.com/api/v1/servers/localhost/views/test2",
+                "name": "example.com.",
+            },
+            {
+                "path": "http://example.com/api/v1/servers/localhost/views/test2",
+                "name": "test.info.",
+            },
+        ],
+        delete_path=[],
+    ),
+)
+
+
+@pytest.mark.parametrize("file_contents,upstream_views,added_views,delete_path",testcases)
+def test_view_import_success(
+    mocker, mock_utils, file_mock, file_contents, upstream_views, added_views, delete_path
+):
+    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=upstream_views)
+    file_mock.mock_settings_import(file_contents)
+    post = mock_utils.mock_http_post(204, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        view_import,
+        ["testfile"],
+        obj={"apihost": "http://example.com", "major_version": 5},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    assert post.call_count == len(added_views)
+    for item in added_views:
+        assert item['path'] in [call.args[0] for call in post.call_args_list]
+        assert item['name'] in [call.kwargs['payload']['name'] for call in post.call_args_list]
 
 @pytest.mark.parametrize(
     "returncodes,return_content",

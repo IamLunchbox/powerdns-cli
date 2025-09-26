@@ -1815,7 +1815,7 @@ def view_export(ctx, view_id):
 @click.pass_context
 def view_import(ctx, file, replace, ignore_errors):
     """Imports views and their contents into the server.
-    Must be a list dictionaries, like so: [{'view_name':['example.org']}]
+    Must be a list dictionaries, like so: [{'view1':['example.org']}]
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
     settings = utils.extract_file(file)
@@ -1823,11 +1823,12 @@ def view_import(ctx, file, replace, ignore_errors):
         print_output(
             {
                 "error": "Views must be provided in the following structure:"
-                "[{'view_name':['example.org']}]"
+                "[{'view1':['example.org']}]"
             },
         )
         raise SystemExit(1)
-    restructured_settings, upstream_settings = utils.reformat_view_imports(settings, uri, ctx)
+    restructured_settings = utils.reformat_view_imports(settings)
+    upstream_settings = utils.get_upstream_views(uri, ctx)
     if replace and upstream_settings == restructured_settings:
         print_output({"message": "Requested views are already present"})
         raise SystemExit(0)

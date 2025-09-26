@@ -464,17 +464,14 @@ def validate_view_import(settings: list) -> bool:
     return True
 
 
-def reformat_view_imports(local_views: list, uri: str, ctx) -> tuple[list[dict], list[dict]]:
+def reformat_view_imports(local_views: list) -> list[dict]:
     """Reformat local and upstream view settings for comparison.
 
     Args:
         local_views: List of local view configurations.
-        uri: Base URI for upstream API requests.
-        ctx: Click context for HTTP requests.
 
     Returns:
-        A tuple of two lists: restructured local settings and upstream settings.
-        Each list contains dictionaries with 'name' and 'views' (as sets).
+        A list with restructured local settings, it contains dictionaries with 'name' and 'views'.
     """
     restructured_settings = [
         {
@@ -483,7 +480,19 @@ def reformat_view_imports(local_views: list, uri: str, ctx) -> tuple[list[dict],
         }
         for item in local_views
     ]
+    return restructured_settings
 
+
+def get_upstream_views(uri: str, ctx) -> list[dict]:
+    """Get and reformat upstream view settings.
+
+    Args:
+        uri: Base URI for upstream API requests.
+        ctx: Click context for HTTP requests.
+
+    Returns:
+        A list of upstream settings, each entry contains dictionaries with 'name' and 'views'.
+    """
     upstream_views = read_settings_from_upstream(uri, ctx)["views"]
     upstream_settings = [
         {
@@ -492,8 +501,7 @@ def reformat_view_imports(local_views: list, uri: str, ctx) -> tuple[list[dict],
         }
         for key in upstream_views
     ]
-
-    return restructured_settings, upstream_settings
+    return upstream_settings
 
 
 def add_views(
@@ -1122,7 +1130,7 @@ def add_view_import(uri: str, ctx: click.Context, settings: list, ignore_errors:
     Import views from settings configuration.
 
     Args:
-        uri: The database URI or connection string
+        uri: The connection string
         ctx: Click context object for CLI operations
         settings: List of view configuration dictionaries, each containing
                  'name' and 'views' keys
