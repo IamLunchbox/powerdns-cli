@@ -1809,9 +1809,7 @@ def view_export(ctx, view_id):
     is_flag=True,
     help="Replace all view settings with new ones",
 )
-@click.option(
-    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
-)
+@click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
 @click.pass_context
 def view_import(ctx, file, replace, ignore_errors):
     """Imports views and their contents into the server.
