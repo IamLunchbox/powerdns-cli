@@ -151,6 +151,97 @@ def test_view_import_success(
         assert item['path'] in [call.args[0] for call in post.call_args_list]
         assert item['name'] in [call.kwargs['payload']['name'] for call in post.call_args_list]
 
+
+testcases_idempotence = (
+    ViewImports(
+        file_contents=[{"test1": ["example.org."]}, {"test2": ["example.com.", "test.info."]}],
+        upstream_views=[{'name': "test1", 'views': {"example.org."}},
+                        {'name': "test2", 'views': {"example.com.", "test.info."}}],
+
+        added_views=[],
+        delete_path=[],
+    ),
+    ViewImports(
+        file_contents=[{"test2": ["example.com."]}],
+        upstream_views=[{'name': "test1", 'views': {"example.org."}},
+                        {'name': "test2", 'views': {"example.com.", "test.info."}}],
+        added_views=[],
+        delete_path=[],
+    ),
+    ViewImports(
+        file_contents=[],
+        upstream_views=[{'name': "test1", 'views': {"example.org"}}],
+        added_views=[],
+        delete_path=[],
+    ),
+)
+
+
+@pytest.mark.parametrize("file_contents,upstream_views,added_views,delete_path",testcases_idempotence)
+def test_view_import_idempotence(
+    mocker, mock_utils, file_mock, file_contents, upstream_views, added_views, delete_path
+):
+    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=upstream_views)
+    file_mock.mock_settings_import(file_contents)
+    runner = CliRunner()
+    result = runner.invoke(
+        view_import,
+        ["testfile"],
+        obj={"apihost": "http://example.com", "major_version": 5},
+    )
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
+
+
+def test_view_import_failed(
+    mocker, mock_utils, file_mock,
+):
+    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=[{'name': "test1", 'views': {"example.org"}}])
+    file_mock.mock_settings_import([{"test1": ["example.org"]}, {"test2": ["example.com", "test.info"]}])
+    post = mock_utils.mock_http_post(500, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        view_import,
+        ["testfile"],
+        obj={"apihost": "http://example.com", "major_version": 5},
+    )
+    assert result.exit_code == 1
+    assert "Failed" in json.loads(result.output)["error"]
+    post.assert_called_once()
+
+def test_view_import_early_exit(
+    mocker, mock_utils, file_mock,
+):
+    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=[])
+    file_mock.mock_settings_import([{"test1": ["example.org"]}, {"test2": ["example.com", "test.info"]}])
+    post = mock_utils.mock_http_post(500, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        view_import,
+        ["testfile"],
+        obj={"apihost": "http://example.com", "major_version": 5},
+    )
+    assert result.exit_code == 1
+    assert "Failed" in json.loads(result.output)["error"]
+    post.assert_called_once()
+
+def test_view_import_ignore_errors(
+    mocker, mock_utils, file_mock,
+):
+    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=[])
+    file_mock.mock_settings_import([{"test1": ["example.org"]}, {"test2": ["example.com", "test.info"]}])
+    post = mock_utils.mock_http_post(500, text_output="")
+    runner = CliRunner()
+    result = runner.invoke(
+        view_import,
+        ["testfile", "--ignore-errors"],
+        obj={"apihost": "http://example.com", "major_version": 5},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.stdout)["message"]
+    assert len(post.call_args_list) == 3
+
+
 @pytest.mark.parametrize(
     "returncodes,return_content",
     (
