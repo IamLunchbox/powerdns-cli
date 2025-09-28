@@ -4,7 +4,6 @@ powerdns-cli: Manage PowerDNS Zones/Records
 """
 import ipaddress
 import re
-from json import JSONDecodeError
 
 import click
 import requests
@@ -1273,14 +1272,7 @@ def tsigkey_import(ctx, file, replace, ignore_errors):
     """Import TSIG keys from a file, with optional replacement of existing keys."""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
     settings = utils.extract_file(file)
-    upstream_tsigkey_list = utils.read_settings_from_upstream(uri, ctx)
-    try:
-        upstream_settings = [
-            utils.http_get(f"{uri}/{item['id']}", ctx).json() for item in upstream_tsigkey_list
-        ]
-    except JSONDecodeError as e:
-        print_output({"error": f"Failed to download tsigkeys for deduplication: {e}"})
-        raise SystemExit(1) from e
+    upstream_settings = utils.get_tsigkey_settings(uri, ctx)
     utils.validate_simple_import(settings, upstream_settings, replace)
     if replace and upstream_settings:
         utils.replace_tsigkey_import(uri, ctx, settings, upstream_settings, ignore_errors)

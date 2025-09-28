@@ -1173,3 +1173,23 @@ def metadata_remove_soa_edit_api(settings: dict, upstream_settings: dict) -> Non
         dict_entry = [item for item in upstream_settings if item["kind"] == "SOA-EDIT-API"][0]
         position = upstream_settings.index(dict_entry)
         upstream_settings.pop(position)
+
+
+def get_tsigkey_settings(uri: str, ctx: click.Context) -> list[dict]:
+    """Retrieve all tsigkeys and their key contents as a list of dicts.
+
+    Args:
+        ctx: Click context object for CLI operations
+        uri: The connection string
+    Returns:
+        List of tsigkeys and their key contents
+    """
+    upstream_tsigkey_list = read_settings_from_upstream(uri, ctx)
+    try:
+        upstream_settings = [
+            http_get(f"{uri}/{item['id']}", ctx).json() for item in upstream_tsigkey_list
+        ]
+    except json.JSONDecodeError as e:
+        print_output({"error": f"Failed to download tsigkeys for deduplication: {e}"})
+        raise SystemExit(1) from e
+    return upstream_settings
