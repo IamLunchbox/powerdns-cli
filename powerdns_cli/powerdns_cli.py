@@ -229,7 +229,6 @@ def autoprimary_delete(ctx, ip, nameserver):
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",
-    type=click.BOOL,
     is_flag=True,
     help="Replace all old autoprimaries settings with new ones",
 )
@@ -1484,7 +1483,7 @@ def zone_flush_cache(ctx, dns_zone):
 @click.pass_context
 def zone_import(ctx, file, replace, force, merge, ignore_errors):
     """
-    Directly import zones into the server. This action is not idempotent changes your serials!
+    Directly import zones into the server. This action is not idempotent as it changes your serials!
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     settings = utils.extract_file(file)

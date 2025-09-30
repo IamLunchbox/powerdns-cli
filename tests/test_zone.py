@@ -1,5 +1,6 @@
 import copy
 import json
+from typing import NamedTuple
 from unittest.mock import MagicMock as unittest_MagicMock
 
 import pytest
@@ -12,6 +13,7 @@ from powerdns_cli.powerdns_cli import (
     zone_delete,
     zone_export,
     zone_flush_cache,
+    zone_import,
     zone_list,
     zone_notify,
     zone_rectify,
@@ -159,6 +161,11 @@ def mock_utils(mocker):
     return testutils.MockUtils(mocker)
 
 
+@pytest.fixture
+def file_mock(mocker):
+    return testutils.MockFile(mocker)
+
+
 class ConditionalMock(testutils.MockUtils):
     def mock_http_get(self) -> unittest_MagicMock:
         mock_http_get = self.mocker.MagicMock(spec=requests.Response)
@@ -292,6 +299,224 @@ def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
     assert "Server error" in json.loads(result.output)["error"]
     delete.assert_called()
     get.assert_called_once()
+
+
+class ZoneImport(NamedTuple):
+    file_content: list[dict]
+    upstream_content: list[dict]
+    added_content: list[dict]
+    deleted_content: list[str]
+
+
+testcase = (
+    ZoneImport(
+        file_content=[example_org_zone_dict],
+        upstream_content=[example_com_zone_dict],
+        added_content=[example_org_zone_dict],
+        deleted_content=[],
+    ),
+    ZoneImport(
+        file_content=[example_org_zone_dict],
+        upstream_content=[],
+        added_content=[example_org_zone_dict],
+        deleted_content=[],
+    ),
+)
+
+
+@pytest.mark.parametrize("file_content,upstream_content,added_content,deleted_content", testcase)
+def test_zone_import_success(
+    mocker, mock_utils, file_mock, file_content, upstream_content, added_content, deleted_content
+):
+    mocker.patch(
+        "powerdns_cli.utils.read_settings_from_upstream",
+        return_value=copy.deepcopy(upstream_content),
+    )
+    post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
+    delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
+    file_mock.mock_settings_import(file_content)
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_import,
+        ["testfile", "--force"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    assert post.call_count == len(added_content)
+    assert delete.call_count == len(added_content)
+    for item in added_content:
+        assert item in [payload.kwargs["payload"] for payload in post.call_args_list]
+
+
+testcase_merge = (
+    ZoneImport(
+        file_content=[
+            {
+                "account": "",
+                "api_rectify": False,
+                "catalog": "",
+                "dnssec": False,
+                "edited_serial": 2025082405,
+                "id": "example.com.",
+                "kind": "Master",
+                "master_tsig_key_ids": [],
+                "masters": [],
+                "name": "example.com.",
+                "notified_serial": 0,
+                "nsec3narrow": False,
+                "nsec3param": "",
+                "serial": 2025082405,
+                "slave_tsig_key_ids": [],
+                "soa_edit": "",
+                "soa_edit_api": "DEFAULT",
+                "url": "/api/v1/servers/localhost/zones/example.com.",
+            }
+        ],
+        upstream_content=[example_com_zone_dict],
+        added_content=[
+            {
+                "account": "",
+                "api_rectify": False,
+                "catalog": "",
+                "dnssec": False,
+                "edited_serial": 2025082405,
+                "id": "example.com.",
+                "kind": "Master",
+                "last_check": 0,
+                "master_tsig_key_ids": [],
+                "masters": [],
+                "name": "example.com.",
+                "notified_serial": 0,
+                "nsec3narrow": False,
+                "nsec3param": "",
+                "rrsets": [
+                    {
+                        "comments": [],
+                        "name": "test.example.com.",
+                        "records": [
+                            {"content": "10.0.0.1", "disabled": False},
+                            {"content": "10.0.0.2", "disabled": False},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "mail.example.com.",
+                        "records": [{"content": "0 mail.example.com.", "disabled": False}],
+                        "ttl": 86400,
+                        "type": "MX",
+                    },
+                    {
+                        "comments": [],
+                        "name": "test2.example.com.",
+                        "records": [{"content": "10.0.1.1", "disabled": False}],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "example.com.",
+                        "records": [
+                            {
+                                "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025082405 10800 3600 604800 3600",
+                                "disabled": False,
+                            }
+                        ],
+                        "ttl": 3600,
+                        "type": "SOA",
+                    },
+                ],
+                "serial": 2025082405,
+                "slave_tsig_key_ids": [],
+                "soa_edit": "",
+                "soa_edit_api": "DEFAULT",
+                "url": "/api/v1/servers/localhost/zones/example.com.",
+            }
+        ],
+        deleted_content=[],
+    ),
+    # ZoneImport(
+    #     file_content=[{
+    #                 "account": "",
+    #                 "api_rectify": True,
+    #                 "catalog": "",
+    #                 "dnssec": False,
+    #                 "edited_serial": 2025082402,
+    #                 "id": "example.org.",
+    #                 "kind": "Native",
+    #                 "last_check": 0,
+    #                 "master_tsig_key_ids": [],
+    #                 "masters": [],
+    #                 "name": "example.org.",
+    #                 "notified_serial": 0,
+    #                 "nsec3narrow": True,
+    #                 "nsec3param": "",
+    #                 "rrsets": [
+    #                 ],
+    #                 "serial": 2025082402,
+    #                 "slave_tsig_key_ids": [],
+    #                 "soa_edit": "",
+    #                 "soa_edit_api": "DEFAULT",
+    #                 "url": "/api/v1/servers/localhost/zones/example.org.",
+    #             }, example_com_zone_dict
+    #     ],
+    #     upstream_content=[example_org_zone_dict],
+    #     added_content=[example_com_zone_dict, {
+    #                 "account": "",
+    #                 "api_rectify": True,
+    #                 "catalog": "",
+    #                 "dnssec": False,
+    #                 "edited_serial": 2025082402,
+    #                 "id": "example.org.",
+    #                 "kind": "Native",
+    #                 "last_check": 0,
+    #                 "master_tsig_key_ids": [],
+    #                 "masters": [],
+    #                 "name": "example.org.",
+    #                 "notified_serial": 0,
+    #                 "nsec3narrow": True,
+    #                 "nsec3param": "",
+    #                 "rrsets": [
+    #                 ],
+    #                 "serial": 2025082402,
+    #                 "slave_tsig_key_ids": [],
+    #                 "soa_edit": "",
+    #                 "soa_edit_api": "DEFAULT",
+    #                 "url": "/api/v1/servers/localhost/zones/example.org.",
+    #             }],
+    #     deleted_content=[],
+    # ),
+)
+
+
+@pytest.mark.parametrize(
+    "file_content,upstream_content,added_content,deleted_content", testcase_merge
+)
+def test_zone_import_merge_success(
+    mocker, mock_utils, conditional_mock_utils, file_mock, file_content, upstream_content, added_content, deleted_content
+):
+    mocker.patch(
+        "powerdns_cli.utils.read_settings_from_upstream",
+        return_value=copy.deepcopy(upstream_content),
+    )
+    get = conditional_mock_utils.mock_http_get()
+    post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
+    delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
+    file_mock.mock_settings_import(file_content)
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_import,
+        ["testfile", "--force", "--merge"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    assert post.call_count == len(added_content)
+    assert delete.call_count == len(added_content)
+    for item in added_content:
+        assert item in [payload.kwargs["payload"] for payload in post.call_args_list]
 
 
 def test_zone_list_success(conditional_mock_utils, example_zone_list):

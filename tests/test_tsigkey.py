@@ -308,6 +308,7 @@ def test_tsigkey_import_success(
     for item in added_content:
         assert item in [request.kwargs["payload"] for request in post.call_args_list]
 
+
 testcase_idempotence = (
     TsigkeyImport(
         file_contents=[
@@ -319,7 +320,8 @@ testcase_idempotence = (
                 "type": "TSIGKey",
             }
         ],
-        upstream_content=[            {
+        upstream_content=[
+            {
                 "algorithm": "hmac-md5",
                 "id": "test.",
                 "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
@@ -340,13 +342,14 @@ testcase_idempotence = (
                 "type": "TSIGKey",
             }
         ],
-        upstream_content=[{
-            "algorithm": "hmac-md5",
-            "id": "test.",
-            "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
-            "name": "test",
-            "type": "TSIGKey",
-        }
+        upstream_content=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
         ],
         added_content=[],
         delete_path=[],
@@ -382,7 +385,9 @@ testcase_idempotence = (
 )
 
 
-@pytest.mark.parametrize("file_contents, upstream_content, added_content, delete_path", testcase_idempotence)
+@pytest.mark.parametrize(
+    "file_contents, upstream_content, added_content, delete_path", testcase_idempotence
+)
 def test_tsigkey_import_idempotence(
     mocker, mock_utils, file_mock, file_contents, upstream_content, added_content, delete_path
 ):
@@ -615,7 +620,9 @@ def test_tsigkey_import_replace_failed(mocker, mock_utils, file_mock):
 @pytest.mark.parametrize(
     "post_code,delete_code,post_calls,delete_calls", ((500, 100, 1, 0), (201, 500, 2, 1))
 )
-def test_tsigkey_import_replace_early_exit(mocker, mock_utils, file_mock, post_code,delete_code,post_calls,delete_calls):
+def test_tsigkey_import_replace_early_exit(
+    mocker, mock_utils, file_mock, post_code, delete_code, post_calls, delete_calls
+):
     file_mock.mock_settings_import(
         [
             {
@@ -665,10 +672,10 @@ def test_tsigkey_import_replace_early_exit(mocker, mock_utils, file_mock, post_c
     assert delete_calls == len(delete.call_args_list)
 
 
-@pytest.mark.parametrize(
-    "post_code,delete_code", ((500, 204), (201, 500))
-)
-def test_tsigkey_import_replace_ignore_errors(mocker, mock_utils, file_mock, post_code,delete_code):
+@pytest.mark.parametrize("post_code,delete_code", ((500, 204), (201, 500)))
+def test_tsigkey_import_replace_ignore_errors(
+    mocker, mock_utils, file_mock, post_code, delete_code
+):
     file_mock.mock_settings_import(
         [
             {
@@ -710,12 +717,15 @@ def test_tsigkey_import_replace_ignore_errors(mocker, mock_utils, file_mock, pos
     delete = mock_utils.mock_http_delete(delete_code, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_import, ["testfile", "--replace", "--ignore-errors"], obj={"apihost": "http://example.com"}
+        tsigkey_import,
+        ["testfile", "--replace", "--ignore-errors"],
+        obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.stdout)["message"]
     assert 2 == len(post.call_args_list)
     assert 2 == len(delete.call_args_list)
+
 
 testcase_replace_idempotence = (
     TsigkeyImport(
@@ -728,7 +738,8 @@ testcase_replace_idempotence = (
                 "type": "TSIGKey",
             }
         ],
-        upstream_content=[{
+        upstream_content=[
+            {
                 "algorithm": "hmac-md5",
                 "id": "test.",
                 "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
@@ -744,20 +755,25 @@ testcase_replace_idempotence = (
         upstream_content=[],
         added_content=[],
         delete_path=[],
-    )
+    ),
 )
 
 
-@pytest.mark.parametrize("file_contents, upstream_content, added_content, delete_path", testcase_replace_idempotence)
+@pytest.mark.parametrize(
+    "file_contents, upstream_content, added_content, delete_path", testcase_replace_idempotence
+)
 def test_tsigkey_import_replace_idempotence(
     mocker, mock_utils, file_mock, file_contents, upstream_content, added_content, delete_path
 ):
     file_mock.mock_settings_import(file_contents)
     mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
     runner = CliRunner()
-    result = runner.invoke(tsigkey_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"})
+    result = runner.invoke(
+        tsigkey_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+    )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
+
 
 def test_tsigkey_list_success(mock_utils, conditional_mock_utils, example_tsigkey_list):
     get = conditional_mock_utils.mock_http_get()

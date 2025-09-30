@@ -965,7 +965,7 @@ def add_rrset_import(
         if not payload:
             payload = zone_entry.copy()
         r = http_delete(f"{uri}/{zone_entry['name']}", ctx)
-        if r.status_code != 204:
+        if r.status_code not in (204, 404):
             handle_import_early_exit(
                 {
                     "error": f"Failed deleting zone {payload['name']}, "
