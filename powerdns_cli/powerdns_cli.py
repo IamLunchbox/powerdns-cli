@@ -1472,16 +1472,10 @@ def zone_flush_cache(ctx, dns_zone):
     is_flag=True,
 )
 @click.option(
-    "--merge",
-    type=click.BOOL,
-    is_flag=True,
-    help="Merge upstream configuration with new data, only applies if --replace is not set",
-)
-@click.option(
     "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
 )
 @click.pass_context
-def zone_import(ctx, file, replace, force, merge, ignore_errors):
+def zone_import(ctx, file, replace, force, ignore_errors):
     """
     Directly import zones into the server. This action is not idempotent as it changes your serials!
     """
@@ -1502,7 +1496,14 @@ def zone_import(ctx, file, replace, force, merge, ignore_errors):
             uri, ctx, settings, upstream_settings, setting_names, ignore_errors
         )
     else:
-        utils.add_rrset_import(uri, ctx, settings, upstream_settings, merge, ignore_errors)
+        utils.add_rrset_import(
+            uri,
+            ctx,
+            settings,
+            upstream_settings=upstream_settings,
+            ignore_errors=ignore_errors,
+            merge=True,
+        )
     print_output(
         {"message": "Successfully imported zones"},
     )
