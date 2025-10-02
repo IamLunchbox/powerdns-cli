@@ -1131,9 +1131,10 @@ def record_import(ctx, dns_zone, file, replace):
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     new_rrsets = utils.extract_file(file)
-    if isinstance(new_rrsets, list) or not new_rrsets.get("rrsets", None):
-        print_output({"error": "You must suply a list of rrsets under the key 'rrsets'"})
+    if not isinstance(new_rrsets, list) or not new_rrsets[0].get("rrsets", None):
+        print_output({"error": "You must supply a list of rrsets under the key 'rrsets'"})
         raise SystemExit(1)
+    new_rrsets = new_rrsets[0]
     # This function skips the usual deduplication logic from utils.import_settings, since
     # any patch request automatically extends existing rrsets (except where type and name matches,
     # those get replaced

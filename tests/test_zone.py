@@ -678,13 +678,15 @@ testcase_replace = (
         ],
         deleted_content=[
             "http://example.com/api/v1/servers/localhost/zones/example.org.",
-                         "http://example.com/api/v1/servers/localhost/zones/example.com."
+            "http://example.com/api/v1/servers/localhost/zones/example.com.",
         ],
     ),
 )
 
 
-@pytest.mark.parametrize("file_content,upstream_content,added_content,deleted_content", testcase_replace)
+@pytest.mark.parametrize(
+    "file_content,upstream_content,added_content,deleted_content", testcase_replace
+)
 def test_zone_import_replace_success(
     mocker,
     mock_utils,
@@ -761,6 +763,7 @@ def test_zone_import_replace_success(
         assert item in [payload.kwargs["payload"] for payload in post.call_args_list]
     for item in deleted_content:
         assert item in [payload.args[0] for payload in delete.call_args_list]
+
 
 @pytest.mark.parametrize(
     "post_code,delete_code,post_calls,delete_calls", ((500, 204, 1, 1), (201, 500, 0, 1))
@@ -916,6 +919,7 @@ def test_zone_import_replace_ignore_errors(
     assert post.call_count == 2
     assert delete.call_count == 1
     get.assert_called()
+
 
 def test_zone_list_success(conditional_mock_utils, example_zone_list):
     get = conditional_mock_utils.mock_http_get()
