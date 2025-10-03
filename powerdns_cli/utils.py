@@ -1176,13 +1176,19 @@ def metadata_remove_soa_edit_api(settings: dict, upstream_settings: dict) -> Non
 
 
 def get_tsigkey_settings(uri: str, ctx: click.Context) -> list[dict]:
-    """Retrieve all tsigkeys and their key contents as a list of dicts.
+    """Retrieve all TSIG keys and their key contents as a list of dictionaries.
+
+    This function fetches TSIG keys from the specified URI and returns their settings.
 
     Args:
-        ctx: Click context object for CLI operations
-        uri: The connection string
+        uri: The base connection string to the API endpoint.
+        ctx: Click context object for CLI operations, used for HTTP requests.
+
     Returns:
-        List of tsigkeys and their key contents
+        A list of dictionaries, where each dictionary contains the settings of a TSIG key.
+
+    Raises:
+        SystemExit: If there is an error decoding the JSON response from the API.
     """
     upstream_tsigkey_list = read_settings_from_upstream(uri, ctx)
     try:
@@ -1190,6 +1196,37 @@ def get_tsigkey_settings(uri: str, ctx: click.Context) -> list[dict]:
             http_get(f"{uri}/{item['id']}", ctx).json() for item in upstream_tsigkey_list
         ]
     except json.JSONDecodeError as e:
-        print_output({"error": f"Failed to download tsigkeys for deduplication: {e}"})
+        print_output({"error": f"Failed to download TSIG keys for deduplication: {e}"})
         raise SystemExit(1) from e
     return upstream_settings
+
+
+def validate_rrset_import(rrset: dict | list) -> None:
+    """
+    Validates the structure and content of a rrset dictionary for import.
+
+    Args:
+        rrset: A dictionary or list representing the rrset to validate.
+            Expected to contain 'rrsets' and either 'id' or 'name'.
+
+    Raises:
+        SystemExit: Exits with status 1 if validation fails.
+    """
+    if isinstance(rrset, list):
+        print_output({"error": "You must supply rrsets as a single dictionary"})
+        raise SystemExit(1)
+
+    if not rrset.get("rrsets"):
+        print_output({"error": "The key 'rrsets' must be present."})
+        raise SystemExit(1)
+
+    if not rrset.get("id") and not rrset.get("name"):
+        print_output({"error": "Either 'name' or 'id' must be present to determine the zone."})
+        raise SystemExit(1)
+
+    if rrset.get("name") and not rrset.get("id"):
+        rrset["id"] = rrset["name"]
+
+    for key in list(rrset.keys()):
+        if key not in ("id", "rrsets"):
+            del rrset[key]

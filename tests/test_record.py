@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import pytest
 from click.testing import CliRunner
@@ -402,39 +402,39 @@ def test_record_export_failure(mock_utils, example_zone):
 
 
 class RRsetImport(NamedTuple):
-    file_content: list[dict]
-    upstream_content: list[dict]
+    file_content: dict[str, Any]
+    upstream_content: dict[str, Any]
     added_content: dict
     deleted_content: list[str]
 
 
 testcase = (
     RRsetImport(
-        file_content=[
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "10.0.0.1", "disabled": False},
-                            {"content": "10.0.0.2", "disabled": False},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "mail.example.com.",
-                        "records": [{"content": "0 mail.example.com.", "disabled": False}],
-                        "ttl": 86400,
-                        "type": "MX",
-                    },
-                ]
-            }
-        ],
+        file_content={
+            "id": "example.com.",
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "10.0.0.1", "disabled": False},
+                        {"content": "10.0.0.2", "disabled": False},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "mail.example.com.",
+                    "records": [{"content": "0 mail.example.com.", "disabled": False}],
+                    "ttl": 86400,
+                    "type": "MX",
+                },
+            ],
+        },
         upstream_content={"rrsets": []},
         added_content={
+            "id": "example.com.",
             "rrsets": [
                 {
                     "changetype": "REPLACE",
@@ -455,36 +455,35 @@ testcase = (
                     "ttl": 86400,
                     "type": "MX",
                 },
-            ]
+            ],
         },
         deleted_content=[],
     ),
     RRsetImport(
-        file_content=[
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "10.0.0.1", "disabled": False},
-                            {"content": "10.0.0.2", "disabled": False},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "test2.example.com.",
-                        "records": [
-                            {"content": "10.0.0.3", "disabled": True},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                ]
-            }
-        ],
+        file_content={
+            "name": "example.com.",
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "10.0.0.1", "disabled": False},
+                        {"content": "10.0.0.2", "disabled": False},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "test2.example.com.",
+                    "records": [
+                        {"content": "10.0.0.3", "disabled": True},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+            ],
+        },
         upstream_content={
             "rrsets": [
                 {
@@ -513,9 +512,10 @@ testcase = (
                     "ttl": 86400,
                     "type": "A",
                 },
-            ]
+            ],
         },
         added_content={
+            "id": "example.com.",
             "rrsets": [
                 {
                     "changetype": "REPLACE",
@@ -538,7 +538,7 @@ testcase = (
                     "ttl": 86400,
                     "type": "A",
                 },
-            ]
+            ],
         },
         deleted_content=[],
     ),
@@ -578,31 +578,30 @@ def test_record_import_failed(
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(500, json_output={"error": "Server error"})
     file_mock.mock_settings_import(
-        [
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "10.0.0.1", "disabled": False},
-                            {"content": "10.0.0.2", "disabled": False},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "test2.example.com.",
-                        "records": [
-                            {"content": "10.0.0.3", "disabled": True},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                ]
-            }
-        ],
+        {
+            "id": "example.com.",
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "10.0.0.1", "disabled": False},
+                        {"content": "10.0.0.2", "disabled": False},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "test2.example.com.",
+                    "records": [
+                        {"content": "10.0.0.3", "disabled": True},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+            ],
+        }
     )
     runner = CliRunner()
     result = runner.invoke(
@@ -623,41 +622,40 @@ def test_record_import_idempotence(
 ):
     get = mock_utils.mock_http_get(200, example_zone)
     file_mock.mock_settings_import(
-        [
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "1.1.1.1", "disabled": False},
-                            {"content": "1.1.1.2", "disabled": True},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "test2.example.com.",
-                        "records": [{"content": "2.2.2.2", "disabled": True}],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "example.com.",
-                        "records": [
-                            {
-                                "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
-                                "disabled": False,
-                            }
-                        ],
-                        "ttl": 3600,
-                        "type": "SOA",
-                    },
-                ],
-            }
-        ]
+        {
+            "id": "example.com.",
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "1.1.1.1", "disabled": False},
+                        {"content": "1.1.1.2", "disabled": True},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "test2.example.com.",
+                    "records": [{"content": "2.2.2.2", "disabled": True}],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "example.com.",
+                    "records": [
+                        {
+                            "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+                            "disabled": False,
+                        }
+                    ],
+                    "ttl": 3600,
+                    "type": "SOA",
+                },
+            ],
+        }
     )
     runner = CliRunner()
     result = runner.invoke(
@@ -678,31 +676,30 @@ def test_record_import_replace_success(
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     file_mock.mock_settings_import(
-        [
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "10.0.0.1", "disabled": False},
-                            {"content": "10.0.0.2", "disabled": False},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "test2.example.com.",
-                        "records": [
-                            {"content": "10.0.0.3", "disabled": True},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                ]
-            }
-        ]
+        {
+            "id": "example.com.",
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "10.0.0.1", "disabled": False},
+                        {"content": "10.0.0.2", "disabled": False},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "test2.example.com.",
+                    "records": [
+                        {"content": "10.0.0.3", "disabled": True},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+            ],
+        }
     )
     added_content = [
         {
@@ -766,31 +763,30 @@ def test_record_import_replace_failed(
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(500, json_output={"error": "Server error"})
     file_mock.mock_settings_import(
-        [
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "10.0.0.1", "disabled": False},
-                            {"content": "10.0.0.2", "disabled": False},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "test2.example.com.",
-                        "records": [
-                            {"content": "10.0.0.3", "disabled": True},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                ]
-            }
-        ]
+        {
+            "id": "example.com.",
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "10.0.0.1", "disabled": False},
+                        {"content": "10.0.0.2", "disabled": False},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "test2.example.com.",
+                    "records": [
+                        {"content": "10.0.0.3", "disabled": True},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+            ],
+        }
     )
     runner = CliRunner()
     result = runner.invoke(
@@ -811,41 +807,40 @@ def test_record_import_replace_idempotence(
 ):
     get = mock_utils.mock_http_get(200, example_zone)
     file_mock.mock_settings_import(
-        [
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "1.1.1.1", "disabled": False},
-                            {"content": "1.1.1.2", "disabled": True},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "test2.example.com.",
-                        "records": [{"content": "2.2.2.2", "disabled": True}],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "example.com.",
-                        "records": [
-                            {
-                                "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
-                                "disabled": False,
-                            }
-                        ],
-                        "ttl": 3600,
-                        "type": "SOA",
-                    },
-                ],
-            }
-        ]
+        {
+            "id": "example.com.",
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "1.1.1.1", "disabled": False},
+                        {"content": "1.1.1.2", "disabled": True},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "test2.example.com.",
+                    "records": [{"content": "2.2.2.2", "disabled": True}],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "example.com.",
+                    "records": [
+                        {
+                            "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+                            "disabled": False,
+                        }
+                    ],
+                    "ttl": 3600,
+                    "type": "SOA",
+                },
+            ],
+        }
     )
     runner = CliRunner()
     result = runner.invoke(

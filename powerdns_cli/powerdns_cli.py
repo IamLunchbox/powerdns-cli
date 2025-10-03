@@ -1115,7 +1115,6 @@ def record_export(
 
 
 @record.command("import")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",
@@ -1125,16 +1124,15 @@ def record_export(
     help="Replace old settings with new ones",
 )
 @click.pass_context
-def record_import(ctx, dns_zone, file, replace):
+def record_import(ctx, file, replace):
     """
-    Imports rrsets into a zone
+    Imports a rrset into a zone.
+    Imported as a dictionary, where the keys 'id':str and 'rrsets':[] must be present.
+    All other keys are ignored
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     new_rrsets = utils.extract_file(file)
-    if not isinstance(new_rrsets, list) or not new_rrsets[0].get("rrsets", None):
-        print_output({"error": "You must supply a list of rrsets under the key 'rrsets'"})
-        raise SystemExit(1)
-    new_rrsets = new_rrsets[0]
+    utils.validate_rrset_import(new_rrsets)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{new_rrsets['id']}"
     # This function skips the usual deduplication logic from utils.import_settings, since
     # any patch request automatically extends existing rrsets (except where type and name matches,
     # those get replaced
