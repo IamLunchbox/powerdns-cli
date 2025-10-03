@@ -1139,10 +1139,9 @@ def record_import(ctx, dns_zone, file, replace):
     # any patch request automatically extends existing rrsets (except where type and name matches,
     # those get replaced
     upstream_zone = utils.read_settings_from_upstream(uri, ctx)
-    for rrset in new_rrsets["rrsets"]:
-        if not replace and rrset in upstream_zone["rrsets"]:
-            print_output({"message": "Requested rrsets are already present"})
-            raise SystemExit(0)
+    if not replace and all(rrset in upstream_zone["rrsets"] for rrset in new_rrsets["rrsets"]):
+        print_output({"message": "Requested rrsets are already present"})
+        raise SystemExit(0)
     if (
         replace
         and all(rrset in upstream_zone["rrsets"] for rrset in new_rrsets["rrsets"])

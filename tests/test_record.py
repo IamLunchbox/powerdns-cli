@@ -433,7 +433,7 @@ testcase = (
                 ]
             }
         ],
-        upstream_content=[],
+        upstream_content={"rrsets": []},
         added_content={
             "rrsets": [
                 {
@@ -485,29 +485,36 @@ testcase = (
                 ]
             }
         ],
-        upstream_content=[
-            {
-                "rrsets": [
-                    {
-                        "comments": [],
-                        "name": "test.example.com.",
-                        "records": [
-                            {"content": "10.0.0.1", "disabled": False},
-                            {"content": "10.0.0.2", "disabled": False},
-                        ],
-                        "ttl": 86400,
-                        "type": "A",
-                    },
-                    {
-                        "comments": [],
-                        "name": "mail.example.com.",
-                        "records": [{"content": "0 mail.example.com.", "disabled": False}],
-                        "ttl": 86400,
-                        "type": "MX",
-                    },
-                ]
-            }
-        ],
+        upstream_content={
+            "rrsets": [
+                {
+                    "comments": [],
+                    "name": "test.example.com.",
+                    "records": [
+                        {"content": "10.0.0.3", "disabled": False},
+                        {"content": "10.0.0.4", "disabled": False},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+                {
+                    "comments": [],
+                    "name": "mail.example.com.",
+                    "records": [{"content": "0 mail.example.com.", "disabled": False}],
+                    "ttl": 86400,
+                    "type": "MX",
+                },
+                {
+                    "comments": [],
+                    "name": "test2.example.com.",
+                    "records": [
+                        {"content": "10.0.0.3", "disabled": True},
+                    ],
+                    "ttl": 86400,
+                    "type": "A",
+                },
+            ]
+        },
         added_content={
             "rrsets": [
                 {
@@ -542,13 +549,12 @@ testcase = (
 def test_record_import_success(
     mock_utils,
     file_mock,
-    example_zone,
     file_content,
     upstream_content,
     added_content,
     deleted_content,
 ):
-    get = mock_utils.mock_http_get(200, example_zone)
+    get = mock_utils.mock_http_get(200, upstream_content)
     patch = mock_utils.mock_http_patch(204, text_output="")
     file_mock.mock_settings_import(file_content)
     runner = CliRunner()
@@ -562,3 +568,291 @@ def test_record_import_success(
     patch.assert_called()
     get.assert_called_once()
     assert added_content == patch.call_args_list[0].kwargs["payload"]
+
+
+def test_record_import_failed(
+    mock_utils,
+    file_mock,
+    example_zone,
+):
+    get = mock_utils.mock_http_get(200, example_zone)
+    patch = mock_utils.mock_http_patch(500, json_output={"error": "Server error"})
+    file_mock.mock_settings_import(
+        [
+            {
+                "rrsets": [
+                    {
+                        "comments": [],
+                        "name": "test.example.com.",
+                        "records": [
+                            {"content": "10.0.0.1", "disabled": False},
+                            {"content": "10.0.0.2", "disabled": False},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "test2.example.com.",
+                        "records": [
+                            {"content": "10.0.0.3", "disabled": True},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                ]
+            }
+        ],
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        record_import,
+        ["example.com", "testfile"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert "error" in json.loads(result.output)["error"]
+    patch.assert_called()
+    get.assert_called_once()
+
+
+def test_record_import_idempotence(
+    mock_utils,
+    file_mock,
+    example_zone,
+):
+    get = mock_utils.mock_http_get(200, example_zone)
+    file_mock.mock_settings_import(
+        [
+            {
+                "rrsets": [
+                    {
+                        "comments": [],
+                        "name": "test.example.com.",
+                        "records": [
+                            {"content": "1.1.1.1", "disabled": False},
+                            {"content": "1.1.1.2", "disabled": True},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "test2.example.com.",
+                        "records": [{"content": "2.2.2.2", "disabled": True}],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "example.com.",
+                        "records": [
+                            {
+                                "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+                                "disabled": False,
+                            }
+                        ],
+                        "ttl": 3600,
+                        "type": "SOA",
+                    },
+                ],
+            }
+        ]
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        record_import,
+        ["example.com", "testfile"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
+    get.assert_called_once()
+
+
+def test_record_import_replace_success(
+    mock_utils,
+    file_mock,
+    example_zone,
+):
+    get = mock_utils.mock_http_get(200, example_zone)
+    patch = mock_utils.mock_http_patch(204, text_output="")
+    file_mock.mock_settings_import(
+        [
+            {
+                "rrsets": [
+                    {
+                        "comments": [],
+                        "name": "test.example.com.",
+                        "records": [
+                            {"content": "10.0.0.1", "disabled": False},
+                            {"content": "10.0.0.2", "disabled": False},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "test2.example.com.",
+                        "records": [
+                            {"content": "10.0.0.3", "disabled": True},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                ]
+            }
+        ]
+    )
+    added_content = [
+        {
+            "changetype": "REPLACE",
+            "comments": [],
+            "name": "test.example.com.",
+            "records": [
+                {"content": "10.0.0.1", "disabled": False},
+                {"content": "10.0.0.2", "disabled": False},
+            ],
+            "ttl": 86400,
+            "type": "A",
+        },
+        {
+            "changetype": "REPLACE",
+            "comments": [],
+            "name": "test2.example.com.",
+            "records": [
+                {"content": "10.0.0.3", "disabled": True},
+            ],
+            "ttl": 86400,
+            "type": "A",
+        },
+    ]
+    removed_content = [
+        {
+            "comments": [],
+            "name": "example.com.",
+            "records": [
+                {
+                    "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+                    "disabled": False,
+                }
+            ],
+            "ttl": 3600,
+            "type": "SOA",
+            "changetype": "DELETE",
+        },
+    ]
+    runner = CliRunner()
+    result = runner.invoke(
+        record_import,
+        ["example.com", "testfile", "--replace"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    patch.assert_called()
+    get.assert_called_once()
+    for item in added_content:
+        assert item in patch.call_args_list[0].kwargs["payload"]["rrsets"]
+    for item in removed_content:
+        assert item in patch.call_args_list[0].kwargs["payload"]["rrsets"]
+
+
+def test_record_import_replace_failed(
+    mock_utils,
+    file_mock,
+    example_zone,
+):
+    get = mock_utils.mock_http_get(200, example_zone)
+    patch = mock_utils.mock_http_patch(500, json_output={"error": "Server error"})
+    file_mock.mock_settings_import(
+        [
+            {
+                "rrsets": [
+                    {
+                        "comments": [],
+                        "name": "test.example.com.",
+                        "records": [
+                            {"content": "10.0.0.1", "disabled": False},
+                            {"content": "10.0.0.2", "disabled": False},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "test2.example.com.",
+                        "records": [
+                            {"content": "10.0.0.3", "disabled": True},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                ]
+            }
+        ]
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        record_import,
+        ["example.com", "testfile", "--replace"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert "error" in json.loads(result.output)["error"]
+    patch.assert_called()
+    get.assert_called_once()
+
+
+def test_record_import_replace_idempotence(
+    mock_utils,
+    file_mock,
+    example_zone,
+):
+    get = mock_utils.mock_http_get(200, example_zone)
+    file_mock.mock_settings_import(
+        [
+            {
+                "rrsets": [
+                    {
+                        "comments": [],
+                        "name": "test.example.com.",
+                        "records": [
+                            {"content": "1.1.1.1", "disabled": False},
+                            {"content": "1.1.1.2", "disabled": True},
+                        ],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "test2.example.com.",
+                        "records": [{"content": "2.2.2.2", "disabled": True}],
+                        "ttl": 86400,
+                        "type": "A",
+                    },
+                    {
+                        "comments": [],
+                        "name": "example.com.",
+                        "records": [
+                            {
+                                "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+                                "disabled": False,
+                            }
+                        ],
+                        "ttl": 3600,
+                        "type": "SOA",
+                    },
+                ],
+            }
+        ]
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        record_import,
+        ["example.com", "testfile", "--replace"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
+    get.assert_called_once()

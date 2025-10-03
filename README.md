@@ -99,6 +99,7 @@ won't be covered by the integration tests.
 
 ## Todos
 The following features are on the roadmap:
-1. Ability to import json files
-2. Docker container
-3. Ansible module
+1. Idempotence of rrset import
+2. Refactor of import files and file validation
+3. Format output to more concise json
+4. Docker container
