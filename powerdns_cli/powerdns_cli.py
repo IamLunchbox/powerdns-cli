@@ -1481,7 +1481,10 @@ def zone_import(ctx, file, force, merge):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{settings['id']}"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     utils.check_zones_for_identical_content(settings, upstream_settings)
-    warning = "!!!! WARNING !!!!!\nYou are deleting and reconfiguring your zones!\nAre you sure?"
+    warning = (
+        f"!!!! WARNING !!!!!\nYou are deleting and reconfiguring {settings['id']}!\n"
+        "Are you sure?"
+    )
     if not force and not click.confirm(warning):
         print_output({"error": "Aborted"})
         raise SystemExit(1)

@@ -560,7 +560,7 @@ def test_record_import_success(
     runner = CliRunner()
     result = runner.invoke(
         record_import,
-        ["example.com", "testfile"],
+        ["testfile"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
@@ -606,7 +606,7 @@ def test_record_import_failed(
     runner = CliRunner()
     result = runner.invoke(
         record_import,
-        ["example.com", "testfile"],
+        ["testfile"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 1
@@ -660,7 +660,7 @@ def test_record_import_idempotence(
     runner = CliRunner()
     result = runner.invoke(
         record_import,
-        ["example.com", "testfile"],
+        ["testfile"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
@@ -742,7 +742,7 @@ def test_record_import_replace_success(
     runner = CliRunner()
     result = runner.invoke(
         record_import,
-        ["example.com", "testfile", "--replace"],
+        ["testfile", "--replace"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
@@ -791,7 +791,7 @@ def test_record_import_replace_failed(
     runner = CliRunner()
     result = runner.invoke(
         record_import,
-        ["example.com", "testfile", "--replace"],
+        ["testfile", "--replace"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 1
@@ -845,7 +845,7 @@ def test_record_import_replace_idempotence(
     runner = CliRunner()
     result = runner.invoke(
         record_import,
-        ["example.com", "testfile", "--replace"],
+        ["testfile", "--replace"],
         obj={"apihost": "http://example.com"},
     )
     assert result.exit_code == 0
