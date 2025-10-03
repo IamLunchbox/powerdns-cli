@@ -1,7 +1,7 @@
 """Utilities library for the main cli functions"""
 
 import json
-from typing import TextIO
+from typing import Any, TextIO
 
 import click
 import requests
@@ -838,40 +838,6 @@ def add_network_import(uri: str, ctx: click.Context, settings: list, ignore_erro
             )
 
 
-def update_zone_data(
-    uri: str, ctx: click.Context, upstream_settings: list, setting_names: list
-) -> None:
-    """
-    Update upstream zone settings with detailed zone data from the API.
-
-    For each upstream zone that exists in the setting_names, fetches the complete
-    zone configuration from the API and updates the upstream_settings in place.
-    This is typically used to enrich basic zone listings with full configuration data.
-
-    Args:
-        uri: Base API endpoint URI for zones
-        ctx: Click context object containing authentication and configuration
-        upstream_settings: List of upstream zone configurations to update in place
-        setting_names: Set of zone names that should be updated
-
-    Raises:
-        SystemExit: If any API call fails or returns invalid data
-    """
-    for upstream_zone in upstream_settings:
-        if upstream_zone["name"] in setting_names:
-            r = http_get(f"{uri}/{upstream_zone['name']}", ctx)
-            if r.status_code == 200:
-                upstream_zone.update(r.json())
-            else:
-                print_output(
-                    {
-                        "error": "Obtaining zone information failed with status "
-                        f"{r.status_code} and text {r.text}"
-                    },
-                )
-                raise SystemExit(1)
-
-
 def replace_rrset_import(
     uri: str,
     ctx: click.Context,
@@ -935,16 +901,16 @@ def replace_rrset_import(
             )
 
 
-def add_rrset_import(
+def import_zone_settings(
     uri: str,
     ctx: click.Context,
-    settings: list,
-    upstream_settings: list,
+    settings: dict,
+    upstream_settings: dict,
     merge: bool,
     ignore_errors: bool,
 ) -> None:
     """
-    Import RRset zones with optional merging and error handling.
+    Import a zone with optional merging and error handling.
 
     Args:
         uri: API endpoint URI
@@ -955,33 +921,28 @@ def add_rrset_import(
         ignore_errors: If True, continue processing despite errors
     """
 
-    for zone_entry in settings:
-        payload = None
-        if merge:
-            for existing_zone in upstream_settings:
-                if zone_entry["name"] == existing_zone["name"]:
-                    payload = existing_zone.copy()
-                    payload.update(zone_entry)
-        if not payload:
-            payload = zone_entry.copy()
-        r = http_delete(f"{uri}/{zone_entry['name']}", ctx)
-        if r.status_code not in (204, 404):
-            handle_import_early_exit(
-                {
-                    "error": f"Failed deleting zone {payload['name']}, "
-                    "aborting further configuration changes"
-                },
-                ignore_errors,
-            )
-        r = http_post(uri, ctx, payload=payload)
-        if r.status_code != 201:
-            handle_import_early_exit(
-                {
-                    "error": f"Failed adding zone {payload['name']}, "
-                    f"aborting further configuration changes"
-                },
-                ignore_errors,
-            )
+    if merge:
+        payload = upstream_settings | settings
+    else:
+        payload = settings.copy()
+    r = http_delete(f"{uri}/{payload['id']}", ctx)
+    if r.status_code not in (204, 404):
+        handle_import_early_exit(
+            {
+                "error": f"Failed deleting zone {payload['id']}, "
+                "aborting further configuration changes"
+            },
+            ignore_errors,
+        )
+    r = http_post(uri, ctx, payload=payload)
+    if r.status_code != 201:
+        handle_import_early_exit(
+            {
+                "error": f"Failed adding zone {payload['id']}, "
+                f"aborting further configuration changes"
+            },
+            ignore_errors,
+        )
 
 
 def handle_import_early_exit(message: dict, ignore_errors: bool) -> None:
@@ -1201,18 +1162,18 @@ def get_tsigkey_settings(uri: str, ctx: click.Context) -> list[dict]:
     return upstream_settings
 
 
-def validate_rrset_import(rrset: dict | list) -> None:
+def validate_rrset_import(rrset: dict) -> None:
     """
     Validates the structure and content of a rrset dictionary for import.
 
     Args:
-        rrset: A dictionary or list representing the rrset to validate.
+        rrset: A dictionary representing the rrset to validate.
             Expected to contain 'rrsets' and either 'id' or 'name'.
 
     Raises:
         SystemExit: Exits with status 1 if validation fails.
     """
-    if isinstance(rrset, list):
+    if not isinstance(rrset, dict):
         print_output({"error": "You must supply rrsets as a single dictionary"})
         raise SystemExit(1)
 
@@ -1230,3 +1191,57 @@ def validate_rrset_import(rrset: dict | list) -> None:
     for key in list(rrset.keys()):
         if key not in ("id", "rrsets"):
             del rrset[key]
+
+
+def validate_zone_import(zone: dict) -> None:
+    """
+    Validates the structure and content of a zone dictionary for import.
+
+    Args:
+        zone: A dictionary representing the zone to validate.
+            Expected to contain either 'id' or 'name'.
+
+    Raises:
+        SystemExit: Exits with status 1 if validation fails.
+    """
+    if not isinstance(zone, dict):
+        print_output({"error": "You must supply a single zone"})
+        raise SystemExit(1)
+
+    if not zone.get("id") and not zone.get("name"):
+        print_output({"error": "Either 'name' or 'id' must be present to determine the zone."})
+        raise SystemExit(1)
+
+    if zone.get("name") and not zone.get("id"):
+        zone["id"] = zone["name"]
+
+
+def check_zones_for_identical_content(
+    new_settings: dict[str, Any], upstream_settings: dict[str, Any]
+) -> None:
+    """Check if the new settings are identical to the upstream settings, ignoring serial keys.
+
+    This function compares two dictionaries of settings,
+    excluding the 'edited_serial' and 'serial' keys,
+    and exits with a success code if they are identical.
+
+    Args:
+        new_settings: Dictionary containing the new settings to be checked.
+        upstream_settings: Dictionary containing the upstream settings to compare against.
+
+    Raises:
+        SystemExit: If the settings are identical (excluding serial keys), exits with code 0.
+    """
+    tmp_new_settings = new_settings.copy()
+    tmp_upstream_settings = upstream_settings.copy()
+
+    for key in ("edited_serial", "serial"):
+        tmp_new_settings.pop(key, None)
+        tmp_upstream_settings.pop(key, None)
+
+    if all(
+        tmp_new_settings.get(key) == tmp_upstream_settings.get(key)
+        for key in tmp_new_settings.keys()
+    ):
+        print_output({"message": "Required settings are already present."})
+        raise SystemExit(0)

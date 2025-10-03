@@ -1127,8 +1127,8 @@ def record_export(
 def record_import(ctx, file, replace):
     """
     Imports a rrset into a zone.
-    Imported as a dictionary, where the keys 'id':str and 'rrsets':[] must be present.
-    All other keys are ignored
+    Imported as a dictionary: {'id':str, 'rrsets':[]}, all other keys are ignored.
+    'name' substitutes 'id'.
     """
     new_rrsets = utils.extract_file(file)
     utils.validate_rrset_import(new_rrsets)
@@ -1458,50 +1458,36 @@ def zone_flush_cache(ctx, dns_zone):
 @zone.command("import")
 @click.argument("file", type=click.File())
 @click.option(
-    "--replace",
-    type=click.BOOL,
-    is_flag=True,
-    help="Replace all zone settings with new ones",
-)
-@click.option(
     "-f",
     "--force",
     help="Force execution and skip confirmation",
     is_flag=True,
 )
 @click.option(
-    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+    "-m",
+    "--merge",
+    help="Merge new configuration with exisiting settings",
+    is_flag=True,
 )
 @click.pass_context
-def zone_import(ctx, file, replace, force, ignore_errors):
+def zone_import(ctx, file, force, merge):
     """
-    Directly import zones into the server. This action is not idempotent as it changes your serials!
+    Directly import zones into the server. Must delete the zone beforehand, since
+    most settings may not be changed after a zone is created.
+    This might have side effects for other settings, as cryptokeys are associated with a zone!
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
     settings = utils.extract_file(file)
-    if not isinstance(settings, list):
-        print_output({"error": "Zones must be provided as a list"})
-        raise SystemExit(1)
+    utils.validate_zone_import(settings)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{settings['id']}"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
-    setting_names = [item["name"] for item in settings]
-    utils.update_zone_data(uri, ctx, upstream_settings, setting_names)
-    warning = "!!!! WARNING !!!!!\nYou are attempting to change your zones\nAre you sure?"
+    utils.check_zones_for_identical_content(settings, upstream_settings)
+    warning = "!!!! WARNING !!!!!\nYou are deleting and reconfiguring your zones!\nAre you sure?"
     if not force and not click.confirm(warning):
-        print_output({"message": "Aborted"})
+        print_output({"error": "Aborted"})
         raise SystemExit(1)
-    if replace and upstream_settings:
-        utils.replace_rrset_import(
-            uri, ctx, settings, upstream_settings, setting_names, ignore_errors
-        )
-    else:
-        utils.add_rrset_import(
-            uri,
-            ctx,
-            settings,
-            upstream_settings=upstream_settings,
-            ignore_errors=ignore_errors,
-            merge=True,
-        )
+    utils.import_zone_settings(
+        uri, ctx, settings, upstream_settings=upstream_settings, merge=merge, ignore_errors=False
+    )
     print_output(
         {"message": "Successfully imported zones"},
     )
