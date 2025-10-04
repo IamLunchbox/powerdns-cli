@@ -97,17 +97,17 @@ def create_output(
         click.echo(content.text)
         return True
     if content.status_code in exp_status_code and optional_json:
-        click.echo(json.dumps(optional_json))
+        click.echo(json.dumps(optional_json, indent=4))
         return True
     if content.status_code in exp_status_code:
-        click.echo(json.dumps(content.json()))
+        click.echo(json.dumps(content.json(), indent=4))
         return True
     if content.headers.get("Content-Type", "").startswith("text/plain"):
         click.echo(json.dumps({"error": content.text}))
         return False
     # Catch unexpected empty responses
     try:
-        click.echo(json.dumps(content.json()))
+        click.echo(json.dumps(content.json(), indent=4))
     except json.JSONDecodeError:
         print_output({"error": f"Non json response from server with status {content.status_code}"})
     return False
@@ -925,7 +925,7 @@ def import_zone_settings(
         payload = upstream_settings | settings
     else:
         payload = settings.copy()
-    r = http_delete(f"{uri}/{payload['id']}", ctx)
+    r = http_delete(f"{uri}", ctx)
     if r.status_code not in (204, 404):
         handle_import_early_exit(
             {
@@ -934,13 +934,10 @@ def import_zone_settings(
             },
             ignore_errors,
         )
-    r = http_post(uri, ctx, payload=payload)
+    r = http_post(uri.removesuffix("/" + payload["id"]), ctx, payload=payload)
     if r.status_code != 201:
         handle_import_early_exit(
-            {
-                "error": f"Failed adding zone {payload['id']}, "
-                f"aborting further configuration changes"
-            },
+            {"error": f"Failed adding zone {payload['id']}"},
             ignore_errors,
         )
 
@@ -1244,4 +1241,59 @@ def check_zones_for_identical_content(
         for key in tmp_new_settings.keys()
     ):
         print_output({"message": "Required settings are already present."})
+        raise SystemExit(0)
+
+
+def check_records_for_identical_content(
+    new_rrsets: dict[str, Any],
+    upstream_zone: dict[str, Any],
+    replace: bool,
+) -> None:
+    """
+    Check if the new RRsets are already present in the upstream zone.
+
+    This function compares the contents of new RRsets with those in the upstream zone,
+    ignoring the 'modified_at' field. If all RRsets are already present, it prints a message
+    and exits with status 0.
+
+    Args:
+        new_rrsets: A dictionary containing the new RRsets to check.
+                    Expected to have an 'rrsets' key with a list of RRset dictionaries.
+        upstream_zone: A dictionary containing the upstream zone RRsets.
+                       Expected to have an 'rrsets' key with a list of RRset dictionaries.
+        replace: If True, checks for exact match in both content and count.
+                 If False, only checks if all new RRsets are present in the upstream zone.
+
+    Raises:
+        SystemExit: Exits with status 0 if the RRsets are already present.
+    """
+
+    def _normalize_rrset(rrset: dict[str, Any]) -> tuple[str, str, list[dict[str, Any]], int]:
+        """Helper to normalize an RRset by removing 'modified_at' from records."""
+        name, rrtype, records, ttl = (
+            rrset["name"],
+            rrset["type"],
+            rrset["records"],
+            rrset["ttl"],
+        )
+        normalized_records = [
+            {k: v for k, v in record.items() if k != "modified_at"} for record in records
+        ]
+        return name, rrtype, normalized_records, ttl
+
+    # Normalize both sets of RRsets
+    new_rrset_contents = [_normalize_rrset(item) for item in new_rrsets["rrsets"]]
+    upstream_rrset_contents = [_normalize_rrset(item) for item in upstream_zone["rrsets"]]
+
+    # Check for presence of all new RRsets in upstream
+    if not replace and all(rrset in upstream_rrset_contents for rrset in new_rrset_contents):
+        print_output({"message": "Requested rrsets are already present"})
+        raise SystemExit(0)
+
+    # Check for exact match if replace is True
+    if replace and (
+        all(rrset in upstream_rrset_contents for rrset in new_rrset_contents)
+        and len(upstream_rrset_contents) == len(new_rrset_contents)
+    ):
+        print_output({"message": "Requested rrsets are already present"})
         raise SystemExit(0)

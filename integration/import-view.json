@@ -1,0 +1,4 @@
+[
+  {"test1": ["example.org"]},
+  {"test2": ["example.com.", "example.org."]}
+]

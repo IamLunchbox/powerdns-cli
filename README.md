@@ -99,6 +99,5 @@ won't be covered by the integration tests.
 
 ## Todos
 The following features are on the roadmap:
-1. Refactor of import files and file validation
-2. Format output to more concise json
-3. Docker container
+1. Format output to more concise json
+2. Docker container

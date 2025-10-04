@@ -726,15 +726,7 @@ def test_record_import_replace_success(
     ]
     removed_content = [
         {
-            "comments": [],
             "name": "example.com.",
-            "records": [
-                {
-                    "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
-                    "disabled": False,
-                }
-            ],
-            "ttl": 3600,
             "type": "SOA",
             "changetype": "DELETE",
         },

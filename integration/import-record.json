@@ -1,0 +1,24 @@
+{
+    "id": "example.com.",
+    "rrsets": [
+        {
+            "comments": [],
+            "name": "test.example.com.",
+            "records": [
+                {"content": "10.0.0.1", "disabled": false},
+                {"content": "10.0.0.2", "disabled": false}
+            ],
+            "ttl": 86400,
+            "type": "A"
+        },
+        {
+            "comments": [],
+            "name": "test2.example.com.",
+            "records": [
+                {"content": "10.0.0.3", "disabled": false}
+            ],
+            "ttl": 86400,
+            "type": "A"
+        }
+    ]
+}

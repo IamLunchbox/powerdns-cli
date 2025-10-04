@@ -473,34 +473,7 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
     raise SystemExit(1)
 
 
-@cryptokey.command("import-pubkey")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
-@click.argument("file", type=click.File())
-@click.pass_context
-def cryptokey_import_pubkey(ctx, dns_zone, file):
-    """
-    Imports a public cryptokey without a known private key from a file.
-    Contents are exactly as a cryptokey export. Only accepts a list with a single item.
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
-    settings = utils.extract_file(file)
-    if isinstance(settings, dict):
-        print_output({"error": "The setting must be part of a list"})
-        raise SystemExit(1)
-    settings = settings[0]
-    if settings.get("privatekey") or settings.get("privkey"):
-        print_output(
-            {"error": "Keys 'privatekey' 'privkey' may not be present importing a public key"},
-        )
-        raise SystemExit(1)
-    merged_settings = utils.import_cryptokey_pubkeys(uri, ctx, settings)
-    r = utils.http_post(uri, ctx, payload=merged_settings)
-    if utils.create_output(r, (201,), optional_json={"message": "Pubkey imported"}):
-        raise SystemExit(0)
-    raise SystemExit(1)
-
-
-@cryptokey.command("import-privkey")
+@cryptokey.command("import")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("private-key", type=click.STRING)
@@ -513,7 +486,7 @@ def cryptokey_import_pubkey(ctx, dns_zone, file):
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
 @click.pass_context
-def cryptokey_import_privkey(
+def cryptokey_impor(
     ctx,
     dns_zone,
     key_type,
@@ -522,7 +495,7 @@ def cryptokey_import_privkey(
     publish,
 ):
     """
-    Adds a cryptokey to the zone. Is disabled and not published by default
+    Adds a cryptokey to the zone. Is disabled and not published by default.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     # Click CLI escapes newline characters
@@ -1098,7 +1071,8 @@ def record_export(
     Exports the contents of an existing RRSET.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
-    name = utils.make_dnsname(name, dns_zone)
+    if name:
+        name = utils.make_dnsname(name, dns_zone)
     rrsets = utils.query_zone_rrsets(uri, ctx)
     output_list = []
     for rrset in rrsets:
@@ -1137,27 +1111,28 @@ def record_import(ctx, file, replace):
     # any patch request automatically extends existing rrsets (except where type and name matches,
     # those get replaced
     upstream_zone = utils.read_settings_from_upstream(uri, ctx)
-    if not replace and all(rrset in upstream_zone["rrsets"] for rrset in new_rrsets["rrsets"]):
-        print_output({"message": "Requested rrsets are already present"})
-        raise SystemExit(0)
-    if (
-        replace
-        and all(rrset in upstream_zone["rrsets"] for rrset in new_rrsets["rrsets"])
-        and len(upstream_zone["rrsets"]) == len(new_rrsets["rrsets"])
-    ):
-        print_output({"message": "Requested rrsets are already present"})
-        raise SystemExit(0)
-
+    if not upstream_zone:
+        upstream_zone["rrsets"] = []
+    utils.check_records_for_identical_content(new_rrsets, upstream_zone, replace)
     for rrset in new_rrsets["rrsets"]:
         rrset["changetype"] = "REPLACE"
     if replace:
         final_recordset = []
         final_recordset.extend(new_rrsets["rrsets"])
-        for upstream_rrset in upstream_zone["rrsets"]:
-            for new_rrset in new_rrsets["rrsets"]:
-                if not all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
-                    upstream_rrset["changetype"] = "DELETE"
-                    final_recordset.append(upstream_rrset)
+        new_rrset_types = [(item["name"], item["type"]) for item in new_rrsets["rrsets"]]
+        upstream_rrset_types = [(item["name"], item["type"]) for item in upstream_zone["rrsets"]]
+        for rrset_type in upstream_rrset_types:
+            if rrset_type not in new_rrset_types:
+                index = [
+                    upstream_zone["rrsets"].index(item)
+                    for item in upstream_zone["rrsets"]
+                    if (item["name"], item["type"]) == rrset_type
+                ][0]
+                new_entry = upstream_zone["rrsets"][index] | {"changetype": "DELETE"}
+                del new_entry["ttl"]
+                del new_entry["records"]
+                del new_entry["comments"]
+                final_recordset.append(new_entry)
         new_rrsets["rrsets"] = final_recordset
     r = utils.http_patch(uri, ctx, payload=new_rrsets)
     if utils.create_output(r, (204,), optional_json={"message": "RRset imported"}):

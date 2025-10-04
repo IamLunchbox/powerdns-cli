@@ -1,0 +1,16 @@
+{
+  "networks": [
+    {
+      "network": "0.0.0.0/0",
+      "view": "test"
+    },
+    {
+      "network": "fe80::0/10",
+      "view": "test"
+    },
+    {
+      "network": "149.112.112.112/16",
+      "view": "example"
+    }
+  ]
+}

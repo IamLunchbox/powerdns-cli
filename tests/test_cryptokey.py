@@ -13,8 +13,7 @@ from powerdns_cli.powerdns_cli import (
     cryptokey_disable,
     cryptokey_enable,
     cryptokey_export,
-    cryptokey_import_privkey,
-    cryptokey_import_pubkey,
+    cryptokey_impor,
     cryptokey_list,
     cryptokey_publish,
     cryptokey_unpublish,
@@ -206,11 +205,10 @@ def test_cryptokey_import_success(mock_utils, conditional_mock_utils, example_ne
     post = mock_utils.mock_http_post(201, json_output=example_new_key)
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_import_privkey,
+        cryptokey_impor,
         ["zsk", "example.com.", example_new_key["privatekey"]],
         obj={"apihost": "https://example.com"},
     )
-    # breakpoint()
     assert result.exit_code == 0
     assert json.loads(result.output) == example_new_key_dict
     post.assert_called()
@@ -222,7 +220,7 @@ def test_cryptokey_import_already_present(mock_utils, conditional_mock_utils, ex
     post = mock_utils.mock_http_post(201, json_output={})
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_import_privkey,
+        cryptokey_impor,
         ["zsk", "example.com.", example_zsk_key["privatekey"]],
         obj={"apihost": "https://example.com"},
     )
@@ -233,73 +231,17 @@ def test_cryptokey_import_already_present(mock_utils, conditional_mock_utils, ex
 
 
 def test_cryptokey_import_failed(mock_utils, conditional_mock_utils, example_new_key):
-    get = conditional_mock_utils.mock_http_get()
+    conditional_mock_utils.mock_http_get()
     error_output = {"error": "The information you provided is incorrect"}
-    post = mock_utils.mock_http_post(500, json_output=error_output)
+    mock_utils.mock_http_post(500, json_output=error_output)
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_import_privkey,
+        cryptokey_impor,
         ["zsk", "example.com.", example_new_key["privatekey"]],
         obj={"apihost": "https://example.com"},
     )
     assert result.exit_code == 1
     assert json.loads(result.output) == error_output
-
-
-def test_cryptokey_import_pubkey_success(
-    mock_utils, file_mock, conditional_mock_utils, example_new_key
-):
-    get = conditional_mock_utils.mock_http_get()
-    post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
-    example_new_key.pop("privatekey")
-    file_mock.mock_settings_import(copy.deepcopy([example_new_key]))
-    runner = CliRunner()
-    result = runner.invoke(
-        cryptokey_import_pubkey,
-        ["example.com.", "testfile"],
-        obj={"apihost": "https://example.com"},
-    )
-    assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)["message"]
-    post.assert_called()
-    get.assert_called()
-
-
-def test_cryptokey_import_pubkey_already_present(
-    mock_utils, file_mock, conditional_mock_utils, example_cryptokey_list
-):
-    get = conditional_mock_utils.mock_http_get()
-    post = mock_utils.mock_http_post(201, json_output=copy.deepcopy(example_cryptokey_list[0]))
-    file_mock.mock_settings_import([example_cryptokey_list[0]])
-    runner = CliRunner()
-    result = runner.invoke(
-        cryptokey_import_pubkey,
-        ["example.com.", "testfile"],
-        obj={"apihost": "https://example.com"},
-    )
-    assert result.exit_code == 0
-    assert "already present" in json.loads(result.output)["message"]
-    post.assert_not_called()
-    get.assert_called()
-
-
-def test_cryptokey_import_pubkey_failed(
-    mock_utils, file_mock, conditional_mock_utils, example_new_key
-):
-    get = conditional_mock_utils.mock_http_get()
-    post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
-    example_new_key.pop("privatekey")
-    file_mock.mock_settings_import([example_new_key])
-    runner = CliRunner()
-    result = runner.invoke(
-        cryptokey_import_pubkey,
-        ["example.com.", "testfile"],
-        obj={"apihost": "https://example.com"},
-    )
-    assert result.exit_code == 1
-    assert "Server error" in json.loads(result.output)["error"]
-    post.assert_called()
-    get.assert_called()
 
 
 def test_cryptokey_delete_success(mock_utils, conditional_mock_utils):

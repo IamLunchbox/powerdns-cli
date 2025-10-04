@@ -1,0 +1,4 @@
+[
+  {"ip": "1.1.1.1", "nameserver": "ns.example.com"},
+  {"ip": "1.1.1.2", "nameserver": "ns3.example.com"}
+]

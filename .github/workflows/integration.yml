@@ -50,7 +50,7 @@ jobs:
       - name: Add native zone
         run: powerdns-cli zone add example.com. NATIVE
       - name: Add slave zone
-        run: powerdns-cli zone add example.com. slave
+        run: powerdns-cli zone add example.org. slave
       - name: List zones
         run: powerdns-cli zone list
       - name: Add duplicate native zone
@@ -65,6 +65,8 @@ jobs:
         run: powerdns-cli zone rectify example.org
       - name: Notify Zone
         run: powerdns-cli zone notify example.org
+      - name: Import zone
+        run: powerdns-cli zone import ./integration/import-zone.json
 # Record Management Tests
       - name: Add Record
         run: powerdns-cli record add add example.org A 10.0.0.1
@@ -100,6 +102,8 @@ jobs:
         run: powerdns-cli zone search --max 5 "test.example.org"
       - name: Flush zone cache
         run: powerdns-cli zone flush-cache example.org.
+      - name: Import rrsets
+        run: powerdns-cli record import ./integration/import-record.json
 # Config Tests
       - name: Show stats
         run: powerdns-cli config stats
@@ -124,6 +128,8 @@ jobs:
         run: powerdns-cli tsigkey update newname -a "hmac-sha512"
       - name: Export TSIGKey key
         run: powerdns-cli tsigkey export newname
+      - name: Import TSIGKeys
+        run: powerdns-cli tsigkey import ./integration/import-tsigkey.json
 # Zonemetadata Tests
       - name: Exports metadata
         run: powerdns-cli metadata export example.org
@@ -139,6 +145,8 @@ jobs:
         run: powerdns-cli metadata update example.org ALSO-NOTIFY 192.0.2.2:5305
       - name: Delete metadata
         run: powerdns-cli metadata delete example.org ALSO-NOTIFY
+      - name: Import Metadata
+        run: powerdns-cli metadata import example.com ./integration/import-metadata.json
 # Autoprimary Tests
       - name: Add autoprimary
         run: powerdns-cli autoprimary add 127.0.0.1 example.org
@@ -148,6 +156,8 @@ jobs:
         run: powerdns-cli autoprimary list
       - name: Delete autoprimary
         run: powerdns-cli autoprimary delete 127.0.0.1 example.org
+      - name: Import autoprimary
+        run: powerdns-cli autoprimary import integration/import-autoprimary.json
 # Cryptokey Tests
       - name: Add ZSK cryptokey
         run: powerdns-cli cryptokey add --algorithm ecdsap256sha256 --bits 256 zsk example.org
@@ -156,7 +166,7 @@ jobs:
       - name: Import a cryptokey secret
         run: >
           powerdns-cli 
-          cryptokey import-privkey 
+          cryptokey import 
           ksk
           example.org 
           'Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: 1nM02+BeuUuppbSgtDBIV3106HMTdLNMqV7rnb4t0iA=\n'
@@ -214,6 +224,8 @@ jobs:
         run: powerdns-cli network add 0.0.0.0/0 unrestricted
       - name: List view for 10.0.0.0/8
         run: powerdns-cli network export 10.0.0.0/8
+      - name: Import network to views
+        run: powerdns-cli network import ./integration/import-network.json
       - name: List views for all networks
         run: powerdns-cli network list
       - name: Add example.com to view test
@@ -224,6 +236,8 @@ jobs:
         run: powerdns-cli view list
       - name: Show the zones of unrestricted view
         run: powerdns-cli view export unrestricted
+      - name: Test zone import
+        run: powerdns-cli view import ./integration/import-view.json
       - name: Stop and remove manual service container
         if: always()
         run: |
