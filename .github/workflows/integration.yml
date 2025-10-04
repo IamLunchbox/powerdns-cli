@@ -66,7 +66,7 @@ jobs:
       - name: Notify Zone
         run: powerdns-cli zone notify example.org
       - name: Import zone
-        run: powerdns-cli zone import ./integration/import-zone.json
+        run: powerdns-cli zone import --force ./integration/import-zone.json
 # Record Management Tests
       - name: Add Record
         run: powerdns-cli record add add example.org A 10.0.0.1
