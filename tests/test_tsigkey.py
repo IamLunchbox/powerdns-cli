@@ -1,5 +1,6 @@
 import copy
 import json
+from typing import NamedTuple
 from unittest.mock import MagicMock as unittest_MagicMock
 
 import pytest
@@ -11,6 +12,7 @@ from powerdns_cli.powerdns_cli import (
     tsigkey_add,
     tsigkey_delete,
     tsigkey_export,
+    tsigkey_import,
     tsigkey_list,
     tsigkey_update,
 )
@@ -79,6 +81,11 @@ def example_tsigkey_list():
     return copy.deepcopy(example_tsigkey_list_list)
 
 
+@pytest.fixture
+def file_mock(mocker):
+    return testutils.MockFile(mocker)
+
+
 class ConditionalMock(testutils.MockUtils):
     def mock_http_get(self) -> unittest_MagicMock:
         def side_effect(*args, **kwargs):
@@ -119,7 +126,7 @@ def test_tsigkey_add_success(mock_utils, conditional_mock_utils, example_new_tsi
     get.assert_called()
 
 
-def test_tsigkey_name_already_present(mock_utils, conditional_mock_utils, example_new_tsigkey):
+def test_tsigkey_add_already_present(mock_utils, conditional_mock_utils, example_new_tsigkey):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_new_tsigkey)
     runner = CliRunner()
@@ -132,7 +139,7 @@ def test_tsigkey_name_already_present(mock_utils, conditional_mock_utils, exampl
     get.assert_called()
 
 
-def test_tsigkey_import_success(mock_utils, conditional_mock_utils, example_new_tsigkey):
+def test_tsigkey_add_privatekey_success(mock_utils, conditional_mock_utils, example_new_tsigkey):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_new_tsigkey)
     runner = CliRunner()
@@ -147,7 +154,9 @@ def test_tsigkey_import_success(mock_utils, conditional_mock_utils, example_new_
     get.assert_called()
 
 
-def test_tsigkey_import_already_present(mock_utils, conditional_mock_utils, example_tsigkey_test1):
+def test_tsigkey_add_privatekey_already_present(
+    mock_utils, conditional_mock_utils, example_tsigkey_test1
+):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_tsigkey_test1)
     runner = CliRunner()
@@ -198,6 +207,572 @@ def test_tsigkey_export_fail(mock_utils, conditional_mock_utils, example_tsigkey
     assert "Not found" in json.loads(result.output)["error"]
     assert result.exit_code != 0
     get.assert_called()
+
+
+class TsigkeyImport(NamedTuple):
+    file_contents: list[dict]
+    upstream_content: list[dict]
+    added_content: list[dict]
+    delete_path: list[str]
+
+
+testcase = (
+    TsigkeyImport(
+        file_contents=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        upstream_content=[],
+        added_content=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        delete_path=[],
+    ),
+    TsigkeyImport(
+        file_contents=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ],
+        upstream_content=[
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+        ],
+        added_content=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ],
+        delete_path=[],
+    ),
+)
+
+
+@pytest.mark.parametrize("file_contents, upstream_content, added_content, delete_path", testcase)
+def test_tsigkey_import_success(
+    mocker, mock_utils, file_mock, file_contents, upstream_content, added_content, delete_path
+):
+    file_mock.mock_settings_import(file_contents)
+    mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
+    post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
+    runner = CliRunner()
+    result = runner.invoke(tsigkey_import, ["testfile"], obj={"apihost": "http://example.com"})
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    post.assert_called()
+    for item in added_content:
+        assert item in [request.kwargs["payload"] for request in post.call_args_list]
+
+
+testcase_idempotence = (
+    TsigkeyImport(
+        file_contents=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        upstream_content=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        added_content=[],
+        delete_path=[],
+    ),
+    TsigkeyImport(
+        file_contents=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        upstream_content=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        added_content=[],
+        delete_path=[],
+    ),
+    TsigkeyImport(
+        file_contents=[],
+        upstream_content=[
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+        ],
+        added_content=[],
+        delete_path=[],
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "file_contents, upstream_content, added_content, delete_path", testcase_idempotence
+)
+def test_tsigkey_import_idempotence(
+    mocker, mock_utils, file_mock, file_contents, upstream_content, added_content, delete_path
+):
+    file_mock.mock_settings_import(file_contents)
+    mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
+    runner = CliRunner()
+    result = runner.invoke(tsigkey_import, ["testfile"], obj={"apihost": "http://example.com"})
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
+
+
+def test_tsigkey_import_failed(mocker, mock_utils, file_mock):
+    file_mock.mock_settings_import(
+        [
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ]
+    )
+    mocker.patch(
+        "powerdns_cli.utils.get_tsigkey_settings",
+        return_value=[
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+        ],
+    )
+    post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(tsigkey_import, ["testfile"], obj={"apihost": "http://example.com"})
+    assert result.exit_code == 1
+    assert "Failed" in json.loads(result.output)["error"]
+    post.assert_called_once()
+
+
+def test_tsigkey_import_ignore_errors(mocker, mock_utils, file_mock):
+    file_mock.mock_settings_import(
+        [
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ]
+    )
+    mocker.patch(
+        "powerdns_cli.utils.get_tsigkey_settings",
+        return_value=[
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+        ],
+    )
+    post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_import, ["testfile", "--ignore-errors"], obj={"apihost": "http://example.com"}
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.stdout)["message"]
+    assert len(post.call_args_list) == 2
+
+
+testcase_replace = (
+    TsigkeyImport(
+        file_contents=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ],
+        upstream_content=[
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+        ],
+        added_content=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+        ],
+        delete_path=["http://example.com/api/v1/servers/localhost/tsigkeys/test321"],
+    ),
+    TsigkeyImport(
+        file_contents=[],
+        upstream_content=[
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+        ],
+        added_content=[],
+        delete_path=[
+            "http://example.com/api/v1/servers/localhost/tsigkeys/test321",
+            "http://example.com/api/v1/servers/localhost/tsigkeys/test123",
+        ],
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "file_contents, upstream_content, added_content, delete_path", testcase_replace
+)
+def test_tsigkey_import_replace(
+    mocker, mock_utils, file_mock, file_contents, upstream_content, added_content, delete_path
+):
+    file_mock.mock_settings_import(file_contents)
+    mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
+    post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
+    delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    assert len(added_content) == len(post.call_args_list)
+    for item in added_content:
+        assert item in [request.kwargs["payload"] for request in post.call_args_list]
+    assert len(delete_path) == len(delete.call_args_list)
+    for item in delete_path:
+        delete.assert_called()
+        assert item in [request.args[0] for request in delete.call_args_list]
+
+
+def test_tsigkey_import_replace_failed(mocker, mock_utils, file_mock):
+    file_mock.mock_settings_import(
+        [
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ]
+    )
+    mocker.patch(
+        "powerdns_cli.utils.get_tsigkey_settings",
+        return_value=[
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+        ],
+    )
+    post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+    )
+    assert result.exit_code == 1
+    assert "Failed" in json.loads(result.output)["error"]
+    post.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "post_code,delete_code,post_calls,delete_calls", ((500, 100, 1, 0), (201, 500, 2, 1))
+)
+def test_tsigkey_import_replace_early_exit(
+    mocker, mock_utils, file_mock, post_code, delete_code, post_calls, delete_calls
+):
+    file_mock.mock_settings_import(
+        [
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ]
+    )
+    mocker.patch(
+        "powerdns_cli.utils.get_tsigkey_settings",
+        return_value=[
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha512",
+                "id": "example.",
+                "key": "6bcFDLazAzbRZKKOsDT7vHXxfMjwcba+S2/QZncO8gtoAs5aBfFiQDj4kSBUEkmLcSs/HWtlR3Ri0ktBGxDGmQ==",
+                "name": "example",
+                "type": "TSIGKey",
+            },
+        ],
+    )
+    post = mock_utils.mock_http_post(post_code, json_output={"error": "Server error"})
+    delete = mock_utils.mock_http_delete(delete_code, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+    )
+    assert result.exit_code == 1
+    assert "Failed" in json.loads(result.output)["error"]
+    assert post_calls == len(post.call_args_list)
+    assert delete_calls == len(delete.call_args_list)
+
+
+@pytest.mark.parametrize("post_code,delete_code", ((500, 204), (201, 500)))
+def test_tsigkey_import_replace_ignore_errors(
+    mocker, mock_utils, file_mock, post_code, delete_code
+):
+    file_mock.mock_settings_import(
+        [
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha256",
+                "id": "test123.",
+                "key": "y9Hd0SFxHvY0YRrznu06MrpXgDoRzwnnkNCOpf19+3BxAX8oIWFCejK31lmMV9ouuUtr6VXMpTXycJCsXuMmAA==",
+                "name": "test123",
+                "type": "TSIGKey",
+            },
+        ]
+    )
+    mocker.patch(
+        "powerdns_cli.utils.get_tsigkey_settings",
+        return_value=[
+            {
+                "algorithm": "hmac-sha512",
+                "id": "test321.",
+                "key": "bNGwwOeyX3c9TKwY5sKszW5l2gv1I5EpQ5s8o68jiG8ymEr489xL/jlLrlWZSG54u61Tmo8ftj68Tfbodh9NnA==",
+                "name": "test321",
+                "type": "TSIGKey",
+            },
+            {
+                "algorithm": "hmac-sha512",
+                "id": "example.",
+                "key": "6bcFDLazAzbRZKKOsDT7vHXxfMjwcba+S2/QZncO8gtoAs5aBfFiQDj4kSBUEkmLcSs/HWtlR3Ri0ktBGxDGmQ==",
+                "name": "example",
+                "type": "TSIGKey",
+            },
+        ],
+    )
+    post = mock_utils.mock_http_post(post_code, json_output={"error": "Server error"})
+    delete = mock_utils.mock_http_delete(delete_code, json_output={"error": "Server error"})
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_import,
+        ["testfile", "--replace", "--ignore-errors"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.stdout)["message"]
+    assert 2 == len(post.call_args_list)
+    assert 2 == len(delete.call_args_list)
+
+
+testcase_replace_idempotence = (
+    TsigkeyImport(
+        file_contents=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        upstream_content=[
+            {
+                "algorithm": "hmac-md5",
+                "id": "test.",
+                "key": "Rx+i3J/OWPCiJ9fE3n1Ph3tc8uQgWXztaiTWP9WdrjQ=",
+                "name": "test",
+                "type": "TSIGKey",
+            }
+        ],
+        added_content=[],
+        delete_path=[],
+    ),
+    TsigkeyImport(
+        file_contents=[],
+        upstream_content=[],
+        added_content=[],
+        delete_path=[],
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "file_contents, upstream_content, added_content, delete_path", testcase_replace_idempotence
+)
+def test_tsigkey_import_replace_idempotence(
+    mocker, mock_utils, file_mock, file_contents, upstream_content, added_content, delete_path
+):
+    file_mock.mock_settings_import(file_contents)
+    mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
+    runner = CliRunner()
+    result = runner.invoke(
+        tsigkey_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+    )
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
 
 
 def test_tsigkey_list_success(mock_utils, conditional_mock_utils, example_tsigkey_list):

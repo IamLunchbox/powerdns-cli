@@ -1,0 +1,8 @@
+[
+  {
+    "algorithm": "hmac-sha256",
+    "id": "test.",
+    "key": "AvyIiTEIaHxfwHsif+0Z39cxTra8P8KcyPpMNQdANzHgm73rvXPFqZbgmPolE6jWEKYrM5KruSJyuoAoCpY8Nw==",
+    "name": "test",
+    "type": "TSIGKey"
+  }]

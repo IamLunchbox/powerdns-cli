@@ -1,0 +1,4 @@
+[
+    {"kind": "SOA-EDIT-API", "metadata": ["DEFAULT"], "type": "Metadata"},
+    {"kind": "ALSO-NOTIFY", "metadata": ["192.0.2.1:5305", "192.0.2.2:5305"], "type": "Metadata"}
+]

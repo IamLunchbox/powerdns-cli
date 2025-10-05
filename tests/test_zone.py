@@ -12,6 +12,7 @@ from powerdns_cli.powerdns_cli import (
     zone_delete,
     zone_export,
     zone_flush_cache,
+    zone_import,
     zone_list,
     zone_notify,
     zone_rectify,
@@ -159,6 +160,11 @@ def mock_utils(mocker):
     return testutils.MockUtils(mocker)
 
 
+@pytest.fixture
+def file_mock(mocker):
+    return testutils.MockFile(mocker)
+
+
 class ConditionalMock(testutils.MockUtils):
     def mock_http_get(self) -> unittest_MagicMock:
         mock_http_get = self.mocker.MagicMock(spec=requests.Response)
@@ -179,7 +185,7 @@ class ConditionalMock(testutils.MockUtils):
                     json_output = {"error": "Not found"}
                     status_code = 404
                 case _:
-                    raise NotImplementedError(f"An unexpected url-path was called: {args[0]}")
+                    raise SystemExit(f"An unexpected url-path was called: {args[0]}")
             mock_http_get.status_code = status_code
             mock_http_get.json.return_value = json_output
             mock_http_get.headers = {"Content-Type": "application/json"}
@@ -292,6 +298,282 @@ def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
     assert "Server error" in json.loads(result.output)["error"]
     delete.assert_called()
     get.assert_called_once()
+
+
+def test_zone_import_success(
+    mocker,
+    mock_utils,
+    file_mock,
+    example_com,
+):
+    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
+    delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
+    file_mock.mock_settings_import(
+        {
+            "account": "test123",
+            "api_rectify": False,
+            "catalog": "",
+            "dnssec": False,
+            "edited_serial": 2025082405,
+            "id": "example.com.",
+            "kind": "Master",
+            "master_tsig_key_ids": [],
+            "masters": [],
+            "name": "example.com.",
+            "nsec3narrow": False,
+            "nsec3param": "",
+            "serial": 2025082405,
+            "slave_tsig_key_ids": [],
+            "soa_edit": "",
+            "soa_edit_api": "DEFAULT",
+            "url": "/api/v1/servers/localhost/zones/example.com.",
+        }
+    )
+    added_content = {
+        "account": "test123",
+        "api_rectify": False,
+        "catalog": "",
+        "dnssec": False,
+        "edited_serial": 2025082405,
+        "id": "example.com.",
+        "kind": "Master",
+        "master_tsig_key_ids": [],
+        "masters": [],
+        "name": "example.com.",
+        "nsec3narrow": False,
+        "nsec3param": "",
+        "serial": 2025082405,
+        "slave_tsig_key_ids": [],
+        "soa_edit": "",
+        "soa_edit_api": "DEFAULT",
+        "url": "/api/v1/servers/localhost/zones/example.com.",
+    }
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_import,
+        ["testfile", "--force"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    assert post.call_count == 1
+    assert delete.call_count == 1
+    assert added_content == post.call_args_list[0].kwargs["payload"]
+
+
+def test_zone_import_merge_success(
+    mocker,
+    mock_utils,
+    file_mock,
+    example_com,
+):
+    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
+    delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
+    file_mock.mock_settings_import(
+        {
+            "account": "test123",
+            "api_rectify": False,
+            "catalog": "",
+            "dnssec": False,
+            "edited_serial": 2025082405,
+            "id": "example.com.",
+            "kind": "Master",
+            "master_tsig_key_ids": [],
+            "masters": [],
+            "name": "example.com.",
+            "nsec3narrow": False,
+            "nsec3param": "",
+            "serial": 2025082405,
+            "slave_tsig_key_ids": [],
+            "soa_edit": "",
+            "soa_edit_api": "DEFAULT",
+            "url": "/api/v1/servers/localhost/zones/example.com.",
+        }
+    )
+    added_content = {
+        "account": "test123",
+        "api_rectify": False,
+        "catalog": "",
+        "dnssec": False,
+        "edited_serial": 2025082405,
+        "id": "example.com.",
+        "kind": "Master",
+        "last_check": 0,
+        "master_tsig_key_ids": [],
+        "masters": [],
+        "name": "example.com.",
+        "notified_serial": 0,
+        "nsec3narrow": False,
+        "nsec3param": "",
+        "rrsets": [
+            {
+                "comments": [],
+                "name": "test.example.com.",
+                "records": [
+                    {"content": "10.0.0.1", "disabled": False},
+                    {"content": "10.0.0.2", "disabled": False},
+                ],
+                "ttl": 86400,
+                "type": "A",
+            },
+            {
+                "comments": [],
+                "name": "mail.example.com.",
+                "records": [{"content": "0 mail.example.com.", "disabled": False}],
+                "ttl": 86400,
+                "type": "MX",
+            },
+            {
+                "comments": [],
+                "name": "test2.example.com.",
+                "records": [{"content": "10.0.1.1", "disabled": False}],
+                "ttl": 86400,
+                "type": "A",
+            },
+            {
+                "comments": [],
+                "name": "example.com.",
+                "records": [
+                    {
+                        "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025082405 10800 3600 604800 3600",
+                        "disabled": False,
+                    }
+                ],
+                "ttl": 3600,
+                "type": "SOA",
+            },
+        ],
+        "serial": 2025082405,
+        "slave_tsig_key_ids": [],
+        "soa_edit": "",
+        "soa_edit_api": "DEFAULT",
+        "url": "/api/v1/servers/localhost/zones/example.com.",
+    }
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_import,
+        ["testfile", "--force", "--merge"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "imported" in json.loads(result.output)["message"]
+    assert post.call_count == 1
+    assert delete.call_count == 1
+    assert added_content == post.call_args_list[0].kwargs["payload"]
+
+
+def test_zone_import_idempotence(
+    mocker,
+    mock_utils,
+    file_mock,
+    example_com,
+):
+    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    file_mock.mock_settings_import(
+        {
+            "account": "",
+            "api_rectify": False,
+            "catalog": "",
+            "dnssec": False,
+            "edited_serial": 2025082405,
+            "id": "example.com.",
+            "kind": "Master",
+            "master_tsig_key_ids": [],
+            "masters": [],
+            "name": "example.com.",
+            "nsec3narrow": False,
+            "nsec3param": "",
+            "serial": 2025082405,
+            "slave_tsig_key_ids": [],
+            "soa_edit": "",
+            "soa_edit_api": "DEFAULT",
+            "url": "/api/v1/servers/localhost/zones/example.com.",
+        }
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_import,
+        ["testfile", "--force"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 0
+    assert "already" in json.loads(result.output)["message"]
+
+
+def test_zone_import_invalid_file(
+    mocker,
+    mock_utils,
+    file_mock,
+    example_com,
+):
+    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    file_mock.mock_settings_import(
+        {
+            "account": "",
+            "api_rectify": False,
+            "catalog": "",
+            "dnssec": False,
+            "edited_serial": 2025082405,
+            "kind": "Master",
+            "master_tsig_key_ids": [],
+            "masters": [],
+            "nsec3narrow": False,
+            "nsec3param": "",
+            "serial": 2025082405,
+            "slave_tsig_key_ids": [],
+            "soa_edit": "",
+            "soa_edit_api": "DEFAULT",
+            "url": "/api/v1/servers/localhost/zones/example.com.",
+        }
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_import,
+        ["testfile", "--force"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert "Either" in json.loads(result.output)["error"]
+
+
+def test_zone_import_no_confirm(
+    mocker,
+    mock_utils,
+    file_mock,
+    example_com,
+):
+    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    file_mock.mock_settings_import(
+        {
+            "account": "test123",
+            "api_rectify": False,
+            "catalog": "",
+            "dnssec": False,
+            "edited_serial": 2025082405,
+            "id": "example.com.",
+            "kind": "Master",
+            "master_tsig_key_ids": [],
+            "masters": [],
+            "name": "example.com.",
+            "nsec3narrow": False,
+            "nsec3param": "",
+            "serial": 2025082405,
+            "slave_tsig_key_ids": [],
+            "soa_edit": "",
+            "soa_edit_api": "DEFAULT",
+            "url": "/api/v1/servers/localhost/zones/example.com.",
+        }
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_import,
+        ["testfile"],
+        obj={"apihost": "http://example.com"},
+    )
+    assert result.exit_code == 1
+    assert "Aborted" in result.output
 
 
 def test_zone_list_success(conditional_mock_utils, example_zone_list):

@@ -2,27 +2,17 @@ name: Unit Tests
 on:
   pull_request:
   push:
-    branches:
-      - main
     tags-ignore: # tags are tested in release.yml
-      - "*.*.*"
+      - "**"
+    branches:
+      - "**"
   workflow_call:
 
 jobs:
   main:
-    strategy:
-      matrix:
-        python_version:
-          - 3.10.18
-          - 3.11.13
-          - 3.12.11
-          - 3.13.7
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
-    - uses: actions/setup-python@v6
-      with:
-        python-version: ${{ matrix.python_version }}
-        cache: pip
+    - uses: actions/setup-python@v5
     - run: pip install .[dev]
     - run: tox run

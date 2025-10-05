@@ -3,13 +3,13 @@
 powerdns-cli: Manage PowerDNS Zones/Records
 """
 import ipaddress
-import json
 import re
 
 import click
 import requests
 
 from . import utils
+from .utils import print_output
 
 
 class PowerDNSZoneType(click.ParamType):
@@ -82,8 +82,7 @@ class IPRangeType(click.ParamType):
 
     def convert(self, value, param, ctx) -> str:
         try:
-            ipaddress.ip_network(value, strict=False)
-            return value
+            return str(ipaddress.ip_network(value, strict=False))
         except (ValueError, ipaddress.AddressValueError):
             self.fail(f"{value!r} is no valid IP-address range", param, ctx)
 
@@ -98,8 +97,7 @@ class IPAddressType(click.ParamType):
 
     def convert(self, value, param, ctx) -> str:
         try:
-            ipaddress.ip_address(value)
-            return value
+            return str(ipaddress.ip_address(value))
         except (ValueError, ipaddress.AddressValueError):
             self.fail(f"{value!r} is no valid IP-address", param, ctx)
 
@@ -152,13 +150,11 @@ def cli(ctx, apikey, url, insecure, skip_check):
         uri = f"{ctx.obj['apihost']}/api/v1/servers"
         preflight_request = utils.http_get(uri, ctx)
         if not preflight_request.status_code == 200:
-            click.echo(
-                json.dumps(
-                    {
-                        "error": "No successful connection to sever, "
-                        f"status code {preflight_request.status_code}"
-                    }
-                )
+            print_output(
+                {
+                    "error": "No successful connection to sever, "
+                    f"status code {preflight_request.status_code}"
+                }
             )
             raise SystemExit(1)
         ctx.obj["major_version"] = int(
@@ -194,11 +190,7 @@ def autoprimary_add(
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
     payload = {"ip": ip, "nameserver": nameserver, "account": account}
     if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
-        click.echo(
-            json.dumps(
-                {"message": f"Autoprimary {ip} with nameserver {nameserver} already present"}
-            )
-        )
+        print_output({"message": f"Autoprimary {ip} with nameserver {nameserver} already present"})
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
     if utils.create_output(
@@ -229,13 +221,41 @@ def autoprimary_delete(ctx, ip, nameserver):
         ):
             raise SystemExit(0)
     else:
-        click.echo(
-            json.dumps(
-                {"message": f"Autoprimary {ip} with nameserver {nameserver} already absent"},
-                indent=4,
-            )
-        )
+        print_output({"message": f"Autoprimary {ip} with nameserver {nameserver} already absent"})
         raise SystemExit(0)
+
+
+@autoprimary.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    is_flag=True,
+    help="Replace all old autoprimaries settings with new ones",
+)
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
+@click.pass_context
+def autoprimary_import(ctx, file, replace, ignore_errors):
+    """Import a list with your autoprimaries settings"""
+    settings = utils.extract_file(file)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    utils.validate_simple_import(settings, upstream_settings, replace)
+    if replace and upstream_settings:
+        utils.replace_autoprimary_import(uri, ctx, settings, upstream_settings, ignore_errors)
+    else:
+        for nameserver in settings:
+            r = utils.http_post(uri, ctx, payload=nameserver)
+            if not r.status_code == 201:
+                msg = {"error": f"Failed adding nameserver {nameserver}"}
+                if ignore_errors:
+                    print_output(msg, stderr=True)
+                else:
+                    print_output(msg)
+                    raise SystemExit(1)
+    print_output({"message": "Successfully added autoprimary configuration"})
+    raise SystemExit(0)
 
 
 @autoprimary.command("list")
@@ -315,8 +335,8 @@ def cryptokey():
 
 
 @cryptokey.command("add")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
     "-a",
     "--active",
@@ -332,9 +352,9 @@ def cryptokey():
     help="Set the key size in bits, required for zsk",
 )
 @click.pass_context
-def cryptokey_add(ctx, dns_zone, key_type, active, publish, bits, algorithm):
+def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm):
     """
-    Adds a cryptokey to the zone. Is disabled and not published by default
+    Adds a cryptokey to the zone. Is disabled and not published by default.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     payload = {"active": active, "published": publish, "keytype": key_type}
@@ -392,11 +412,7 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id):
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if not r.json()["active"]:
-        click.echo(
-            json.dumps(
-                {"message": f"Cryptokey with id {cryptokey_id} is already inactive"}, indent=4
-            )
-        )
+        print_output({"message": f"Cryptokey with id {cryptokey_id} is already inactive"})
         raise SystemExit(0)
     r = utils.http_put(uri, ctx, payload)
     if utils.create_output(
@@ -426,9 +442,7 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id):
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if r.json()["active"]:
-        click.echo(
-            json.dumps({"message": f"Cryptokey with id {cryptokey_id} is already active"}, indent=4)
-        )
+        print_output({"message": f"Cryptokey with id {cryptokey_id} is already active"})
         raise SystemExit(0)
     r = utils.http_put(uri, ctx, payload)
     if utils.create_output(
@@ -460,8 +474,8 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
 
 
 @cryptokey.command("import")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument("private-key", type=click.STRING)
 @click.option(
     "-a",
@@ -472,7 +486,7 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
 @click.pass_context
-def cryptokey_import(
+def cryptokey_impor(
     ctx,
     dns_zone,
     key_type,
@@ -481,7 +495,7 @@ def cryptokey_import(
     publish,
 ):
     """
-    Adds a cryptokey to the zone. Is disabled and not published by default
+    Adds a cryptokey to the zone. Is disabled and not published by default.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     # Click CLI escapes newline characters
@@ -493,11 +507,7 @@ def cryptokey_import(
         "keytype": key_type,
     }
     if utils.is_dnssec_key_present(uri, secret, ctx):
-        click.echo(
-            json.dumps(
-                {"message": "The provided dnssec-key is already present at the backend"}, indent=4
-            )
-        )
+        print_output({"message": "The provided dnssec-key is already present at the backend"})
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
     if utils.create_output(
@@ -540,9 +550,7 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id):
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if r.json()["published"]:
-        click.echo(
-            json.dumps({"message": f"Cryptokey with id {cryptokey_id} already published"}, indent=4)
-        )
+        print_output({"message": f"Cryptokey with id {cryptokey_id} already published"})
         raise SystemExit(0)
     payload["active"] = r.json()["active"]
     r = utils.http_put(uri, ctx, payload)
@@ -580,11 +588,7 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
     }
     r = utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
     if not r.json()["published"]:
-        click.echo(
-            json.dumps(
-                {"message": f"Cryptokey with id {cryptokey_id} is already unpublished"}, indent=4
-            )
-        )
+        print_output({"message": f"Cryptokey with id {cryptokey_id} is already unpublished"})
         raise SystemExit(0)
     payload["active"] = r.json()["active"]
     r = utils.http_put(uri, ctx, payload)
@@ -602,11 +606,7 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
 def network(ctx):
     """Shows and sets up network views to limit access to dns entries"""
     if ctx.obj["major_version"] < 5:
-        click.echo(
-            json.dumps(
-                {"error": "Your authoritative dns-server does not support networks"}, indent=4
-            )
-        )
+        print_output({"error": "Your authoritative dns-server does not support networks"})
         raise SystemExit(1)
 
 
@@ -622,11 +622,7 @@ def network_add(ctx, cidr, view_id):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 200 and current_network.json()["view"] == view_id:
-        click.echo(
-            json.dumps(
-                {"message": f"Network {cidr} is already assigned to view {view_id}"}, indent=4
-            )
-        )
+        print_output({"message": f"Network {cidr} is already assigned to view {view_id}"})
         raise SystemExit(0)
     payload = {"view": view_id}
     r = utils.http_put(uri, ctx, payload=payload)
@@ -648,20 +644,6 @@ def network_list(ctx):
     raise SystemExit(1)
 
 
-@network.command("export")
-@click.argument("cidr", type=IPRange)
-@click.pass_context
-def network_export(ctx, cidr):
-    """
-    Show the network and its associated views
-    """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
-    r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
-
-
 @network.command("delete")
 @click.argument("cidr", type=IPRange)
 @click.pass_context
@@ -673,7 +655,7 @@ def network_delete(ctx, cidr):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 404:
-        click.echo(json.dumps({"message": f"Network {cidr} absent"}, indent=4))
+        print_output({"message": f"Network {cidr} absent"})
         raise SystemExit(0)
     payload = {"view": ""}
     r = utils.http_put(uri, ctx, payload=payload)
@@ -682,6 +664,64 @@ def network_delete(ctx, cidr):
     ):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@network.command("export")
+@click.argument("cidr", type=IPRange)
+@click.pass_context
+def network_export(ctx, cidr):
+    """
+    Show the network and its associated views, defaults to /32 if no netmask is provided.
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    r = utils.http_get(uri, ctx)
+    if utils.create_output(r, (200,)):
+        raise SystemExit(0)
+    raise SystemExit(1)
+
+
+@network.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all network settings with new ones",
+)
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
+@click.pass_context
+def network_import(ctx, file, replace, ignore_errors):
+    """Import network and zone assignments.
+    File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}"""
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
+    nested_settings = utils.extract_file(file)
+    if not isinstance(nested_settings, dict) or not isinstance(
+        nested_settings.get("networks", None), list
+    ):
+        print_output({"error": "Networks must be dict with the key networks"})
+        raise SystemExit(1)
+    settings = nested_settings["networks"]
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    if isinstance(upstream_settings.get("networks", None), list):
+        upstream_settings = upstream_settings["networks"]
+    else:
+        upstream_settings = []
+    if replace and upstream_settings == settings:
+        print_output({"message": "Requested networks are already present"})
+        raise SystemExit(0)
+    if not replace and all(item in upstream_settings for item in settings):
+        print_output({"message": "Requested networks are already present"})
+        raise SystemExit(0)
+    if replace and upstream_settings:
+        utils.replace_network_import(uri, ctx, settings, upstream_settings, ignore_errors)
+    else:
+        utils.add_network_import(uri, ctx, settings, ignore_errors)
+    print_output(
+        {"message": "Successfully imported networks to views"},
+    )
+    raise SystemExit(0)
 
 
 @network.command("spec")
@@ -741,9 +781,7 @@ def record_add(
         "records": [{"content": content, "disabled": False}],
     }
     if utils.is_content_present(uri, ctx, rrset):
-        click.echo(
-            json.dumps({"message": f"{name} {record_type} {content} already present"}, indent=4)
-        )
+        print_output({"message": f"{name} {record_type} {content} already present"})
         raise SystemExit(0)
 
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
@@ -802,16 +840,13 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
             "records": [],
         }
         if not utils.is_matching_rrset_present(uri, ctx, rrset):
-            click.echo(
-                json.dumps({"message": f"{record_type} records in {name} already absent"}, indent=4)
-            )
+            print_output({"message": f"{record_type} records in {name} already absent"})
             raise SystemExit(0)
         r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
         msg = {"message": f"All {record_type} records for {name} removed"}
         if utils.create_output(r, (204,), optional_json=msg):
             raise SystemExit(0)
-        msg = {"message": f"Failed to delete all {record_type} records for {name}"}
-        click.echo(json.dumps(msg))
+        print_output({"message": f"Failed to delete all {record_type} records for {name}"})
         raise SystemExit(1)
 
     rrset = {
@@ -827,8 +862,7 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
         ],
     }
     if not utils.is_content_present(uri, ctx, rrset):
-        msg = {"message": f"{name} {record_type} {content} already absent"}
-        click.echo(json.dumps(msg))
+        print_output({"message": f"{name} {record_type} {content} already absent"})
         raise SystemExit(0)
     matching_rrsets = utils.is_matching_rrset_present(uri, ctx, rrset)
     indizes_to_remove = []
@@ -892,8 +926,7 @@ def record_disable(
     }
 
     if utils.is_content_present(uri, ctx, rrset):
-        msg = {"message": f"{name} IN {record_type} {content} already disabled"}
-        click.echo(json.dumps(msg))
+        print_output({"message": f"{name} IN {record_type} {content} already disabled"})
         raise SystemExit(0)
     rrset["records"] = utils.merge_rrsets(uri, ctx, rrset)
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
@@ -987,16 +1020,14 @@ def record_extend(
         "records": [{"content": content, "disabled": False}],
     }
     if utils.is_content_present(uri, ctx, rrset):
-        click.echo(
-            json.dumps({"message": f"{name} IN {record_type} {content} already present"}, indent=4)
-        )
+        print_output({"message": f"{name} IN {record_type} {content} already present"})
         raise SystemExit(0)
     upstream_rrset = utils.is_matching_rrset_present(uri, ctx, rrset)
     if upstream_rrset:
         extra_records = [
-            record
-            for record in upstream_rrset["records"]
-            if record["content"] != rrset["records"][0]["content"]
+            item
+            for item in upstream_rrset["records"]
+            if item["content"] != rrset["records"][0]["content"]
         ]
         rrset["records"].extend(extra_records)
     # breakpoint()
@@ -1008,10 +1039,12 @@ def record_extend(
 
 
 @record.command("export")
-@click.argument("name", type=click.STRING)
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
-@click.argument(
-    "record-type",
+@click.option("--name", help="Limit output to chosen names", type=click.STRING)
+@click.option(
+    "record_type",
+    "--type",
+    help="Limit output to chosen record types",
     type=click.Choice(
         [
             "A",
@@ -1038,13 +1071,72 @@ def record_export(
     Exports the contents of an existing RRSET.
     """
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
-    name = utils.make_dnsname(name, dns_zone)
+    if name:
+        name = utils.make_dnsname(name, dns_zone)
     rrsets = utils.query_zone_rrsets(uri, ctx)
+    output_list = []
     for rrset in rrsets:
-        if rrset["name"] == name and rrset["type"] == record_type.upper():
-            click.echo(json.dumps(rrset))
-            raise SystemExit(0)
-    click.echo({"error": "No rrset to export"})
+        if rrset["name"] == name and rrset["type"] == record_type:
+            output_list.append(rrset)
+        elif rrset["name"] == name:
+            output_list.append(rrset)
+        elif rrset["type"] == record_type:
+            output_list.append(rrset)
+    if not output_list and not any((name, record_type)):
+        output_list = rrsets
+    print_output(output_list)
+    raise SystemExit(0)
+
+
+@record.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    default=False,
+    help="Replace old settings with new ones",
+)
+@click.pass_context
+def record_import(ctx, file, replace):
+    """
+    Imports a rrset into a zone.
+    Imported as a dictionary: {'id':str, 'rrsets':[]}, all other keys are ignored.
+    'name' substitutes 'id'.
+    """
+    new_rrsets = utils.extract_file(file)
+    utils.validate_rrset_import(new_rrsets)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{new_rrsets['id']}"
+    # This function skips the usual deduplication logic from utils.import_settings, since
+    # any patch request automatically extends existing rrsets (except where type and name matches,
+    # those get replaced
+    upstream_zone = utils.read_settings_from_upstream(uri, ctx)
+    if not upstream_zone:
+        upstream_zone["rrsets"] = []
+    utils.check_records_for_identical_content(new_rrsets, upstream_zone, replace)
+    for rrset in new_rrsets["rrsets"]:
+        rrset["changetype"] = "REPLACE"
+    if replace:
+        final_recordset = []
+        final_recordset.extend(new_rrsets["rrsets"])
+        new_rrset_types = [(item["name"], item["type"]) for item in new_rrsets["rrsets"]]
+        upstream_rrset_types = [(item["name"], item["type"]) for item in upstream_zone["rrsets"]]
+        for rrset_type in upstream_rrset_types:
+            if rrset_type not in new_rrset_types:
+                index = [
+                    upstream_zone["rrsets"].index(item)
+                    for item in upstream_zone["rrsets"]
+                    if (item["name"], item["type"]) == rrset_type
+                ][0]
+                new_entry = upstream_zone["rrsets"][index] | {"changetype": "DELETE"}
+                del new_entry["ttl"]
+                del new_entry["records"]
+                del new_entry["comments"]
+                final_recordset.append(new_entry)
+        new_rrsets["rrsets"] = final_recordset
+    r = utils.http_patch(uri, ctx, payload=new_rrsets)
+    if utils.create_output(r, (204,), optional_json={"message": "RRset imported"}):
+        raise SystemExit(0)
     raise SystemExit(1)
 
 
@@ -1084,15 +1176,13 @@ def tsigkey_add(ctx, name, algorithm, secret):
     payload = {"name": name, "algorithm": algorithm}
     if secret:
         payload["key"] = secret
-    r = utils.http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}", ctx)
+    r = utils.http_get(f"{uri}/{name}", ctx)
     if r.status_code == 200 and secret:
         if r.json()["key"] == secret:
-            msg = {"message": f"A TSIGKEY with {name} and your secret is already present"}
-            click.echo(json.dumps(msg))
+            print_output({"message": f"A TSIGKEY with {name} and your secret is already present"})
         raise SystemExit(0)
     if r.status_code == 200:
-        msg = {"message": f"A TSIGKEY with name {name} is already present"}
-        click.echo(json.dumps(msg))
+        print_output({"message": f"A TSIGKEY with name {name} is already present"})
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
     if utils.create_output(
@@ -1113,8 +1203,7 @@ def tsigkey_delete(ctx, name):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
     r = utils.http_get(uri, ctx)
     if not r.status_code == 200:
-        msg = {"message": f"TSIGKEY for {name} already absent"}
-        click.echo(json.dumps(msg))
+        print_output({"message": f"TSIGKEY for {name} already absent"})
         raise SystemExit(0)
     r = utils.http_delete(uri, ctx)
     if utils.create_output(r, (204,), optional_json={"message": f"Deleted TSIGKEY {name}"}):
@@ -1137,6 +1226,34 @@ def tsigkey_export(ctx, key_id):
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@tsigkey.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all network settings with new ones",
+)
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
+@click.pass_context
+def tsigkey_import(ctx, file, replace, ignore_errors):
+    """Import TSIG keys from a file, with optional replacement of existing keys."""
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    settings = utils.extract_file(file)
+    upstream_settings = utils.get_tsigkey_settings(uri, ctx)
+    utils.validate_simple_import(settings, upstream_settings, replace)
+    if replace and upstream_settings:
+        utils.replace_tsigkey_import(uri, ctx, settings, upstream_settings, ignore_errors)
+    else:
+        utils.add_tsigkey_import(uri, ctx, settings, ignore_errors)
+    print_output(
+        {"message": "Successfully imported tsigkeys"},
+    )
+    raise SystemExit(0)
 
 
 @tsigkey.command("list")
@@ -1188,18 +1305,15 @@ def tsigkey_update(ctx, name, algorithm, secret, new_name):
     }
     r = utils.http_get(uri, ctx)
     if r.status_code != 200:
-        msg = {"error": f"A TSIGKEY with name {name} does not exist"}
-        click.echo(json.dumps(msg))
+        print_output({"error": f"A TSIGKEY with name {name} does not exist"})
         raise SystemExit(1)
     if all(tsikey_settings[setting] == r.json()[setting] for setting in tsikey_settings):
-        msg = {"message": f"The settings TSIGKEY {name} are already present"}
-        click.echo(json.dumps(msg))
+        print_output({"message": f"The settings TSIGKEY {name} are already present"})
         raise SystemExit(0)
     if new_name:
         r = utils.http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys", ctx)
         if new_name in (key["name"] for key in r.json()):
-            msg = {"error": f"TSIGKEY {name} already exists. Refusing to rewrite."}
-            click.echo(json.dumps(msg))
+            print_output({"error": f"TSIGKEY {name} already exists. Refusing to rewrite."})
             raise SystemExit(1)
     r = utils.http_put(uri, ctx, tsikey_settings)
     if utils.create_output(
@@ -1237,7 +1351,7 @@ def zone_add(ctx, dns_zone, zonetype, master):
     }
     current_zones = utils.query_zones(ctx)
     if [z for z in current_zones if z["name"] == dns_zone]:
-        click.echo(json.dumps({"message": f"Zone {dns_zone} already present"}, indent=4))
+        print_output({"message": f"Zone {dns_zone} already present"})
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
     if utils.create_output(r, (201,), optional_json={"message": f"Zone {dns_zone} created"}):
@@ -1262,13 +1376,13 @@ def zone_delete(ctx, dns_zone, force):
     """
     upstream_zones = utils.query_zones(ctx)
     if dns_zone not in [single_zone["name"] for single_zone in upstream_zones]:
-        click.echo(json.dumps({"message": f"{dns_zone} already absent"}, indent=4))
+        print_output({"message": f"{dns_zone} already absent"})
         raise SystemExit(0)
 
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     warning = f"!!!! WARNING !!!!!\nYou are attempting to delete {dns_zone}\nAre you sure?"
     if not force and not click.confirm(warning):
-        click.echo(json.dumps({"message": f"Aborted deleting {dns_zone}"}, indent=4))
+        print_output({"message": f"Aborted deleting {dns_zone}"})
         raise SystemExit(1)
     r = utils.http_delete(uri, ctx)
     msg = {"message": f"{dns_zone} deleted"}
@@ -1314,6 +1428,48 @@ def zone_flush_cache(ctx, dns_zone):
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@zone.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "-f",
+    "--force",
+    help="Force execution and skip confirmation",
+    is_flag=True,
+)
+@click.option(
+    "-m",
+    "--merge",
+    help="Merge new configuration with exisiting settings",
+    is_flag=True,
+)
+@click.pass_context
+def zone_import(ctx, file, force, merge):
+    """
+    Directly import zones into the server. Must delete the zone beforehand, since
+    most settings may not be changed after a zone is created.
+    This might have side effects for other settings, as cryptokeys are associated with a zone!
+    """
+    settings = utils.extract_file(file)
+    utils.validate_zone_import(settings)
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{settings['id']}"
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    utils.check_zones_for_identical_content(settings, upstream_settings)
+    warning = (
+        f"!!!! WARNING !!!!!\nYou are deleting and reconfiguring {settings['id']}!\n"
+        "Are you sure?"
+    )
+    if not force and not click.confirm(warning):
+        print_output({"error": "Aborted"})
+        raise SystemExit(1)
+    utils.import_zone_settings(
+        uri, ctx, settings, upstream_settings=upstream_settings, merge=merge, ignore_errors=False
+    )
+    print_output(
+        {"message": "Successfully imported zones"},
+    )
+    raise SystemExit(0)
 
 
 @zone.command("notify")
@@ -1404,11 +1560,7 @@ def metadata_add(ctx, dns_zone, metadata_key, metadata_value):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     payload = {"kind": metadata_key, "metadata": [metadata_value], "type": "Metadata"}
     if utils.is_metadata_content_present(f"{uri}/{metadata_key}", ctx, payload):
-        click.echo(
-            json.dumps(
-                {"message": f"{metadata_key} {metadata_value} in {dns_zone} already present"}
-            )
-        )
+        print_output({"message": f"{metadata_key} {metadata_value} in {dns_zone} already present"})
         raise SystemExit(0)
     r = utils.http_post(uri, ctx, payload)
     if utils.create_output(r, (201,)):
@@ -1434,7 +1586,7 @@ def metadata_delete(ctx, dns_zone, metadata_key):
         ):
             raise SystemExit(0)
         raise SystemExit(1)
-    click.echo(json.dumps({"message": f"{metadata_key} for {dns_zone} already absent"}, indent=4))
+    print_output({"message": f"{metadata_key} for {dns_zone} already absent"})
     raise SystemExit(0)
 
 
@@ -1453,9 +1605,35 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
 
 
 # pylint: enable=unused-argument
+@metadata.command("import")
+@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all metadata settings with new ones",
+)
+@click.option(
+    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+)
+@click.pass_context
+def metadata_import(ctx, dns_zone, file, replace, ignore_errors):
+    """Import metadata for a DNS zone from a file."""
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+    settings = utils.extract_file(file)
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    utils.validate_simple_import(settings, upstream_settings, replace)
+    utils.metadata_remove_soa_edit_api(settings, upstream_settings)
+    if replace and upstream_settings:
+        utils.replace_metadata_from_import(uri, ctx, upstream_settings, settings, ignore_errors)
+    else:
+        utils.add_metadata_from_import(uri, ctx, upstream_settings, settings, ignore_errors)
+    print_output({"message": "Successfully imported metadata"})
+    raise SystemExit(0)
 
 
-@metadata.command("list")
+@metadata.command("export")
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.option(
     "-l",
@@ -1464,9 +1642,9 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
     help="Limit metadata output to this single element",
 )
 @click.pass_context
-def metadata_list(ctx, dns_zone, limit):
+def metadata_export(ctx, dns_zone, limit):
     """
-    Lists the metadata for a given zone. Can optionally be limited to a single key
+    Lists the metadata for a given zone. Can optionally be limited to a single key.
     """
     if limit:
         uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata/{limit}"
@@ -1500,11 +1678,7 @@ def metadata_update(ctx, dns_zone, metadata_key, metadata_value):
         if utils.create_output(r, (200,)):
             raise SystemExit(0)
         raise SystemExit(1)
-    click.echo(
-        json.dumps(
-            {"message": f"{metadata_key}:{metadata_value} for {dns_zone} already present"}, indent=4
-        )
-    )
+    print_output({"message": f"{metadata_key}:{metadata_value} for {dns_zone} already present"})
     raise SystemExit(0)
 
 
@@ -1514,7 +1688,7 @@ def print_version():
     # pylint: disable-next=import-outside-toplevel
     import importlib
 
-    click.echo(json.dumps({"version": importlib.metadata.version("powerdns-cli")}))
+    print_output({"version": importlib.metadata.version("powerdns-cli")})
 
 
 @cli.group()
@@ -1522,9 +1696,7 @@ def print_version():
 def view(ctx):
     """Set view to limit zone access"""
     if ctx.obj["major_version"] < 5:
-        click.echo(
-            json.dumps({"error": "Your authoritative dns-server does not support views"}, indent=4)
-        )
+        print_output({"error": "Your authoritative dns-server does not support views"})
         raise SystemExit(1)
 
 
@@ -1537,7 +1709,7 @@ def view_add(ctx, view_id, dns_zone):
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone in view_content.json()["zones"]:
-        click.echo(json.dumps({"message": f"{dns_zone} already in {view_id}"}, indent=4))
+        print_output({"message": f"{dns_zone} already in {view_id}"})
         raise SystemExit(0)
     payload = {"name": f"{dns_zone}"}
     r = utils.http_post(uri, ctx, payload=payload)
@@ -1551,14 +1723,14 @@ def view_add(ctx, view_id, dns_zone):
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.pass_context
 def view_delete(ctx, view_id, dns_zone):
-    """Deletes a view"""
+    """Deletes a dns-zone from a view"""
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone not in view_content.json()["zones"]:
-        click.echo(json.dumps({"message": f"Zone {dns_zone} is not in {view_id}"}, indent=4))
+        print_output({"message": f"Zone {dns_zone} is not in {view_id}"})
         raise SystemExit(0)
     if view_content.status_code == 404:
-        click.echo(json.dumps({"message": f"View {view_id} is absent"}, indent=4))
+        print_output({"message": f"View {view_id} is absent"})
         raise SystemExit(0)
     uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
     r = utils.http_delete(uri, ctx)
@@ -1581,6 +1753,51 @@ def view_export(ctx, view_id):
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
     raise SystemExit(1)
+
+
+@view.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    type=click.BOOL,
+    is_flag=True,
+    help="Replace all view settings with new ones",
+)
+@click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
+@click.pass_context
+def view_import(ctx, file, replace, ignore_errors):
+    """Imports views and their contents into the server.
+    Must be a list dictionaries, like so: [{'view1':['example.org']}]
+    """
+    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
+    settings = utils.extract_file(file)
+    if not utils.validate_view_import(settings):
+        print_output(
+            {
+                "error": "Views must be provided in the following structure:"
+                "[{'view1':['example.org']}]"
+            },
+        )
+        raise SystemExit(1)
+    restructured_settings = utils.reformat_view_imports(settings)
+    upstream_settings = utils.get_upstream_views(uri, ctx)
+    if replace and upstream_settings == restructured_settings:
+        print_output({"message": "Requested views are already present"})
+        raise SystemExit(0)
+    if not replace and all(
+        utils.is_zone_in_view(view_item, upstream_settings) for view_item in restructured_settings
+    ):
+        print_output({"message": "Requested views are already present"})
+        raise SystemExit(0)
+
+    if replace and upstream_settings:
+        utils.replace_view_import(uri, ctx, restructured_settings, upstream_settings, ignore_errors)
+    else:
+        utils.add_view_import(uri, ctx, restructured_settings, ignore_errors)
+    print_output(
+        {"message": "Successfully imported zones"},
+    )
+    raise SystemExit(0)
 
 
 @view.command("list")
