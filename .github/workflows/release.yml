@@ -55,7 +55,6 @@ jobs:
           tag: ${{ steps.git_tag.outputs.tag }}
         run: >
           gh release create "$tag"
-          --repo="$GITHUB_REPOSITORY"
           --title="$tag"
           --notes-from-tag
   build:
