@@ -217,7 +217,7 @@ def test_zone_add_success(mock_utils, conditional_mock_utils, example_org, domai
     result = runner.invoke(
         zone_add,
         ["example.org", "NATIVE"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "created" in json.loads(result.output)["message"]
@@ -232,7 +232,7 @@ def test_zone_add_idempotence(mock_utils, conditional_mock_utils, example_com):
     result = runner.invoke(
         zone_add,
         ["example.com", "NATIVE"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -247,7 +247,7 @@ def test_zone_add_failed(mock_utils, conditional_mock_utils, example_com):
     result = runner.invoke(
         zone_add,
         ["example.org", "NATIVE"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Server error" in json.loads(result.output)["error"]
@@ -262,7 +262,7 @@ def test_zone_delete_success(mock_utils, conditional_mock_utils, example_org):
     result = runner.invoke(
         zone_delete,
         ["example.com", "-f"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "deleted" in json.loads(result.output)["message"]
@@ -277,7 +277,7 @@ def test_zone_delete_idempotence(mock_utils, conditional_mock_utils, example_com
     result = runner.invoke(
         zone_delete,
         ["example.org"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already absent" in json.loads(result.output)["message"]
@@ -292,7 +292,7 @@ def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
     result = runner.invoke(
         zone_delete,
         ["example.com", "-f"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Server error" in json.loads(result.output)["error"]
@@ -353,7 +353,7 @@ def test_zone_import_success(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -455,7 +455,7 @@ def test_zone_import_merge_success(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force", "--merge"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -496,7 +496,7 @@ def test_zone_import_idempotence(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -532,7 +532,7 @@ def test_zone_import_invalid_file(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Either" in json.loads(result.output)["error"]
@@ -570,7 +570,7 @@ def test_zone_import_no_confirm(
     result = runner.invoke(
         zone_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Aborted" in result.output
@@ -581,7 +581,7 @@ def test_zone_list_success(conditional_mock_utils, example_zone_list):
     runner = CliRunner()
     result = runner.invoke(
         zone_list,
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == example_zone_list
@@ -593,7 +593,7 @@ def test_zone_list_failed(mock_utils, example_com):
     runner = CliRunner()
     result = runner.invoke(
         zone_list,
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Server error" in json.loads(result.output)["error"]
@@ -606,7 +606,7 @@ def test_zone_export_success(mock_utils, conditional_mock_utils, example_com):
     result = runner.invoke(
         zone_export,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == example_com
@@ -619,7 +619,7 @@ def test_zone_export_bind(mock_utils, conditional_mock_utils, example_com_bind):
     result = runner.invoke(
         zone_export,
         ["example.com", "-b"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert result.output.rstrip() == example_com_bind.rstrip()
@@ -632,7 +632,7 @@ def test_zone_export_failed(mock_utils):
     result = runner.invoke(
         zone_export,
         ["example.org"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output) == {"error": "Server error"}
@@ -645,7 +645,7 @@ def test_zone_rectify_success(mock_utils):
     result = runner.invoke(
         zone_rectify,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == {"result": "Rectified"}
@@ -658,7 +658,7 @@ def test_zone_rectify_failed(mock_utils):
     result = runner.invoke(
         zone_rectify,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output) == {"error": "Server error"}
@@ -671,7 +671,7 @@ def test_zone_notify_success(mock_utils):
     result = runner.invoke(
         zone_notify,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == {"result": "Notification queued"}
@@ -684,7 +684,7 @@ def test_zone_notify_failed(mock_utils):
     result = runner.invoke(
         zone_notify,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output) == {"error": "Server error"}
@@ -697,7 +697,7 @@ def test_zone_flush_success(mock_utils):
     result = runner.invoke(
         zone_flush_cache,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == {"count": 1, "result": "Flushed cache."}
@@ -710,7 +710,7 @@ def test_zone_flush_failed(mock_utils):
     result = runner.invoke(
         zone_flush_cache,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output) == {"error": "Server error"}
@@ -738,7 +738,7 @@ def test_zone_search_success(mock_utils):
     result = runner.invoke(
         zone_search,
         ["example*"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == [
@@ -763,7 +763,7 @@ def test_zone_search_failed(mock_utils):
     result = runner.invoke(
         zone_search,
         ["example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output) == {"error": "Server error"}

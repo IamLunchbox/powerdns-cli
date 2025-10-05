@@ -23,7 +23,6 @@ def file_mock(mocker):
 def mock_utils(mocker):
     return testutils.MockUtils(mocker)
 
-
 def test_autoprimary_add_success(mock_utils):
     get = mock_utils.mock_http_get(200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}])
     post = mock_utils.mock_http_post(201, text_output="")
@@ -31,7 +30,7 @@ def test_autoprimary_add_success(mock_utils):
     result = runner.invoke(
         autoprimary_add,
         ["1.1.1.1", "ns1.example.com", "--account", "testaccount"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "added" in json.loads(result.output)["message"]
@@ -47,7 +46,7 @@ def test_autoprimary_add_idempotence(mock_utils):
     post = mock_utils.mock_http_post(201, text_output="")
     runner = CliRunner()
     result = runner.invoke(
-        autoprimary_add, ["1.1.1.1", "ns1.example.com"], obj={"apihost": "http://example.com"}
+        autoprimary_add, ["1.1.1.1", "ns1.example.com"], obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "present" in json.loads(result.output)["message"]
@@ -58,7 +57,7 @@ def test_autoprimary_add_idempotence(mock_utils):
 def test_autoprimary_list_success(mock_utils):
     get = mock_utils.mock_http_get(200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}])
     runner = CliRunner()
-    result = runner.invoke(autoprimary_list, obj={"apihost": "http://example.com"})
+    result = runner.invoke(autoprimary_list, obj=testutils.testobject,)
     assert result.exit_code == 0
     assert json.loads(result.output) == [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}]
     get.assert_called()
@@ -71,7 +70,7 @@ def test_autoprimary_delete_success(mock_utils):
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
-        autoprimary_delete, ["2.2.2.2", "ns1.example.com"], obj={"apihost": "http://example.com"}
+        autoprimary_delete, ["2.2.2.2", "ns1.example.com"], obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "deleted" in json.loads(result.output)["message"]
@@ -86,7 +85,7 @@ def test_autoprimary_delete_already_absent(mock_utils):
     delete = mock_utils.mock_http_delete(201, text_output="")
     runner = CliRunner()
     result = runner.invoke(
-        autoprimary_delete, ["1.1.1.1", "ns1.example.com"], obj={"apihost": "http://example.com"}
+        autoprimary_delete, ["1.1.1.1", "ns1.example.com"], obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already absent" in json.loads(result.output)["message"]
@@ -117,7 +116,7 @@ def test_autoprimary_import_success(mock_utils, file_mock, file_contents):
     post = mock_utils.mock_http_post(201, {"success": True})
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
-    result = runner.invoke(autoprimary_import, ["testfile"], obj={"apihost": "http://example.com"})
+    result = runner.invoke(autoprimary_import, ["testfile"], obj=testutils.testobject,)
     assert result.exit_code == 0
     assert "autoprimary" in json.loads(result.output)["message"]
     get.assert_called()
@@ -149,7 +148,7 @@ def test_autoprimary_import_idempotence(mock_utils, file_mock, file_contents):
     post = mock_utils.mock_http_post(201, {"success": True})
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
-    result = runner.invoke(autoprimary_import, ["testfile"], obj={"apihost": "http://example.com"})
+    result = runner.invoke(autoprimary_import, ["testfile"], obj=testutils.testobject,)
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
     get.assert_called()
@@ -231,7 +230,7 @@ def test_autoprimary_import_replace_success(
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
-        autoprimary_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+        autoprimary_import, ["testfile", "--replace"], obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "autoprimary" in json.loads(result.output)["message"]
@@ -265,7 +264,7 @@ def test_autoprimary_import_replace_idempotence(mock_utils, file_mock):
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
-        autoprimary_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+        autoprimary_import, ["testfile", "--replace"], obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -314,7 +313,7 @@ def test_autoprimary_import_error(mock_utils, file_mock, get_status, post_status
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
-        autoprimary_import, ["testfile", "--replace"], obj={"apihost": "http://example.com"}
+        autoprimary_import, ["testfile", "--replace"], obj=testutils.testobject,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -349,7 +348,7 @@ def test_autoprimary_import_ignore_error(
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     get.assert_called()

@@ -57,7 +57,7 @@ def test_network_add_success(mock_utils, valid_networks, statuscode, output):
     result = runner.invoke(
         network_add,
         [valid_networks, "test1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -79,7 +79,7 @@ def test_network_add_idempotence(mock_utils, valid_networks, statuscode, output)
     result = runner.invoke(
         network_add,
         [valid_networks, "test1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -93,7 +93,7 @@ def test_network_add_failed(mock_utils):
     result = runner.invoke(
         network_add,
         ["10.0.0.0/8", "test1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"
@@ -116,7 +116,7 @@ def test_network_delete_success(mock_utils, valid_networks, output):
     result = runner.invoke(
         network_delete,
         [valid_networks],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "Removed" in json.loads(result.output)["message"]
@@ -133,7 +133,7 @@ def test_network_delete_idempotence(
     result = runner.invoke(
         network_delete,
         ["0.0.0.0/0"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "absent" in json.loads(result.output)["message"]
@@ -150,7 +150,7 @@ def test_network_delete_failed(
     result = runner.invoke(
         network_delete,
         ["0.0.0.0/0"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"
@@ -209,7 +209,7 @@ def test_network_import_success(
     result = runner.invoke(
         network_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -251,7 +251,7 @@ def test_network_import_idempotence(mock_utils, file_mock, import_file, upstream
     result = runner.invoke(
         network_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -269,7 +269,7 @@ def test_network_import_failed(
     result = runner.invoke(
         network_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -287,7 +287,7 @@ def test_network_import_early_exit(
     result = runner.invoke(
         network_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -312,7 +312,7 @@ def test_network_import_ignore_errors(mock_utils, file_mock):
     result = runner.invoke(
         network_import,
         ["testfile", "--ignore-errors"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.stdout)["message"]
@@ -344,7 +344,7 @@ def test_network_import_replace_success(
     result = runner.invoke(
         network_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -378,7 +378,7 @@ def test_network_import_replace_idempotence(mock_utils, file_mock, import_file, 
     result = runner.invoke(
         network_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -401,7 +401,7 @@ def test_network_import_replace_failed(mock_utils, file_mock):
     result = runner.invoke(
         network_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -427,7 +427,7 @@ def test_network_import_replace_early_exit(
     result = runner.invoke(
         network_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -450,7 +450,7 @@ def test_network_import_replace_ignore_errors(mock_utils, file_mock):
     result = runner.invoke(
         network_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.stdout)["message"]
@@ -471,7 +471,7 @@ def test_network_list_success(
     result = runner.invoke(
         network_list,
         [],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == list_output
@@ -486,7 +486,7 @@ def test_network_list_failed(
     result = runner.invoke(
         network_list,
         [],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"
@@ -502,7 +502,7 @@ def test_network_export_success(
     result = runner.invoke(
         network_export,
         ["0.0.0.0/0"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == network_output
@@ -517,7 +517,7 @@ def test_network_export_failed(
     result = runner.invoke(
         network_export,
         ["0.0.0.0/0"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"

@@ -8,7 +8,7 @@ import re
 import click
 import requests
 
-from . import utils
+from . import cli_logging, utils
 from .utils import print_output
 
 
@@ -30,13 +30,13 @@ class PowerDNSZoneType(click.ParamType):
                 self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
         else:
             try:
-                if ctx.obj.get("major_version", 4) >= 5 and not re.match(
+                if ctx.obj.config.get("major_version", 4) >= 5 and not re.match(
                     r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
                     value,
                     re.IGNORECASE,
                 ):
                     raise click.BadParameter("You did not provide a valid zone name.")
-                if ctx.obj.get("major_version", 4) <= 4 and not re.match(
+                if ctx.obj.config.get("major_version", 4) <= 4 and not re.match(
                     r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
                     value,
                     re.IGNORECASE,
@@ -115,11 +115,11 @@ IPAddress = IPAddressType()
     default=None,
     required=True,
 )
-@click.option("-u", "--url", help="DNS servers api url", type=click.STRING, required=True)
+@click.option("-u", "--url", help="DNS server api url", type=click.STRING, required=True)
 @click.option(
     "-k",
     "--insecure",
-    help="Ignore invalid certificates",
+    help="Accept unsigned or otherwise untrustworthy certificates",
     is_flag=True,
     default=False,
     show_default=True,
@@ -130,24 +130,35 @@ IPAddress = IPAddressType()
     is_flag=True,
     default=False,
 )
+@click.option(
+    "-l",
+    "--log-level",
+    help="Set the log level",
+    default="INFO",
+    type=click.Choice(
+        cli_logging.LOG_LEVELS.keys(),
+        case_sensitive=False,
+    ),
+)
 @click.pass_context
-def cli(ctx, apikey, url, insecure, skip_check):
+def cli(ctx, apikey, url, insecure, skip_check, log_level):
     """Manage PowerDNS Authoritative Nameservers and their Zones/Records
 
     Your target server api must be specified through the corresponding cli-flags.
     You can also export them with the prefix POWERDNS_CLI_, for example:
     export POWERDNS_CLI_APIKEY=foobar
     """
-    ctx.ensure_object(dict)
-    ctx.obj["apihost"] = url
-    ctx.obj["key"] = apikey
+    ctx.ensure_object(utils.ContextObj)
+    ctx.obj.config["apihost"] = url
+    ctx.obj.config["key"] = apikey
+    ctx.obj.logger.setLevel(cli_logging.LOG_LEVELS[log_level])
 
     session = requests.session()
-    session.verify = insecure
-    session.headers = {"X-API-Key": ctx.obj["key"]}
-    ctx.obj["session"] = session
+    session.verify = not insecure
+    session.headers = {"X-API-Key": ctx.obj.config["key"]}
+    ctx.obj.session = session
     if not skip_check:
-        uri = f"{ctx.obj['apihost']}/api/v1/servers"
+        uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
         preflight_request = utils.http_get(uri, ctx)
         if not preflight_request.status_code == 200:
             print_output(
@@ -157,7 +168,7 @@ def cli(ctx, apikey, url, insecure, skip_check):
                 }
             )
             raise SystemExit(1)
-        ctx.obj["major_version"] = int(
+        ctx.obj.config["major_version"] = int(
             [
                 server["version"]
                 for server in preflight_request.json()
@@ -165,7 +176,7 @@ def cli(ctx, apikey, url, insecure, skip_check):
             ][0].split(".")[0]
         )
     else:
-        ctx.obj["major_version"] = 4
+        ctx.obj.config["major_version"] = 4
 
 
 @cli.group()
@@ -187,7 +198,7 @@ def autoprimary_add(
     """
     Adds an autoprimary upstream dns server
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     payload = {"ip": ip, "nameserver": nameserver, "account": account}
     if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
         print_output({"message": f"Autoprimary {ip} with nameserver {nameserver} already present"})
@@ -210,9 +221,11 @@ def autoprimary_delete(ctx, ip, nameserver):
     """
     Deletes an autoprimary from the dns server configuration
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
-        uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
+        uri = (
+            f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
+        )
         r = utils.http_delete(uri, ctx)
         if utils.create_output(
             r,
@@ -239,7 +252,7 @@ def autoprimary_delete(ctx, ip, nameserver):
 def autoprimary_import(ctx, file, replace, ignore_errors):
     """Import a list with your autoprimaries settings"""
     settings = utils.extract_file(file)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     utils.validate_simple_import(settings, upstream_settings, replace)
     if replace and upstream_settings:
@@ -264,7 +277,7 @@ def autoprimary_list(ctx):
     """
     Lists all currently configured autoprimary servers
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -289,7 +302,7 @@ def config_export(ctx):
     """
     Query the configuration of this PowerDNS instance
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/config"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/config"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -302,7 +315,7 @@ def config_list(ctx):
     """
     Lists configured dns-servers
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -315,7 +328,7 @@ def config_stats(ctx):
     """
     Displays operational statistics of your dns server
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/statistics"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/statistics"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -356,7 +369,7 @@ def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm):
     """
     Adds a cryptokey to the zone. Is disabled and not published by default.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     payload = {"active": active, "published": publish, "keytype": key_type}
     # Click CLI escapes newline characters
     for key, val in {"bits": bits, "algorithm": algorithm}.items():
@@ -380,7 +393,7 @@ def cryptokey_delete(ctx, dns_zone, cryptokey_id):
     Deletes the given cryptokey-id from all the configured cryptokeys
     """
     uri = (
-        f"{ctx.obj['apihost']}"
+        f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} already absent", 0, ctx)
@@ -403,7 +416,7 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id):
     Disables the cryptokey for this zone.
     """
     uri = (
-        f"{ctx.obj['apihost']}"
+        f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {
@@ -433,7 +446,7 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id):
     Enables an already existing cryptokey
     """
     uri = (
-        f"{ctx.obj['apihost']}"
+        f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {
@@ -463,7 +476,7 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
     Exports the cryptokey with the given id including the private key
     """
     uri = (
-        f"{ctx.obj['apihost']}"
+        f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     utils.does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
@@ -497,7 +510,7 @@ def cryptokey_impor(
     """
     Adds a cryptokey to the zone. Is disabled and not published by default.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     # Click CLI escapes newline characters
     secret = private_key.replace("\\n", "\n")
     payload = {
@@ -525,7 +538,7 @@ def cryptokey_list(ctx, dns_zone):
     """
     Lists all currently configured cryptokeys for this zone without displaying secrets
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -541,7 +554,7 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id):
     Publishes an already existing cryptokey. Implies activating it as well.
     """
     uri = (
-        f"{ctx.obj['apihost']}"
+        f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {
@@ -579,7 +592,7 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
     Unpublishes an already existing cryptokey
     """
     uri = (
-        f"{ctx.obj['apihost']}"
+        f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {
@@ -605,7 +618,7 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
 @click.pass_context
 def network(ctx):
     """Shows and sets up network views to limit access to dns entries"""
-    if ctx.obj["major_version"] < 5:
+    if ctx.obj.config["major_version"] < 5:
         print_output({"error": "Your authoritative dns-server does not support networks"})
         raise SystemExit(1)
 
@@ -619,7 +632,7 @@ def network_add(ctx, cidr, view_id):
     Add a view of a zone to a specific network.
     Deleting requires passing an empty string to as view argument.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 200 and current_network.json()["view"] == view_id:
         print_output({"message": f"Network {cidr} is already assigned to view {view_id}"})
@@ -637,7 +650,7 @@ def network_list(ctx):
     """
     List all registered networks and views
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -652,7 +665,7 @@ def network_delete(ctx, cidr):
     Add a view of a zone to a specific network.
     Deleting requires passing an empty string to as view argument.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 404:
         print_output({"message": f"Network {cidr} absent"})
@@ -673,7 +686,7 @@ def network_export(ctx, cidr):
     """
     Show the network and its associated views, defaults to /32 if no netmask is provided.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -695,7 +708,7 @@ def network_export(ctx, cidr):
 def network_import(ctx, file, replace, ignore_errors):
     """Import network and zone assignments.
     File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}"""
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/networks"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     nested_settings = utils.extract_file(file)
     if not isinstance(nested_settings, dict) or not isinstance(
         nested_settings.get("networks", None), list
@@ -771,7 +784,7 @@ def record_add(
     Adds a new dns record of your given type. Use @ if you want to enter a
     record for the top level name / zone name
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     name = utils.make_dnsname(name, dns_zone)
     rrset = {
         "name": name,
@@ -830,7 +843,7 @@ def record_delete(ctx, name, dns_zone, record_type, content, ttl, delete_all):
     unless --all is provided.
     """
     name = utils.make_dnsname(name, dns_zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     if delete_all:
         rrset = {
             "name": name,
@@ -915,7 +928,7 @@ def record_disable(
     Disables an existing dns record. Use @ to target the zone name itself
     """
     name = utils.make_dnsname(name, dns_zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
 
     rrset = {
         "name": name,
@@ -1010,7 +1023,7 @@ def record_extend(
     Extends records of an existing RRSET. Will create a new RRSET, if it did not exist beforehand
     """
     name = utils.make_dnsname(name, dns_zone)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
 
     rrset = {
         "name": name,
@@ -1030,7 +1043,6 @@ def record_extend(
             if item["content"] != rrset["records"][0]["content"]
         ]
         rrset["records"].extend(extra_records)
-    # breakpoint()
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     msg = {"message": f"{name} IN {record_type} {content} extended"}
     if utils.create_output(r, (204,), optional_json=msg):
@@ -1070,7 +1082,7 @@ def record_export(
     """
     Exports the contents of an existing RRSET.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     if name:
         name = utils.make_dnsname(name, dns_zone)
     rrsets = utils.query_zone_rrsets(uri, ctx)
@@ -1106,7 +1118,7 @@ def record_import(ctx, file, replace):
     """
     new_rrsets = utils.extract_file(file)
     utils.validate_rrset_import(new_rrsets)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{new_rrsets['id']}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{new_rrsets['id']}"
     # This function skips the usual deduplication logic from utils.import_settings, since
     # any patch request automatically extends existing rrsets (except where type and name matches,
     # those get replaced
@@ -1172,7 +1184,7 @@ def tsigkey_add(ctx, name, algorithm, secret):
     """
     Adds a TSIGKey to the server to sign dns transfer messages
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
     payload = {"name": name, "algorithm": algorithm}
     if secret:
         payload["key"] = secret
@@ -1200,7 +1212,7 @@ def tsigkey_delete(ctx, name):
     """
     Deletes the TSIG-Key with the given name
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
     r = utils.http_get(uri, ctx)
     if not r.status_code == 200:
         print_output({"message": f"TSIGKEY for {name} already absent"})
@@ -1221,7 +1233,7 @@ def tsigkey_export(ctx, key_id):
     """
     Exports a tsigkey with the given id
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{key_id}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys/{key_id}"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1242,7 +1254,7 @@ def tsigkey_export(ctx, key_id):
 @click.pass_context
 def tsigkey_import(ctx, file, replace, ignore_errors):
     """Import TSIG keys from a file, with optional replacement of existing keys."""
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
     settings = utils.extract_file(file)
     upstream_settings = utils.get_tsigkey_settings(uri, ctx)
     utils.validate_simple_import(settings, upstream_settings, replace)
@@ -1262,7 +1274,7 @@ def tsigkey_list(ctx):
     """
     Shows the TSIGKeys for this server
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1299,7 +1311,7 @@ def tsigkey_update(ctx, name, algorithm, secret, new_name):
     """
     Updates or renames an existing TSIGKey
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
     tsikey_settings = {
         k: v for k, v in {"algorithm": algorithm, "key": secret, "name": new_name}.items() if v
     }
@@ -1311,7 +1323,7 @@ def tsigkey_update(ctx, name, algorithm, secret, new_name):
         print_output({"message": f"The settings TSIGKEY {name} are already present"})
         raise SystemExit(0)
     if new_name:
-        r = utils.http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/tsigkeys", ctx)
+        r = utils.http_get(f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys", ctx)
         if new_name in (key["name"] for key in r.json()):
             print_output({"error": f"TSIGKEY {name} already exists. Refusing to rewrite."})
             raise SystemExit(1)
@@ -1343,7 +1355,7 @@ def zone_add(ctx, dns_zone, zonetype, master):
     """
     Adds a new zone.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones"
     payload = {
         "name": dns_zone,
         "kind": zonetype.capitalize(),
@@ -1379,7 +1391,7 @@ def zone_delete(ctx, dns_zone, force):
         print_output({"message": f"{dns_zone} already absent"})
         raise SystemExit(0)
 
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     warning = f"!!!! WARNING !!!!!\nYou are attempting to delete {dns_zone}\nAre you sure?"
     if not force and not click.confirm(warning):
         print_output({"message": f"Aborted deleting {dns_zone}"})
@@ -1406,12 +1418,12 @@ def zone_export(ctx, dns_zone, bind):
     Export the whole zone configuration, either as JSON or BIND
     """
     if bind:
-        uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/export"
+        uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/export"
         r = utils.http_get(uri, ctx)
         if utils.create_output(r, (200,), output_text=True):
             raise SystemExit(0)
         raise SystemExit(1)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1423,7 +1435,7 @@ def zone_export(ctx, dns_zone, bind):
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 def zone_flush_cache(ctx, dns_zone):
     """Flushes the cache of the given zone"""
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/cache/flush"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/cache/flush"
     r = utils.http_put(uri, ctx, params={"domain": dns_zone})
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1453,7 +1465,7 @@ def zone_import(ctx, file, force, merge):
     """
     settings = utils.extract_file(file)
     utils.validate_zone_import(settings)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{settings['id']}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{settings['id']}"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     utils.check_zones_for_identical_content(settings, upstream_settings)
     warning = (
@@ -1482,7 +1494,7 @@ def zone_notify(ctx, dns_zone):
     Fails when the zone kind is neither master or slave, or master and slave are
     disabled in the configuration. Only works for slave if renotify is enabled.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/notify"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/notify"
     r = utils.http_put(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1496,7 +1508,7 @@ def zone_rectify(ctx, dns_zone):
     """
     Rectifies a given zone. Will fail on slave zones and zones without dnssec.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/rectify"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/rectify"
     r = utils.http_put(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1517,7 +1529,7 @@ def zone_spec():
 def zone_search(ctx, search_string, max_output):
     """Do fulltext search in the rrset database. Use wildcards in your string to ignore leading
     or trailing characters"""
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/search-data"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/search-data"
     r = utils.http_get(
         uri,
         ctx,
@@ -1534,7 +1546,7 @@ def zone_list(ctx):
     """
     Shows all configured zones on this dns server, does not display their RRSETs
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1557,7 +1569,7 @@ def metadata_add(ctx, dns_zone, metadata_key, metadata_value):
     to the expected content from the PowerDNS configuration. Custom metadata must be preceded by
     leading X- as a key
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     payload = {"kind": metadata_key, "metadata": [metadata_value], "type": "Metadata"}
     if utils.is_metadata_content_present(f"{uri}/{metadata_key}", ctx, payload):
         print_output({"message": f"{metadata_key} {metadata_value} in {dns_zone} already present"})
@@ -1576,7 +1588,10 @@ def metadata_delete(ctx, dns_zone, metadata_key):
     """
     Deletes a metadata entry for the given zone.
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata/{metadata_key}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/"
+        f"localhost/zones/{dns_zone}/metadata/{metadata_key}"
+    )
     if utils.is_metadata_entry_present(uri, ctx):
         r = utils.http_delete(uri, ctx)
         if utils.create_output(
@@ -1620,7 +1635,7 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
 @click.pass_context
 def metadata_import(ctx, dns_zone, file, replace, ignore_errors):
     """Import metadata for a DNS zone from a file."""
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     settings = utils.extract_file(file)
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     utils.validate_simple_import(settings, upstream_settings, replace)
@@ -1647,9 +1662,12 @@ def metadata_export(ctx, dns_zone, limit):
     Lists the metadata for a given zone. Can optionally be limited to a single key.
     """
     if limit:
-        uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata/{limit}"
+        uri = (
+            f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/"
+            f"zones/{dns_zone}/metadata/{limit}"
+        )
     else:
-        uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+        uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/" f"zones/{dns_zone}/metadata"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1671,7 +1689,10 @@ def metadata_update(ctx, dns_zone, metadata_key, metadata_value):
     """
     Replaces a set of metadata of a given zone
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata/{metadata_key}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/"
+        f"localhost/zones/{dns_zone}/metadata/{metadata_key}"
+    )
     payload = {"kind": metadata_key, "metadata": [metadata_value], "type": "Metadata"}
     if not utils.is_metadata_content_identical(uri, ctx, payload):
         r = utils.http_put(uri, ctx, payload)
@@ -1695,7 +1716,7 @@ def print_version():
 @click.pass_context
 def view(ctx):
     """Set view to limit zone access"""
-    if ctx.obj["major_version"] < 5:
+    if ctx.obj.config["major_version"] < 5:
         print_output({"error": "Your authoritative dns-server does not support views"})
         raise SystemExit(1)
 
@@ -1706,7 +1727,7 @@ def view(ctx):
 @click.pass_context
 def view_add(ctx, view_id, dns_zone):
     """Add a zone to a view, creates the view if it did not exist beforehand"""
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone in view_content.json()["zones"]:
         print_output({"message": f"{dns_zone} already in {view_id}"})
@@ -1724,7 +1745,7 @@ def view_add(ctx, view_id, dns_zone):
 @click.pass_context
 def view_delete(ctx, view_id, dns_zone):
     """Deletes a dns-zone from a view"""
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone not in view_content.json()["zones"]:
         print_output({"message": f"Zone {dns_zone} is not in {view_id}"})
@@ -1732,7 +1753,7 @@ def view_delete(ctx, view_id, dns_zone):
     if view_content.status_code == 404:
         print_output({"message": f"View {view_id} is absent"})
         raise SystemExit(0)
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
     r = utils.http_delete(uri, ctx)
     if utils.create_output(
         r, (204,), optional_json={"message": f"Deleted {dns_zone} from {view_id}"}
@@ -1748,7 +1769,7 @@ def view_export(ctx, view_id):
     """
     Exports a single view for its configured zones
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)
@@ -1769,7 +1790,7 @@ def view_import(ctx, file, replace, ignore_errors):
     """Imports views and their contents into the server.
     Must be a list dictionaries, like so: [{'view1':['example.org']}]
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
     settings = utils.extract_file(file)
     if not utils.validate_view_import(settings):
         print_output(
@@ -1806,7 +1827,7 @@ def view_list(ctx):
     """
     Shows all views and their configuration as a list
     """
-    uri = f"{ctx.obj['apihost']}/api/v1/servers/localhost/views"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
     r = utils.http_get(uri, ctx)
     if utils.create_output(r, (200,)):
         raise SystemExit(0)

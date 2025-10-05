@@ -5,6 +5,11 @@ from unittest.mock import MagicMock as unittest_MagicMock
 
 import requests
 
+from powerdns_cli.utils import ContextObj
+
+testobject = ContextObj()
+testobject.config['apihost'] = "http://example.com"
+testobject.config["major_version"] = 5
 
 class MockUtils:
     def __init__(self, mocker: MagicMock):

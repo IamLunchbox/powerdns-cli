@@ -47,7 +47,7 @@ def test_view_add_success(mock_utils, returncodes, return_content):
     result = runner.invoke(
         view_add,
         ["test1", "example.com..variant2"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -64,7 +64,7 @@ def test_view_add_idempotence(mock_utils):
     result = runner.invoke(
         view_add,
         ["test1", "example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -81,7 +81,7 @@ def test_view_add_failed(mock_utils):
     result = runner.invoke(
         view_add,
         ["test1", "example.com..variant3"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"
@@ -142,7 +142,7 @@ def test_view_import_success(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -192,7 +192,7 @@ def test_view_import_idempotence(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -215,7 +215,7 @@ def test_view_import_failed(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["error"]
@@ -236,7 +236,7 @@ def test_view_import_early_exit(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["error"]
@@ -257,7 +257,7 @@ def test_view_import_ignore_errors(
     result = runner.invoke(
         view_import,
         ["testfile", "--ignore-errors"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.stdout)["message"]
@@ -332,7 +332,7 @@ def test_view_import_replace_success(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -379,7 +379,7 @@ def test_view_import_replace_idempotence(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -413,7 +413,7 @@ def test_view_import_replace_early_exit(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.stdout)["error"]
@@ -442,7 +442,7 @@ def test_view_import_replace_ignore_errors(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.stdout)["message"]
@@ -464,7 +464,7 @@ def test_view_update_success(mock_utils, returncodes, return_content):
     result = runner.invoke(
         view_update,
         ["test1", "example.com..variant2"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -481,7 +481,7 @@ def test_view_update_idempotence(mock_utils):
     result = runner.invoke(
         view_update,
         ["test1", "example.com"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -498,7 +498,7 @@ def test_view_update_failed(mock_utils):
     result = runner.invoke(
         view_update,
         ["test1", "example.com..variant3"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"
@@ -515,7 +515,7 @@ def test_view_delete_success(mock_utils):
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant1"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "Deleted" in json.loads(result.output)["message"]
@@ -537,7 +537,7 @@ def test_view_delete_idempotence(mock_utils, returncodes, return_content, respon
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant2"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert response_keyword in json.loads(result.output)["message"]
@@ -554,7 +554,7 @@ def test_view_delete_failed(mock_utils):
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant1"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"
@@ -568,7 +568,7 @@ def test_view_list_success(mock_utils):
     runner = CliRunner()
     result = runner.invoke(
         view_list,
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == output_list
@@ -580,7 +580,7 @@ def test_view_list_failed(mock_utils):
     runner = CliRunner()
     result = runner.invoke(
         view_list,
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"
@@ -594,7 +594,7 @@ def test_view_export_success(mock_utils):
     result = runner.invoke(
         view_export,
         ["test1"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == output_dict
@@ -607,7 +607,7 @@ def test_view_export_failed(mock_utils):
     result = runner.invoke(
         view_export,
         ["test1"],
-        obj={"apihost": "http://example.com", "major_version": 5},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["error"] == "Server error"

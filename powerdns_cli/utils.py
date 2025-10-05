@@ -1,10 +1,40 @@
 """Utilities library for the main cli functions"""
 
 import json
+import logging
 from typing import Any, TextIO
 
 import click
 import requests
+
+from . import cli_logging
+
+# pylint: disable=too-few-public-methods
+
+
+class ContextObj:
+    """A context object for managing logging, configuration, and session state.
+
+    Attributes:
+        handler: A custom logging handler for collecting logs and results.
+        logger: A logger instance for emitting log messages.
+        config: A dictionary for storing configuration settings.
+        session: A placeholder for a session object, initially None.
+    """
+
+    def __init__(self) -> None:
+        """Initializes the ContextObj with a logger, handler, and default configuration."""
+        self.handler = cli_logging.ResultHandler()
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        self.handler.setFormatter(formatter)
+        self.logger = logging.getLogger("cli_logger")
+        self.logger.addHandler(self.handler)
+        self.logger.setLevel(logging.DEBUG)
+        self.config: dict[str, Any] = {}
+        self.session: requests.Session | None = None
+
+
+# pylint: enable=too-few-public-methods
 
 
 def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: str) -> bool:
@@ -116,7 +146,7 @@ def create_output(
 def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     """HTTP DELETE request"""
     try:
-        request = ctx.obj["session"].delete(uri, params=params, timeout=10)
+        request = ctx.obj.session.delete(uri, params=params, timeout=10)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -125,7 +155,7 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
 def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     """HTTP GET request"""
     try:
-        request = ctx.obj["session"].get(uri, params=params, timeout=10)
+        request = ctx.obj.session.get(uri, params=params, timeout=10)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -134,7 +164,7 @@ def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Resp
 def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
     """HTTP PATCH request"""
     try:
-        request = ctx.obj["session"].patch(uri, json=payload, timeout=10)
+        request = ctx.obj.session.patch(uri, json=payload, timeout=10)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -143,7 +173,7 @@ def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response
 def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
     """HTTP POST request"""
     try:
-        request = ctx.obj["session"].post(uri, json=payload, timeout=10)
+        request = ctx.obj.session.post(uri, json=payload, timeout=10)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -154,7 +184,7 @@ def http_put(
 ) -> requests.Response:
     """HTTP PUT request"""
     try:
-        request = ctx.obj["session"].put(uri, json=payload, params=params, timeout=10)
+        request = ctx.obj.session.put(uri, json=payload, params=params, timeout=10)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -176,7 +206,7 @@ def query_zones(ctx: click.Context) -> list:
     Raises:
         SystemExit: If the request to fetch zones fails (non-200 status code).
     """
-    r = http_get(f"{ctx.obj['apihost']}/api/v1/servers/localhost/zones", ctx)
+    r = http_get(f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones", ctx)
     if r.status_code != 200:
         print_output({"error": r.json()})
         raise SystemExit(1)

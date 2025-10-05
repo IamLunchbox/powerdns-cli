@@ -92,7 +92,7 @@ def test_record_add_success(mock_utils, example_zone):
     result = runner.invoke(
         record_add,
         ["@", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "created" in json.loads(result.output)["message"]
@@ -107,7 +107,7 @@ def test_record_add_already_present(mock_utils, example_zone):
     result = runner.invoke(
         record_add,
         ["test", "example.com.", "A", "1.1.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     patch.assert_not_called()
@@ -122,7 +122,7 @@ def test_record_add_failure(mock_utils, example_zone):
     result = runner.invoke(
         record_add,
         ["@", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     patch.assert_not_called()
@@ -135,7 +135,7 @@ def test_record_delete_success(mock_utils, example_zone):
     result = runner.invoke(
         record_delete,
         ["test", "example.com.", "A", "1.1.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "removed" in json.loads(result.output)["message"]
@@ -150,7 +150,7 @@ def test_record_delete_already_absent(mock_utils, example_zone):
     result = runner.invoke(
         record_delete,
         ["test", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already absent" in json.loads(result.output)["message"]
@@ -164,7 +164,7 @@ def test_record_delete_failure(mock_utils, example_zone):
     result = runner.invoke(
         record_delete,
         ["@", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     patch.assert_not_called()
@@ -177,7 +177,7 @@ def test_record_disable_success(mock_utils, example_zone):
     result = runner.invoke(
         record_disable,
         ["test", "example.com.", "A", "1.1.1.1", "--ttl", "3600"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "disabled" in json.loads(result.output)["message"]
@@ -206,7 +206,7 @@ def test_record_disable_already_disabled(mock_utils, example_zone):
     result = runner.invoke(
         record_disable,
         ["test", "example.com.", "A", "1.1.1.2"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     patch.assert_not_called()
@@ -221,7 +221,7 @@ def test_record_disable_failure(mock_utils, example_zone):
     result = runner.invoke(
         record_disable,
         ["@", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     patch.assert_not_called()
@@ -234,7 +234,7 @@ def test_record_enable_success(mock_utils, example_zone):
     result = runner.invoke(
         record_enable,
         ["test", "example.com.", "A", "1.1.1.2"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "created" in json.loads(result.output)["message"]
@@ -249,7 +249,7 @@ def test_record_already_enabled(mock_utils, example_zone):
     result = runner.invoke(
         record_enable,
         ["test", "example.com.", "A", "1.1.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -264,7 +264,7 @@ def test_record_enabled_failure(mock_utils, example_zone):
     result = runner.invoke(
         record_enable,
         ["test", "example.com.", "A", "1.1.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     patch.assert_not_called()
@@ -278,7 +278,7 @@ def test_record_extend_success(mock_utils, example_zone):
     result = runner.invoke(
         record_extend,
         ["test", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "extended" in json.loads(result.output)["message"]
@@ -308,7 +308,7 @@ def test_record_extend_success_with_new_rrset(mock_utils, example_zone):
     result = runner.invoke(
         record_extend,
         ["test4", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "extended" in json.loads(result.output)["message"]
@@ -336,7 +336,7 @@ def test_record_extend_idempotence(mock_utils, example_zone):
     result = runner.invoke(
         record_extend,
         ["test", "example.com.", "A", "1.1.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -351,7 +351,7 @@ def test_record_extend_failure(mock_utils, example_zone):
     result = runner.invoke(
         record_extend,
         ["@", "example.com.", "A", "192.168.1.1"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     patch.assert_not_called()
@@ -363,7 +363,7 @@ def test_record_export_success(mock_utils, example_zone):
     result = runner.invoke(
         record_export,
         ["example.com.", "--name", "test2", "--type", "A"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == [
@@ -394,7 +394,7 @@ def test_record_export_failure(mock_utils, example_zone):
     result = runner.invoke(
         record_export,
         ["example.com."],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert json.loads(result.output) == {"error": "Not found"}
@@ -561,7 +561,7 @@ def test_record_import_success(
     result = runner.invoke(
         record_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -607,7 +607,7 @@ def test_record_import_failed(
     result = runner.invoke(
         record_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "error" in json.loads(result.output)["error"]
@@ -661,7 +661,7 @@ def test_record_import_idempotence(
     result = runner.invoke(
         record_import,
         ["testfile"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -735,7 +735,7 @@ def test_record_import_replace_success(
     result = runner.invoke(
         record_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -784,7 +784,7 @@ def test_record_import_replace_failed(
     result = runner.invoke(
         record_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "error" in json.loads(result.output)["error"]
@@ -838,7 +838,7 @@ def test_record_import_replace_idempotence(
     result = runner.invoke(
         record_import,
         ["testfile", "--replace"],
-        obj={"apihost": "http://example.com"},
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
