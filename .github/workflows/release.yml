@@ -57,7 +57,7 @@ jobs:
           gh release create "$tag"
           --repo="$GITHUB_REPOSITORY"
           --title="$tag"
-          --generate-notes
+          --notes-from-tag
   build:
     needs:
       - release
