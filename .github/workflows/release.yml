@@ -56,7 +56,7 @@ jobs:
         run: >
           gh release create "$tag"
           --title="$tag"
-          --notes-from-tag
+          --notes "$(git tag --format='%(body)' -l $tag)"
   build:
     needs:
       - release
