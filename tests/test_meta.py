@@ -1,7 +1,7 @@
 import click
 import pytest
 
-from powerdns_cli.powerdns_cli import PowerDNSZoneType
+from powerdns_cli.validation import PowerDNSZoneType
 
 
 def test_valid_zone():

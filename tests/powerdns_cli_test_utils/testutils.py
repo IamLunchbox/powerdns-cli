@@ -10,6 +10,8 @@ from powerdns_cli.utils import ContextObj
 testobject = ContextObj()
 testobject.config['apihost'] = "http://example.com"
 testobject.config["major_version"] = 5
+testobject.config["log_level"] = "INFO"
+testobject.config["json"] = True
 
 class MockUtils:
     def __init__(self, mocker: MagicMock):
@@ -42,6 +44,7 @@ class MockUtils:
         mock_http_get.json.return_value = json_output
         mock_http_get.text.return_value = text_output
         mock_http_get.status_code = status_code
+        mock_http_get.reason = "OK"
         mock_http_get.headers = {"Content-Type": "application/json"}
         return self.mocker.patch("powerdns_cli.utils.http_get", return_value=mock_http_get)
 
@@ -52,6 +55,7 @@ class MockUtils:
         mock_http_post.json.return_value = json_output
         mock_http_post.text.return_value = text_output
         mock_http_post.status_code = status_code
+        mock_http_post.reason = "OK"
         mock_http_post.headers = {"Content-Type": "application/json"}
         return self.mocker.patch("powerdns_cli.utils.http_post", return_value=mock_http_post)
 
@@ -62,6 +66,7 @@ class MockUtils:
         mock_http_delete.json.return_value = json_output
         mock_http_delete.text.return_value = text_output
         mock_http_delete.status_code = status_code
+        mock_http_delete.reason = "OK"
         mock_http_delete.headers = {"Content-Type": "application/json"}
         return self.mocker.patch("powerdns_cli.utils.http_delete", return_value=mock_http_delete)
 
@@ -72,6 +77,7 @@ class MockUtils:
         mock_http_put.json.return_value = json_output
         mock_http_put.text.return_value = text_output
         mock_http_put.status_code = status_code
+        mock_http_put.reason = "OK"
         mock_http_put.headers = {"Content-Type": "application/json"}
         return self.mocker.patch("powerdns_cli.utils.http_put", return_value=mock_http_put)
 
@@ -82,6 +88,7 @@ class MockUtils:
         mock_http_patch.json.return_value = json_output
         mock_http_patch.text.return_value = text_output
         mock_http_patch.status_code = status_code
+        mock_http_patch.reason = "OK"
         mock_http_patch.headers = {"Content-Type": "application/json"}
         return self.mocker.patch("powerdns_cli.utils.http_patch", return_value=mock_http_patch)
 

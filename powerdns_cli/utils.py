@@ -733,49 +733,6 @@ def validate_simple_import(
         raise SystemExit(0)
 
 
-def replace_autoprimary_import(
-    uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool
-) -> None:
-    """Replaces nameserver configurations by adding new entries and removing obsolete ones.
-
-    This function compares the provided `settings` with `upstream_settings` to determine which
-    nameserver configurations to add or delete. It sends POST requests to add new nameservers
-    and DELETE requests to remove obsolete ones. If an error occurs, it either logs the error
-    and continues (if `ignore_errors` is True) or aborts the process.
-
-    Args:
-        uri (str): The base URI for API requests.
-        ctx (click.Context): Click context object for command-line operations.
-        settings (List[Dict]): List of dictionaries representing desired nameserver configurations.
-        upstream_settings (List[Dict]): List of dictionaries representing upstream configurations.
-        ignore_errors (bool): If True, continues execution after errors instead of aborting.
-
-    Raises:
-        SystemExit: If an error occurs during the addition or deletion of a nameserver configuration
-                   and `ignore_errors` is False.
-    """
-    existing_upstreams = []
-    upstreams_to_delete = []
-    for nameserver in upstream_settings:
-        if nameserver in settings:
-            existing_upstreams.append(nameserver)
-        else:
-            upstreams_to_delete.append(nameserver)
-    for nameserver in settings:
-        if nameserver not in existing_upstreams:
-            r = http_post(uri, ctx, payload=nameserver)
-            if r.status_code != 201:
-                handle_import_early_exit(
-                    {"error": f"Failed adding nameserver {nameserver}"}, ignore_errors
-                )
-    for nameserver in upstreams_to_delete:
-        r = http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
-        if not r.status_code == 204:
-            handle_import_early_exit(
-                {"error": f"Failed deleting nameserver {nameserver}"}, ignore_errors
-            )
-
-
 def replace_network_import(
     uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool
 ) -> None:
