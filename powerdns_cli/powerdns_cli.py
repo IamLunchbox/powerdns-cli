@@ -2,107 +2,12 @@
 """
 powerdns-cli: Manage PowerDNS Zones/Records
 """
-import ipaddress
-import re
-
 import click
 import requests
 
-from . import cli_logging, utils
+from . import autoprimary, cli_logging, utils
 from .utils import print_output
-
-
-class PowerDNSZoneType(click.ParamType):
-    """Conversion class to ensure, that a provided string is a valid dns name"""
-
-    name = "zone"
-
-    def convert(self, value, param, ctx) -> str:
-        if ctx is None:  # Graciously assume that users run the latest powerdns-version
-            try:
-                if not re.match(
-                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
-                    value,
-                    re.IGNORECASE,
-                ):
-                    raise click.BadParameter("You did not provide a valid zone name.")
-            except (AttributeError, TypeError):
-                self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
-        else:
-            try:
-                if ctx.obj.config.get("major_version", 4) >= 5 and not re.match(
-                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
-                    value,
-                    re.IGNORECASE,
-                ):
-                    raise click.BadParameter("You did not provide a valid zone name.")
-                if ctx.obj.config.get("major_version", 4) <= 4 and not re.match(
-                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
-                    value,
-                    re.IGNORECASE,
-                ):
-                    raise click.BadParameter("You did not provide a valid zone name.")
-            except (AttributeError, TypeError):
-                self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
-
-        if not value.endswith(".") and ".." not in value:
-            value += "."
-        return value
-
-
-PowerDNSZone = PowerDNSZoneType()
-
-
-class AutoprimaryZoneType(click.ParamType):
-    """Conversion class to ensure, that a provided string is a valid dns name"""
-
-    name = "autoprimary_zone"
-
-    def convert(self, value, param, ctx) -> str:
-        try:
-            if not re.match(
-                r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
-                value,
-                re.IGNORECASE,
-            ):
-                raise click.BadParameter("You did not provide a valid zone name.")
-        except (AttributeError, TypeError):
-            self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
-
-        return value.rstrip(".")
-
-
-AutoprimaryZone = AutoprimaryZoneType()
-
-
-class IPRangeType(click.ParamType):
-    """Conversion class to ensure, that a provided string is a valid ip range"""
-
-    name = "iprange"
-
-    def convert(self, value, param, ctx) -> str:
-        try:
-            return str(ipaddress.ip_network(value, strict=False))
-        except (ValueError, ipaddress.AddressValueError):
-            self.fail(f"{value!r} is no valid IP-address range", param, ctx)
-
-
-IPRange = IPRangeType()
-
-
-class IPAddressType(click.ParamType):
-    """Conversion class to ensure, that a provided string is a valid ip range"""
-
-    name = "ipaddress"
-
-    def convert(self, value, param, ctx) -> str:
-        try:
-            return str(ipaddress.ip_address(value))
-        except (ValueError, ipaddress.AddressValueError):
-            self.fail(f"{value!r} is no valid IP-address", param, ctx)
-
-
-IPAddress = IPAddressType()
+from .validation import IPAddress, IPRange, PowerDNSZone
 
 
 # create click command group with 3 global options
@@ -115,20 +20,25 @@ IPAddress = IPAddressType()
     default=None,
     required=True,
 )
+@click.option(
+    "json_output",
+    "-j",
+    "--json",
+    help="Use json output",
+    is_flag=True,
+)
 @click.option("-u", "--url", help="DNS server api url", type=click.STRING, required=True)
 @click.option(
     "-k",
     "--insecure",
     help="Accept unsigned or otherwise untrustworthy certificates",
     is_flag=True,
-    default=False,
     show_default=True,
 )
 @click.option(
     "--skip-check",
     help="Skips the preflight request towards your apihost",
     is_flag=True,
-    default=False,
 )
 @click.option(
     "-l",
@@ -141,7 +51,7 @@ IPAddress = IPAddressType()
     ),
 )
 @click.pass_context
-def cli(ctx, apikey, url, insecure, skip_check, log_level):
+def cli(ctx, apikey, json_output, url, insecure, skip_check, log_level):
     """Manage PowerDNS Authoritative Nameservers and their Zones/Records
 
     Your target server api must be specified through the corresponding cli-flags.
@@ -151,13 +61,16 @@ def cli(ctx, apikey, url, insecure, skip_check, log_level):
     ctx.ensure_object(utils.ContextObj)
     ctx.obj.config["apihost"] = url
     ctx.obj.config["key"] = apikey
+    ctx.obj.config["json"] = json_output
+    ctx.obj.config["log_level"] = log_level
     ctx.obj.logger.setLevel(cli_logging.LOG_LEVELS[log_level])
-
+    ctx.obj.logger.debug("Creating session object")
     session = requests.session()
     session.verify = not insecure
     session.headers = {"X-API-Key": ctx.obj.config["key"]}
     ctx.obj.session = session
     if not skip_check:
+        ctx.obj.logger.debug("Performing preflight check and version detection")
         uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
         preflight_request = utils.http_get(uri, ctx)
         if not preflight_request.status_code == 200:
@@ -175,120 +88,91 @@ def cli(ctx, apikey, url, insecure, skip_check, log_level):
                 if server["id"] == "localhost"
             ][0].split(".")[0]
         )
+        ctx.obj.logger.debug(f"Detected api version {ctx.obj.config['major_version']}")
     else:
+        ctx.obj.logger.debug("Skipped preflight check and set api version to 4")
         ctx.obj.config["major_version"] = 4
 
 
-@cli.group()
-def autoprimary():
-    """Set up autoprimary configuration"""
+cli.add_command(autoprimary.autoprimary)
 
-
-@autoprimary.command("add")
-@click.argument("ip", type=IPAddress)
-@click.argument("nameserver", type=AutoprimaryZone)
-@click.option("-a", "--account", default="", type=click.STRING, help="Option")
-@click.pass_context
-def autoprimary_add(
-    ctx,
-    ip,
-    nameserver,
-    account,
-):
-    """
-    Adds an autoprimary upstream dns server
-    """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-    payload = {"ip": ip, "nameserver": nameserver, "account": account}
-    if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
-        print_output({"message": f"Autoprimary {ip} with nameserver {nameserver} already present"})
-        raise SystemExit(0)
-    r = utils.http_post(uri, ctx, payload)
-    if utils.create_output(
-        r,
-        (201,),
-        optional_json={"message": f"Autoprimary {ip} with nameserver {nameserver} added"},
-    ):
-        raise SystemExit(0)
-    raise SystemExit(1)
-
-
-@autoprimary.command("delete")
-@click.argument("ip", type=IPAddress)
-@click.argument("nameserver", type=AutoprimaryZone)
-@click.pass_context
-def autoprimary_delete(ctx, ip, nameserver):
-    """
-    Deletes an autoprimary from the dns server configuration
-    """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-    if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
-        uri = (
-            f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
-        )
-        r = utils.http_delete(uri, ctx)
-        if utils.create_output(
-            r,
-            (204,),
-            optional_json={"message": f"Autoprimary {ip} with nameserver {nameserver} deleted"},
-        ):
-            raise SystemExit(0)
-    else:
-        print_output({"message": f"Autoprimary {ip} with nameserver {nameserver} already absent"})
-        raise SystemExit(0)
-
-
-@autoprimary.command("import")
-@click.argument("file", type=click.File())
-@click.option(
-    "--replace",
-    is_flag=True,
-    help="Replace all old autoprimaries settings with new ones",
-)
-@click.option(
-    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
-)
-@click.pass_context
-def autoprimary_import(ctx, file, replace, ignore_errors):
-    """Import a list with your autoprimaries settings"""
-    settings = utils.extract_file(file)
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
-    utils.validate_simple_import(settings, upstream_settings, replace)
-    if replace and upstream_settings:
-        utils.replace_autoprimary_import(uri, ctx, settings, upstream_settings, ignore_errors)
-    else:
-        for nameserver in settings:
-            r = utils.http_post(uri, ctx, payload=nameserver)
-            if not r.status_code == 201:
-                msg = {"error": f"Failed adding nameserver {nameserver}"}
-                if ignore_errors:
-                    print_output(msg, stderr=True)
-                else:
-                    print_output(msg)
-                    raise SystemExit(1)
-    print_output({"message": "Successfully added autoprimary configuration"})
-    raise SystemExit(0)
-
-
-@autoprimary.command("list")
-@click.pass_context
-def autoprimary_list(ctx):
-    """
-    Lists all currently configured autoprimary servers
-    """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-    r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
-
-
-@autoprimary.command("spec")
-def autoprimary_spec():
-    """Open the autoprimary specification on https://redocly.github.io"""
-
-    utils.open_spec("autoprimary")
+# @autoprimary.command("delete")
+# @click.argument("ip", type=IPAddress)
+# @click.argument("nameserver", type=AutoprimaryZone)
+# @click.pass_context
+# def autoprimary_delete(ctx, ip, nameserver):
+#     """
+#     Deletes an autoprimary from the dns server configuration
+#     """
+#     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+#     if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
+#         uri = (
+#             f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/
+#             autoprimaries/{ip}/{nameserver}")
+#         r = utils.http_delete(uri, ctx)
+#         if utils.create_output(
+#             r,
+#             (204,),
+#             optional_json={"message": f"Autoprimary {ip} with nameserver {nameserver} deleted"},
+#         ):
+#             raise SystemExit(0)
+#     else:
+#         print_output({"message": f"Autoprimary {ip} with nameserver {nameserver} already absent"})
+#         raise SystemExit(0)
+#
+#
+# @autoprimary.command("import")
+# @click.argument("file", type=click.File())
+# @click.option(
+#     "--replace",
+#     is_flag=True,
+#     help="Replace all old autoprimaries settings with new ones",
+# )
+# @click.option(
+#     "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import
+#     even when requests fail"
+# )
+# @click.pass_context
+# def autoprimary_import(ctx, file, replace, ignore_errors):
+#     """Import a list with your autoprimaries settings"""
+#     settings = utils.extract_file(file)
+#     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+#     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+#     utils.validate_simple_import(settings, upstream_settings, replace)
+#     if replace and upstream_settings:
+#         utils.replace_autoprimary_import(uri, ctx, settings, upstream_settings, ignore_errors)
+#     else:
+#         for nameserver in settings:
+#             r = utils.http_post(uri, ctx, payload=nameserver)
+#             if not r.status_code == 201:
+#                 msg = {"error": f"Failed adding nameserver {nameserver}"}
+#                 if ignore_errors:
+#                     print_output(msg, stderr=True)
+#                 else:
+#                     print_output(msg)
+#                     raise SystemExit(1)
+#     print_output({"message": "Successfully added autoprimary configuration"})
+#     raise SystemExit(0)
+#
+#
+# @autoprimary.command("list")
+# @click.pass_context
+# def autoprimary_list(ctx):
+#     """
+#     Lists all currently configured autoprimary servers
+#     """
+#     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+#     r = utils.http_get(uri, ctx)
+#     if utils.create_output(r, (200,)):
+#         raise SystemExit(0)
+#     raise SystemExit(1)
+#
+#
+# @autoprimary.command("spec")
+# def autoprimary_spec():
+#     """Open the autoprimary specification on https://redocly.github.io"""
+#
+#     utils.open_spec("autoprimary")
 
 
 @cli.group()

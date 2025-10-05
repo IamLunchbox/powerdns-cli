@@ -4,8 +4,12 @@ This module provides the `ResultHandler` class, which extends `logging.Handler` 
 log records,custom messages, and success statuses in a structured dictionary.
 """
 
+import json
 import logging
 from typing import Any
+
+import click
+import requests
 
 LOG_LEVELS = {
     "DEBUG": logging.DEBUG,
@@ -30,6 +34,8 @@ class ResultHandler(logging.Handler):
             "logs": [],
             "message": "",
             "success": None,
+            "http": [],
+            "data": None,
         }
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -48,7 +54,35 @@ class ResultHandler(logging.Handler):
         """
         self.result["message"] = message
 
-    def set_success(self, success: bool) -> None:
+    def set_response_data(
+        self, response: requests.Response, ctx: click.Context | None = None
+    ) -> None:
+        """Sets the data in the result dictionary.
+
+        Args:
+            response: A requests.Response object.
+        """
+        response_data = {"status_code": response.status_code, "reason": response.reason}
+        try:
+            response_data["json"] = response.json()
+            response_data["text"] = ""
+            self.result["data"] = response.json()
+        except json.JSONDecodeError:
+            response_data["json"] = {}
+            response_data["text"] = response.text
+            self.result["data"] = response.text
+        if ctx and ctx.obj.config["log_level"] == "DEBUG":
+            request_data = {
+                "method": response.request.method,
+                "body": json.loads(response.request.body),
+                "url": response.request.url,
+            }
+        else:
+            request_data = {}
+        http_log = {"response": response_data, "request": request_data}
+        self.result["http"].append(http_log)
+
+    def set_success(self, success: bool = True) -> None:
         """Sets the success status in the result dictionary.
 
         Args:

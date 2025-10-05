@@ -37,29 +37,24 @@ class ContextObj:
 # pylint: enable=too-few-public-methods
 
 
-def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: str) -> bool:
-    """Checks if the specified IP and nameserver are already present in the autoprimary list.
-
-    This function sends a GET request to the provided `uri` to fetch the current list of
-    autoprimary entries. It then checks if any entry matches the provided `ip` and `nameserver`.
-    Returns `True` if a match is found, otherwise returns `False`.
+def exit_cli(ctx: click.Context, exit_code: int, print_response: bool = False) -> None:
+    """Exits the CLI, optionally printing the result in JSON or a specific response field.
 
     Args:
-        uri (str): The URI to fetch the autoprimary list.
-        ctx (click.Context): Click context object for command-line operations.
-        ip (str): The IP address to check for in the autoprimary list.
-        nameserver (str): The nameserver to check for in the autoprimary list.
+        ctx: The Click context object containing the handler and configuration.
+        exit_code: The exit code to return to the system.
+        print_response: If True, prints the response data instead of the message. Defaults to False.
 
-    Returns:
-        bool: `True` if the IP and nameserver are found in the autoprimary list, otherwise `False`.
+    Raises:
+        SystemExit: Always raised with the provided exit code.
     """
-    upstream_autoprimaries = http_get(uri, ctx)
-    if upstream_autoprimaries.status_code == 200:
-        autoprimaries = upstream_autoprimaries.json()
-        for autoprimary in autoprimaries:
-            if autoprimary.get("nameserver") == nameserver and autoprimary.get("ip") == ip:
-                return True
-    return False
+    if ctx.obj.config["json"]:
+        click.echo(json.dumps(ctx.obj.handler.get_result(), indent=4))
+    elif print_response:
+        click.echo(ctx.obj.handler.get_result()["data"])
+    else:
+        click.echo(ctx.obj.handler.get_result()["message"])
+    raise SystemExit(exit_code)
 
 
 def make_canonical(zone: str) -> str:
