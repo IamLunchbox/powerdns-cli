@@ -8,10 +8,11 @@ import requests
 from powerdns_cli.utils import ContextObj
 
 testobject = ContextObj()
-testobject.config['apihost'] = "http://example.com"
+testobject.config["apihost"] = "http://example.com"
 testobject.config["major_version"] = 5
 testobject.config["log_level"] = "INFO"
 testobject.config["json"] = True
+
 
 class MockUtils:
     def __init__(self, mocker: MagicMock):

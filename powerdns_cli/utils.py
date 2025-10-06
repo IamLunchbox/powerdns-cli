@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, TextIO
+from typing import Any, NoReturn, TextIO
 
 import click
 import requests
@@ -37,7 +37,7 @@ class ContextObj:
 # pylint: enable=too-few-public-methods
 
 
-def exit_cli(ctx: click.Context, exit_code: int, print_response: bool = False) -> None:
+def exit_cli(ctx: click.Context, exit_code: int, print_data: bool = False) -> NoReturn:
     """Exits the CLI, optionally printing the result in JSON or a specific response field.
 
     Args:
@@ -50,7 +50,7 @@ def exit_cli(ctx: click.Context, exit_code: int, print_response: bool = False) -
     """
     if ctx.obj.config["json"]:
         click.echo(json.dumps(ctx.obj.handler.get_result(), indent=4))
-    elif print_response:
+    elif print_data:
         click.echo(ctx.obj.handler.get_result()["data"])
     else:
         click.echo(ctx.obj.handler.get_result()["message"])
@@ -142,6 +142,7 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
     """HTTP DELETE request"""
     try:
         request = ctx.obj.session.delete(uri, params=params, timeout=10)
+        ctx.obj.handler.set_response_data(request, ctx)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -151,6 +152,7 @@ def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Resp
     """HTTP GET request"""
     try:
         request = ctx.obj.session.get(uri, params=params, timeout=10)
+        ctx.obj.handler.set_response_data(request, ctx)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -160,6 +162,7 @@ def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response
     """HTTP PATCH request"""
     try:
         request = ctx.obj.session.patch(uri, json=payload, timeout=10)
+        ctx.obj.handler.set_response_data(request, ctx)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -169,6 +172,7 @@ def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
     """HTTP POST request"""
     try:
         request = ctx.obj.session.post(uri, json=payload, timeout=10)
+        ctx.obj.handler.set_response_data(request, ctx)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -180,6 +184,7 @@ def http_put(
     """HTTP PUT request"""
     try:
         request = ctx.obj.session.put(uri, json=payload, params=params, timeout=10)
+        ctx.obj.handler.set_response_data(request, ctx)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -393,8 +398,7 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
         ctx: Click context for HTTP requests
 
     Returns:
-        Dictionary or list of settings or specific nested value if key was provided
-        Empty dict if request fails or parsing fails
+        Dictionary or list of settings. Empty dictionary if request returns 404.
 
     Raises:
         SystemExit: When nested_key doesn't exist in response
@@ -402,20 +406,20 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
     response = http_get(uri, ctx)
 
     if response.status_code not in (200, 404):
-        print_output({"error": f"Fetching the settings failed with {response.status_code}"})
-        raise SystemExit(1)
+        ctx.obj.handler.set_message(f"Fetching the settings failed with {response.status_code}")
+        ctx.obj.handler.set_failed()
+        exit_cli(ctx, 1)
 
     if response.status_code == 404:
         return {}
 
     try:
-        data = response.json()
-        return data
-    except KeyError as e:
-        print_output(
-            {"error": f"Requested key does not exist: {e}", "available_keys": list(data.keys())}
-        )
-        raise SystemExit(1) from e
+        return response.json()
+    except json.JSONDecodeError as e:
+        ctx.obj.logger.error(f"An exception ocurred while decoding upstream JSON:  {e}")
+        ctx.obj.handler.set_message("A valid JSON-file could not be obtained from upstream")
+        ctx.obj.handler.set_failed()
+        exit_cli(ctx, 1)
 
 
 def import_cryptokey_pubkeys(
@@ -704,7 +708,7 @@ def add_metadata_from_import(
 
 
 def validate_simple_import(
-    settings: list[dict], upstream_settings: list[dict], replace: bool
+    ctx: click.Context, settings: list[dict], upstream_settings: list[dict], replace: bool
 ) -> None:
     """Validates metadata import by checking the structure and presence of metadata entries.
 
@@ -713,6 +717,7 @@ def validate_simple_import(
     metadata is identical. If not, it checks if all entries in `settings` are already present.
 
     Args:
+        ctx: click.Context with session settings
         settings: List of dictionaries representing the metadata entries to validate.
         upstream_settings: List of dictionaries representing existing upstream metadata entries.
         replace: If True, checks if the metadata is identical for replacement.
@@ -723,14 +728,17 @@ def validate_simple_import(
                    Exits with code 0 if metadata is already present.
     """
     if not isinstance(settings, list):
-        print_output({"error": "Data must be provided as a list"})
-        raise SystemExit(1)
+        ctx.obj.handler.set_message("Data must be provided as a list")
+        ctx.obj.handler.set_failed()
+        exit_cli(ctx, 1)
     if replace and upstream_settings == settings:
-        print_output({"message": "Requested data is already present"})
-        raise SystemExit(0)
+        ctx.obj.handler.set_message("Requested data is already present")
+        ctx.obj.handler.set_success()
+        exit_cli(ctx, 0)
     if not replace and all(item in upstream_settings for item in settings):
-        print_output({"message": "Requested data is already present"})
-        raise SystemExit(0)
+        ctx.obj.handler.set_message("Requested data is already present")
+        ctx.obj.handler.set_success()
+        exit_cli(ctx, 0)
 
 
 def replace_network_import(
@@ -924,7 +932,7 @@ def import_zone_settings(
         )
 
 
-def handle_import_early_exit(message: dict, ignore_errors: bool) -> None:
+def handle_import_early_exit(ctx: click.Context, message: str, ignore_errors: bool) -> None:
     """
     Handle import errors with configurable behavior based on ignore_errors flag.
 
@@ -937,14 +945,15 @@ def handle_import_early_exit(message: dict, ignore_errors: bool) -> None:
     - Allows processing of remaining items
 
     Args:
+        ctx: Click context object
         message: Dictionary containing error information (typically with 'error' key)
         ignore_errors: If True, log error and continue; if False, log error and exit
     """
     if ignore_errors:
-        print_output(message, stderr=True)
+        ctx.obj.handler.set_message(message)
     else:
-        print_output(message)
-        raise SystemExit(1)
+        ctx.obj.handler.set_message(message)
+        exit_cli(ctx, 1)
 
 
 def replace_tsigkey_import(

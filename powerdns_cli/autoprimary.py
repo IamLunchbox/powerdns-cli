@@ -5,6 +5,9 @@ This module provides commands to add and manage autoprimary upstream DNS servers
 
 Commands:
     add: Adds a new autoprimary upstream DNS server with the specified IP and nameserver.
+    list: Lists all currently configured autoprimaries.
+    import: Imports a file with autoprimary settings to the server.
+    delete: Deletes an autoprimary upstream DNS server with the specified IP and nameserver.
 """
 
 import click
@@ -34,99 +37,108 @@ def autoprimary_add(
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     payload = {"ip": ip, "nameserver": nameserver, "account": account}
-    exit_if_autoprimary_present(uri, ctx, ip, nameserver)
+    if is_autoprimary_present(uri, ctx, ip, nameserver):
+        ctx.obj.handler.set_message(
+            f"Autoprimary {ip} with nameserver {nameserver} already present"
+        )
+        ctx.obj.handler.set_success()
+        utils.exit_cli(ctx, 0)
     r = utils.http_post(uri, ctx, payload)
-    ctx.obj.handler.set_response_data(r, ctx)
     if r.status_code == 201:
-        ctx.obj.handler.set_message(f"Autoprimary {ip} with nameserver {nameserver} added")
+        ctx.obj.handler.set_message(f"Autoprimary {ip}/{nameserver} added")
         ctx.obj.handler.set_success()
         utils.exit_cli(ctx, 0)
     else:
-        ctx.obj.handler.set_message(f"Failed adding {ip} with nameserver {nameserver}")
-        ctx.obj.handler.set_success(False)
+        ctx.obj.handler.set_message(f"Failed adding {ip}/{nameserver}")
+        ctx.obj.handler.set_failed()
         utils.exit_cli(ctx, 1)
 
 
-# @autoprimary.command("delete")
-# @click.argument("ip", type=IPAddress)
-# @click.argument("nameserver", type=AutoprimaryZone)
-# @click.pass_context
-# def autoprimary_delete(ctx, ip, nameserver):
-#     """
-#     Deletes an autoprimary from the dns server configuration
-#     """
-#     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-#     if utils.is_autoprimary_present(uri, ctx, ip, nameserver):
-#         uri = (
-#             f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/
-#             autoprimaries/{ip}/{nameserver}")
-#         r = utils.http_delete(uri, ctx)
-#         if utils.create_output(
-#             r,
-#             (204,),
-#             optional_json={"message": f"Autoprimary {ip} with nameserver {nameserver} deleted"},
-#         ):
-#             raise SystemExit(0)
-#     else:
-#         print_output({"message": f"Autoprimary {ip} with nameserver {nameserver} already absent"})
-#         raise SystemExit(0)
-#
-#
-# @autoprimary.command("import")
-# @click.argument("file", type=click.File())
-# @click.option(
-#     "--replace",
-#     is_flag=True,
-#     help="Replace all old autoprimaries settings with new ones",
-# )
-# @click.option(
-#     "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import
-#     even when requests fail"
-# )
-# @click.pass_context
-# def autoprimary_import(ctx, file, replace, ignore_errors):
-#     """Import a list with your autoprimaries settings"""
-#     settings = utils.extract_file(file)
-#     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-#     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
-#     utils.validate_simple_import(settings, upstream_settings, replace)
-#     if replace and upstream_settings:
-#         utils.replace_autoprimary_import(uri, ctx, settings, upstream_settings, ignore_errors)
-#     else:
-#         for nameserver in settings:
-#             r = utils.http_post(uri, ctx, payload=nameserver)
-#             if not r.status_code == 201:
-#                 msg = {"error": f"Failed adding nameserver {nameserver}"}
-#                 if ignore_errors:
-#                     print_output(msg, stderr=True)
-#                 else:
-#                     print_output(msg)
-#                     raise SystemExit(1)
-#     print_output({"message": "Successfully added autoprimary configuration"})
-#     raise SystemExit(0)
-#
-#
-# @autoprimary.command("list")
-# @click.pass_context
-# def autoprimary_list(ctx):
-#     """
-#     Lists all currently configured autoprimary servers
-#     """
-#     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-#     r = utils.http_get(uri, ctx)
-#     if utils.create_output(r, (200,)):
-#         raise SystemExit(0)
-#     raise SystemExit(1)
-#
-#
-# @autoprimary.command("spec")
-# def autoprimary_spec():
-#     """Open the autoprimary specification on https://redocly.github.io"""
-#
-#     utils.open_spec("autoprimary")
+@autoprimary.command("delete")
+@click.argument("ip", type=IPAddress)
+@click.argument("nameserver", type=AutoprimaryZone)
+@click.pass_context
+def autoprimary_delete(ctx, ip, nameserver):
+    """
+    Deletes an autoprimary from the dns server configuration
+    """
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    if is_autoprimary_present(uri, ctx, ip, nameserver):
+        uri = (
+            f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
+        )
+        r = utils.http_delete(uri, ctx)
+        if r.status_code == 204:
+            ctx.obj.handler.set_message(f"Autoprimary {ip}/{nameserver} deleted")
+            ctx.obj.handler.set_success()
+            utils.exit_cli(ctx, 0)
+        else:
+            ctx.obj.handler.set_message(f"Failed deleting {ip}/{nameserver}")
+            ctx.obj.handler.set_failed()
+            utils.exit_cli(ctx, 1)
+    ctx.obj.handler.set_message(f"Autoprimary {ip}/{nameserver} already absent")
+    ctx.obj.handler.set_success()
+    utils.exit_cli(ctx, 0)
 
 
-def exit_if_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: str) -> None:
+@autoprimary.command("import")
+@click.argument("file", type=click.File())
+@click.option(
+    "--replace",
+    is_flag=True,
+    help="Replace all old autoprimaries settings with new ones",
+)
+@click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
+@click.pass_context
+def autoprimary_import(ctx, file, replace, ignore_errors):
+    """Import a list with your autoprimaries settings"""
+    settings = utils.extract_file(file)
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    utils.validate_simple_import(ctx, settings, upstream_settings, replace)
+    if replace and upstream_settings:
+        replace_autoprimary_import(uri, ctx, settings, upstream_settings, ignore_errors)
+    else:
+        for nameserver in settings:
+            r = utils.http_post(uri, ctx, payload=nameserver)
+            if not r.status_code == 201:
+                ctx.obj.logger.error(f"Failed adding nameserver {nameserver}")
+                if not ignore_errors:
+                    ctx.obj.handler.set_failed()
+                    ctx.obj.handler.set_message(
+                        f"Failed adding nameserver {nameserver} and exiting early"
+                    )
+                    utils.exit_cli(ctx, 1)
+    ctx.obj.handler.set_message("Successfully added autoprimary configuration")
+    ctx.obj.handler.set_success()
+    utils.exit_cli(ctx, 0)
+
+
+@autoprimary.command("list")
+@click.pass_context
+def autoprimary_list(ctx):
+    """
+    Lists all currently configured autoprimary servers
+    """
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    r = utils.http_get(uri, ctx)
+    if r.status_code == 200:
+        ctx.obj.handler.set_success()
+        utils.exit_cli(ctx, 0, print_data=True)
+    else:
+        ctx.obj.handler.set_failed()
+        ctx.obj.handler.set_message("Failed acquiring the list of autoprimaries")
+        utils.exit_cli(ctx, 1)
+
+
+@autoprimary.command("spec")
+def autoprimary_spec():
+    """Open the autoprimary specification on https://redocly.github.io"""
+
+    utils.open_spec("autoprimary")
+
+
+def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: str) -> bool:
     """Checks if the specified IP and nameserver are already present in the autoprimary list.
 
     This function sends a GET request to the provided `uri` to fetch the current list of
@@ -140,18 +152,15 @@ def exit_if_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserve
         nameserver (str): The nameserver to check for in the autoprimary list.
 
     Returns:
-        SystemExit: If requested autoprimaries are already configured, otherwise None.
+        True: If requested autoprimaries are already configured, otherwise False.
     """
     upstream_autoprimaries = utils.http_get(uri, ctx)
     if upstream_autoprimaries.status_code == 200:
         autoprimaries = upstream_autoprimaries.json()
         for primary in autoprimaries:
             if primary.get("nameserver") == nameserver and primary.get("ip") == ip:
-                ctx.obj.handler.set_message(
-                    f"Autoprimary {ip} with nameserver {nameserver} already present"
-                )
-                ctx.obj.handler.set_success()
-                utils.exit_cli(ctx, 0)
+                return True
+    return False
 
 
 def replace_autoprimary_import(
@@ -187,11 +196,11 @@ def replace_autoprimary_import(
             r = utils.http_post(uri, ctx, payload=nameserver)
             if r.status_code != 201:
                 utils.handle_import_early_exit(
-                    {"error": f"Failed adding nameserver {nameserver}"}, ignore_errors
+                    ctx, f"Failed adding nameserver {nameserver}", ignore_errors
                 )
     for nameserver in upstreams_to_delete:
         r = utils.http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
         if not r.status_code == 204:
             utils.handle_import_early_exit(
-                {"error": f"Failed deleting nameserver {nameserver}"}, ignore_errors
+                ctx, f"Failed deleting nameserver {nameserver}", ignore_errors
             )

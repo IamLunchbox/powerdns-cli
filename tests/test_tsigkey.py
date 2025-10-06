@@ -118,7 +118,9 @@ def test_tsigkey_add_success(mock_utils, conditional_mock_utils, example_new_tsi
     post = mock_utils.mock_http_post(201, json_output=example_new_tsigkey)
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_add, ["test5", "hmac-sha256"], obj=testutils.testobject,
+        tsigkey_add,
+        ["test5", "hmac-sha256"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == example_new_tsigkey
@@ -131,7 +133,9 @@ def test_tsigkey_add_already_present(mock_utils, conditional_mock_utils, example
     post = mock_utils.mock_http_post(201, json_output=example_new_tsigkey)
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_add, ["test1", "hmac-sha256"], obj=testutils.testobject,
+        tsigkey_add,
+        ["test1", "hmac-sha256"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -175,7 +179,11 @@ def test_tsigkey_delete_success(mock_utils, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
-    result = runner.invoke(tsigkey_delete, ["test1"], obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_delete,
+        ["test1"],
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     delete.assert_called()
     get.assert_called()
@@ -185,7 +193,11 @@ def test_tsigkey_delete_not_present(mock_utils, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
-    result = runner.invoke(tsigkey_delete, ["test5"], obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_delete,
+        ["test5"],
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     delete.assert_not_called()
     get.assert_called()
@@ -194,7 +206,11 @@ def test_tsigkey_delete_not_present(mock_utils, conditional_mock_utils):
 def test_tsigkey_export_success(mock_utils, conditional_mock_utils, example_tsigkey_test1):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
-    result = runner.invoke(tsigkey_export, ["test1"], obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_export,
+        ["test1"],
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     get.assert_called()
     assert json.loads(result.output) == example_tsigkey_test1
@@ -203,7 +219,11 @@ def test_tsigkey_export_success(mock_utils, conditional_mock_utils, example_tsig
 def test_tsigkey_export_fail(mock_utils, conditional_mock_utils, example_tsigkey_test1):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
-    result = runner.invoke(tsigkey_export, ["test5"], obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_export,
+        ["test5"],
+        obj=testutils.testobject,
+    )
     assert "Not found" in json.loads(result.output)["error"]
     assert result.exit_code != 0
     get.assert_called()
@@ -301,7 +321,11 @@ def test_tsigkey_import_success(
     mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
     post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
     runner = CliRunner()
-    result = runner.invoke(tsigkey_import, ["testfile"], obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_import,
+        ["testfile"],
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
     post.assert_called()
@@ -394,7 +418,11 @@ def test_tsigkey_import_idempotence(
     file_mock.mock_settings_import(file_contents)
     mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
     runner = CliRunner()
-    result = runner.invoke(tsigkey_import, ["testfile"], obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_import,
+        ["testfile"],
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
 
@@ -432,7 +460,11 @@ def test_tsigkey_import_failed(mocker, mock_utils, file_mock):
     )
     post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
     runner = CliRunner()
-    result = runner.invoke(tsigkey_import, ["testfile"], obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_import,
+        ["testfile"],
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["error"]
     post.assert_called_once()
@@ -472,7 +504,9 @@ def test_tsigkey_import_ignore_errors(mocker, mock_utils, file_mock):
     post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_import, ["testfile", "--ignore-errors"], obj=testutils.testobject,
+        tsigkey_import,
+        ["testfile", "--ignore-errors"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.stdout)["message"]
@@ -563,7 +597,9 @@ def test_tsigkey_import_replace(
     delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_import, ["testfile", "--replace"], obj=testutils.testobject,
+        tsigkey_import,
+        ["testfile", "--replace"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "imported" in json.loads(result.output)["message"]
@@ -610,7 +646,9 @@ def test_tsigkey_import_replace_failed(mocker, mock_utils, file_mock):
     post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_import, ["testfile", "--replace"], obj=testutils.testobject,
+        tsigkey_import,
+        ["testfile", "--replace"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["error"]
@@ -664,7 +702,9 @@ def test_tsigkey_import_replace_early_exit(
     delete = mock_utils.mock_http_delete(delete_code, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_import, ["testfile", "--replace"], obj=testutils.testobject,
+        tsigkey_import,
+        ["testfile", "--replace"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["error"]
@@ -769,7 +809,9 @@ def test_tsigkey_import_replace_idempotence(
     mocker.patch("powerdns_cli.utils.get_tsigkey_settings", return_value=upstream_content)
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_import, ["testfile", "--replace"], obj=testutils.testobject,
+        tsigkey_import,
+        ["testfile", "--replace"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -778,7 +820,10 @@ def test_tsigkey_import_replace_idempotence(
 def test_tsigkey_list_success(mock_utils, conditional_mock_utils, example_tsigkey_list):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
-    result = runner.invoke(tsigkey_list, obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_list,
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     get.assert_called()
     assert json.loads(result.output) == example_tsigkey_list
@@ -787,7 +832,10 @@ def test_tsigkey_list_success(mock_utils, conditional_mock_utils, example_tsigke
 def test_tsigkey_list_fail(mock_utils):
     get = mock_utils.mock_http_get(404, json_output={"message": "Not Found"})
     runner = CliRunner()
-    result = runner.invoke(tsigkey_list, obj=testutils.testobject,)
+    result = runner.invoke(
+        tsigkey_list,
+        obj=testutils.testobject,
+    )
     assert json.loads(result.output)["message"] == "Not Found"
     assert result.exit_code != 0
     get.assert_called()
@@ -843,7 +891,9 @@ def test_tsigkey_update_refuse_rewrite(mock_utils, conditional_mock_utils, examp
     put = mock_utils.mock_http_put(200, json_output=example_tsigkey_test1)
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_update, ["test1", "-n", "test2"], obj=testutils.testobject,
+        tsigkey_update,
+        ["test1", "-n", "test2"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -856,7 +906,9 @@ def test_tsigkey_update_rename(mock_utils, conditional_mock_utils, example_tsigk
     put = mock_utils.mock_http_put(200, json_output=example_tsigkey_test1)
     runner = CliRunner()
     result = runner.invoke(
-        tsigkey_update, ["test1", "-n", "test5"], obj=testutils.testobject,
+        tsigkey_update,
+        ["test1", "-n", "test5"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     get.assert_called()

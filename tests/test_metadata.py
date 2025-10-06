@@ -408,7 +408,11 @@ def test_metadata_import_replace_ignore_errors(
 def test_metadata_export_success(conditional_mock_utils, example_metadata):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
-    result = runner.invoke(metadata_export, ["example.com"], obj=testutils.testobject,)
+    result = runner.invoke(
+        metadata_export,
+        ["example.com"],
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     assert json.loads(result.output) == example_metadata
     get.assert_called()
@@ -521,7 +525,9 @@ def test_metadata_delete_idempotence(mock_utils, conditional_mock_utils, example
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
-        metadata_delete, ["example.com", "X-NEW-DATA"], obj=testutils.testobject,
+        metadata_delete,
+        ["example.com", "X-NEW-DATA"],
+        obj=testutils.testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]

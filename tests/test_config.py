@@ -19,7 +19,10 @@ def test_config_export_success(mock_utils):
     ]
     get = mock_utils.mock_http_get(200, json_output=json_output)
     runner = CliRunner()
-    result = runner.invoke(config_export, obj=testutils.testobject,)
+    result = runner.invoke(
+        config_export,
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     assert json.loads(result.output) == json_output
     get.assert_called()
@@ -28,7 +31,10 @@ def test_config_export_success(mock_utils):
 def test_config_export_failure(mock_utils):
     get = mock_utils.mock_http_get(500, {"error": "Internal server error"})
     runner = CliRunner()
-    result = runner.invoke(config_export, obj=testutils.testobject,)
+    result = runner.invoke(
+        config_export,
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 1
     get.assert_called()
 
@@ -37,7 +43,10 @@ def test_config_list_success(mock_utils):
     json_output = [{"id": "localhost", "daemon_type": "authoritative"}]
     get = mock_utils.mock_http_get(200, json_output=json_output)
     runner = CliRunner()
-    result = runner.invoke(config_list, obj=testutils.testobject,)
+    result = runner.invoke(
+        config_list,
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     assert json.loads(result.output) == json_output
     get.assert_called()
@@ -46,7 +55,10 @@ def test_config_list_success(mock_utils):
 def test_config_list_servers_failure(mock_utils):
     get = mock_utils.mock_http_get(401, {"error": "Unauthorized"})
     runner = CliRunner()
-    result = runner.invoke(config_list, obj=testutils.testobject,)
+    result = runner.invoke(
+        config_list,
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 1
     get.assert_called()
 
@@ -59,7 +71,10 @@ def test_config_stats_success(mock_utils):
     ]
     get = mock_utils.mock_http_get(200, json_output=json_output)
     runner = CliRunner()
-    result = runner.invoke(config_stats, obj=testutils.testobject,)
+    result = runner.invoke(
+        config_stats,
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 0
     assert json.loads(result.output) == json_output
     get.assert_called()
@@ -68,6 +83,9 @@ def test_config_stats_success(mock_utils):
 def test_config_stats_failure(mock_utils):
     get = mock_utils.mock_http_get(503, {"error": "Service unavailable"})
     runner = CliRunner()
-    result = runner.invoke(config_stats, obj=testutils.testobject,)
+    result = runner.invoke(
+        config_stats,
+        obj=testutils.testobject,
+    )
     assert result.exit_code == 1
     get.assert_called()
