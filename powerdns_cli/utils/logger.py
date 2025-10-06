@@ -46,6 +46,17 @@ class ResultHandler(logging.Handler):
         """
         self.result["logs"].append(self.format(record))
 
+    def set_data(self, response: requests.Response) -> None:
+        """Sets the data in the result dictionary.
+
+        Args:
+            response: A requests response which contains the return data in its json answer.
+        """
+        try:
+            self.result["data"] = response.json()
+        except json.JSONDecodeError:
+            self.result["data"] = response.text
+
     def set_message(self, message: str) -> None:
         """Sets the message in the result dictionary.
 
@@ -60,17 +71,16 @@ class ResultHandler(logging.Handler):
         """Sets the data in the result dictionary.
 
         Args:
+            ctx: A click context object to save the response data to.
             response: A requests.Response object.
         """
         response_data = {"status_code": response.status_code, "reason": response.reason}
         try:
             response_data["json"] = response.json()
             response_data["text"] = ""
-            self.result["data"] = response.json()
         except json.JSONDecodeError:
             response_data["json"] = {}
             response_data["text"] = response.text
-            self.result["data"] = response.text
         if ctx and ctx.obj.config["log_level"] == "DEBUG":
             request_data = {
                 "method": response.request.method,
