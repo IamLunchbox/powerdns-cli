@@ -4,7 +4,7 @@ import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
 
-from powerdns_cli.powerdns_cli import config_export, config_list, config_stats
+from powerdns_cli.commands.config import config_export, config_list, config_stats
 
 
 @pytest.fixture

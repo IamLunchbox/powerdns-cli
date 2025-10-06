@@ -6,7 +6,7 @@ import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
 
-from powerdns_cli.powerdns_cli import (
+from powerdns_cli.commands.record import (
     record_add,
     record_delete,
     record_disable,
@@ -116,7 +116,7 @@ def test_record_add_already_present(mock_utils, example_zone):
 
 
 def test_record_add_failure(mock_utils, example_zone):
-    get = mock_utils.mock_http_get(404, {"error": "Not found"})
+    mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(
@@ -144,7 +144,7 @@ def test_record_delete_success(mock_utils, example_zone):
 
 
 def test_record_delete_already_absent(mock_utils, example_zone):
-    get = mock_utils.mock_http_get(200, example_zone)
+    mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
@@ -158,7 +158,7 @@ def test_record_delete_already_absent(mock_utils, example_zone):
 
 
 def test_record_delete_failure(mock_utils, example_zone):
-    get = mock_utils.mock_http_get(404, {"error": "Not found"})
+    mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(
@@ -215,7 +215,7 @@ def test_record_disable_already_disabled(mock_utils, example_zone):
 
 
 def test_record_disable_failure(mock_utils, example_zone):
-    get = mock_utils.mock_http_get(404, {"error": "Not found"})
+    mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(
@@ -345,7 +345,7 @@ def test_record_extend_idempotence(mock_utils, example_zone):
 
 
 def test_record_extend_failure(mock_utils, example_zone):
-    get = mock_utils.mock_http_get(404, {"error": "Not found"})
+    mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(

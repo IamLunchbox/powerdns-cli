@@ -1,14 +1,12 @@
 """
-validation.py
-
 A collection of custom Click parameter types for DNS and IP validation.
-The types are exposed as objects, which already invoked the classes:
+The types are exposed as the following objects:
 - PowerDNSZone
 - AutoprimaryZone
 - IPRange
 - IPAddress
 
-These objects can be directly used as click types.
+These objects can be directly used as click types, since they which already invoked the classes.
 
 Usage:
     These types can be used as Click parameter types in CLI commands. For example:

@@ -12,8 +12,8 @@ Commands:
 
 import click
 
-from . import utils
-from .validation import AutoprimaryZone, IPAddress
+from ..utils import main as utils
+from ..utils.validation import AutoprimaryZone, IPAddress
 
 
 @click.group()
@@ -42,16 +42,16 @@ def autoprimary_add(
             f"Autoprimary {ip} with nameserver {nameserver} already present"
         )
         ctx.obj.handler.set_success()
-        utils.exit_cli(ctx, 0)
+        utils.exit_cli(ctx)
     r = utils.http_post(uri, ctx, payload)
     if r.status_code == 201:
         ctx.obj.handler.set_message(f"Autoprimary {ip}/{nameserver} added")
         ctx.obj.handler.set_success()
-        utils.exit_cli(ctx, 0)
+        utils.exit_cli(ctx)
     else:
         ctx.obj.handler.set_message(f"Failed adding {ip}/{nameserver}")
         ctx.obj.handler.set_failed()
-        utils.exit_cli(ctx, 1)
+        utils.exit_cli(ctx)
 
 
 @autoprimary.command("delete")
@@ -71,14 +71,14 @@ def autoprimary_delete(ctx, ip, nameserver):
         if r.status_code == 204:
             ctx.obj.handler.set_message(f"Autoprimary {ip}/{nameserver} deleted")
             ctx.obj.handler.set_success()
-            utils.exit_cli(ctx, 0)
+            utils.exit_cli(ctx)
         else:
             ctx.obj.handler.set_message(f"Failed deleting {ip}/{nameserver}")
             ctx.obj.handler.set_failed()
-            utils.exit_cli(ctx, 1)
+            utils.exit_cli(ctx)
     ctx.obj.handler.set_message(f"Autoprimary {ip}/{nameserver} already absent")
     ctx.obj.handler.set_success()
-    utils.exit_cli(ctx, 0)
+    utils.exit_cli(ctx)
 
 
 @autoprimary.command("import")
@@ -108,10 +108,10 @@ def autoprimary_import(ctx, file, replace, ignore_errors):
                     ctx.obj.handler.set_message(
                         f"Failed adding nameserver {nameserver} and exiting early"
                     )
-                    utils.exit_cli(ctx, 1)
+                    utils.exit_cli(ctx)
     ctx.obj.handler.set_message("Successfully added autoprimary configuration")
     ctx.obj.handler.set_success()
-    utils.exit_cli(ctx, 0)
+    utils.exit_cli(ctx)
 
 
 @autoprimary.command("list")
@@ -124,11 +124,12 @@ def autoprimary_list(ctx):
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:
         ctx.obj.handler.set_success()
-        utils.exit_cli(ctx, 0, print_data=True)
+        ctx.obj.handler.set_data(r)
+        utils.exit_cli(ctx, print_data=True)
     else:
         ctx.obj.handler.set_failed()
         ctx.obj.handler.set_message("Failed acquiring the list of autoprimaries")
-        utils.exit_cli(ctx, 1)
+        utils.exit_cli(ctx)
 
 
 @autoprimary.command("spec")

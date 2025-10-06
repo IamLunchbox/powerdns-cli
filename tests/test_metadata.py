@@ -1,6 +1,5 @@
 import copy
 import json
-from collections import namedtuple
 from typing import NamedTuple
 from unittest.mock import MagicMock as unittest_MagicMock
 
@@ -9,7 +8,7 @@ import requests
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
 
-from powerdns_cli.powerdns_cli import (
+from powerdns_cli.commands.metadata import (
     metadata_add,
     metadata_delete,
     metadata_export,

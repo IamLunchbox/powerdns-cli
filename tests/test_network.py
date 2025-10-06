@@ -6,7 +6,7 @@ import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
 
-from powerdns_cli.powerdns_cli import (
+from powerdns_cli.commands.network import (
     network_add,
     network_delete,
     network_export,

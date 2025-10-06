@@ -7,13 +7,13 @@ import requests
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
 
-from powerdns_cli.powerdns_cli import (
+from powerdns_cli.commands.cryptokey import (
     cryptokey_add,
     cryptokey_delete,
     cryptokey_disable,
     cryptokey_enable,
     cryptokey_export,
-    cryptokey_impor,
+    cryptokey_import,
     cryptokey_list,
     cryptokey_publish,
     cryptokey_unpublish,
@@ -184,9 +184,9 @@ def test_cryptokey_add_success(mock_utils):
 
 
 def test_cryptokey_add_failed(mock_utils, conditional_mock_utils):
-    get = conditional_mock_utils.mock_http_get()
+    conditional_mock_utils.mock_http_get()
     error_output = {"error": "The information you provided is incorrect"}
-    post = mock_utils.mock_http_post(500, json_output=error_output)
+    mock_utils.mock_http_post(500, json_output=error_output)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_add,
@@ -205,7 +205,7 @@ def test_cryptokey_import_success(mock_utils, conditional_mock_utils, example_ne
     post = mock_utils.mock_http_post(201, json_output=example_new_key)
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_impor,
+        cryptokey_import,
         ["zsk", "example.com.", example_new_key["privatekey"]],
         obj=testutils.testobject,
     )
@@ -220,7 +220,7 @@ def test_cryptokey_import_already_present(mock_utils, conditional_mock_utils, ex
     post = mock_utils.mock_http_post(201, json_output={})
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_impor,
+        cryptokey_import,
         ["zsk", "example.com.", example_zsk_key["privatekey"]],
         obj=testutils.testobject,
     )
@@ -236,7 +236,7 @@ def test_cryptokey_import_failed(mock_utils, conditional_mock_utils, example_new
     mock_utils.mock_http_post(500, json_output=error_output)
     runner = CliRunner()
     result = runner.invoke(
-        cryptokey_impor,
+        cryptokey_import,
         ["zsk", "example.com.", example_new_key["privatekey"]],
         obj=testutils.testobject,
     )
@@ -245,7 +245,7 @@ def test_cryptokey_import_failed(mock_utils, conditional_mock_utils, example_new
 
 
 def test_cryptokey_delete_success(mock_utils, conditional_mock_utils):
-    get = conditional_mock_utils.mock_http_get()
+    conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(

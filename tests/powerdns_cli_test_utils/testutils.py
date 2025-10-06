@@ -5,36 +5,36 @@ from unittest.mock import MagicMock as unittest_MagicMock
 
 import requests
 
-from powerdns_cli.utils import ContextObj
+from powerdns_cli.utils.main import ContextObj
 
-testobject = ContextObj()
-testobject.config["apihost"] = "http://example.com"
-testobject.config["major_version"] = 5
-testobject.config["log_level"] = "INFO"
-testobject.config["json"] = True
+context_object = ContextObj()
+context_object.config["apihost"] = "http://example.com"
+context_object.config["major_version"] = 5
+context_object.config["log_level"] = "INFO"
+context_object.config["json"] = True
 
 
 class MockUtils:
     def __init__(self, mocker: MagicMock):
         self.mocker = mocker
         self.mocker.patch(
-            "powerdns_cli.utils.http_get",
+            "powerdns_cli.utils.main.http_get",
             side_effect=RuntimeError("http_get was unexpectedly called!"),
         )
         self.mocker.patch(
-            "powerdns_cli.utils.http_post",
+            "powerdns_cli.utils.main.http_post",
             side_effect=RuntimeError("http_post was unexpectedly called!"),
         )
         self.mocker.patch(
-            "powerdns_cli.utils.http_put",
+            "powerdns_cli.utils.main.http_put",
             side_effect=RuntimeError("http_put was unexpectedly called!"),
         )
         self.mocker.patch(
-            "powerdns_cli.utils.http_delete",
+            "powerdns_cli.utils.main.http_delete",
             side_effect=RuntimeError("http_delete was unexpectedly called!"),
         )
         self.mocker.patch(
-            "powerdns_cli.utils.http_patch",
+            "powerdns_cli.utils.main.http_patch",
             side_effect=RuntimeError("http_patch was unexpectedly called!"),
         )
 
@@ -47,7 +47,7 @@ class MockUtils:
         mock_http_get.status_code = status_code
         mock_http_get.reason = "OK"
         mock_http_get.headers = {"Content-Type": "application/json"}
-        return self.mocker.patch("powerdns_cli.utils.http_get", return_value=mock_http_get)
+        return self.mocker.patch("powerdns_cli.utils.main.http_get", return_value=mock_http_get)
 
     def mock_http_post(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
@@ -58,7 +58,7 @@ class MockUtils:
         mock_http_post.status_code = status_code
         mock_http_post.reason = "OK"
         mock_http_post.headers = {"Content-Type": "application/json"}
-        return self.mocker.patch("powerdns_cli.utils.http_post", return_value=mock_http_post)
+        return self.mocker.patch("powerdns_cli.utils.main.http_post", return_value=mock_http_post)
 
     def mock_http_delete(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
@@ -69,7 +69,9 @@ class MockUtils:
         mock_http_delete.status_code = status_code
         mock_http_delete.reason = "OK"
         mock_http_delete.headers = {"Content-Type": "application/json"}
-        return self.mocker.patch("powerdns_cli.utils.http_delete", return_value=mock_http_delete)
+        return self.mocker.patch(
+            "powerdns_cli.utils.main.http_delete", return_value=mock_http_delete
+        )
 
     def mock_http_put(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
@@ -80,7 +82,7 @@ class MockUtils:
         mock_http_put.status_code = status_code
         mock_http_put.reason = "OK"
         mock_http_put.headers = {"Content-Type": "application/json"}
-        return self.mocker.patch("powerdns_cli.utils.http_put", return_value=mock_http_put)
+        return self.mocker.patch("powerdns_cli.utils.main.http_put", return_value=mock_http_put)
 
     def mock_http_patch(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
@@ -91,7 +93,7 @@ class MockUtils:
         mock_http_patch.status_code = status_code
         mock_http_patch.reason = "OK"
         mock_http_patch.headers = {"Content-Type": "application/json"}
-        return self.mocker.patch("powerdns_cli.utils.http_patch", return_value=mock_http_patch)
+        return self.mocker.patch("powerdns_cli.utils.main.http_patch", return_value=mock_http_patch)
 
 
 class MockFile:
@@ -101,5 +103,5 @@ class MockFile:
 
     def mock_settings_import(self, file_contents: dict | list):
         return self.mocker.patch(
-            "powerdns_cli.utils.extract_file", return_value=copy.deepcopy(file_contents)
+            "powerdns_cli.utils.main.extract_file", return_value=copy.deepcopy(file_contents)
         )

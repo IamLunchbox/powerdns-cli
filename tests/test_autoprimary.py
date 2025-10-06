@@ -6,12 +6,17 @@ import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
 
-from powerdns_cli.autoprimary import (
+from powerdns_cli.commands.autoprimary import (
     autoprimary_add,
     autoprimary_delete,
     autoprimary_import,
     autoprimary_list,
 )
+
+
+@pytest.fixture(autouse=True)
+def testobject():
+    return testutils.context_object
 
 
 @pytest.fixture
@@ -24,14 +29,14 @@ def mock_utils(mocker):
     return testutils.MockUtils(mocker)
 
 
-def test_autoprimary_add_success(mock_utils):
+def test_autoprimary_add_success(mock_utils, testobject):
     get = mock_utils.mock_http_get(200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}])
     post = mock_utils.mock_http_post(201, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         autoprimary_add,
         ["1.1.1.1", "ns1.example.com", "--account", "testaccount"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "added" in json.loads(result.output)["message"]
@@ -39,7 +44,7 @@ def test_autoprimary_add_success(mock_utils):
     post.assert_called()
 
 
-def test_autoprimary_add_idempotence(mock_utils):
+def test_autoprimary_add_idempotence(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200,
         json_output=[{"ip": "1.1.1.1", "nameserver": "ns1.example.com", "account": "testaccount"}],
@@ -49,7 +54,7 @@ def test_autoprimary_add_idempotence(mock_utils):
     result = runner.invoke(
         autoprimary_add,
         ["1.1.1.1", "ns1.example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "present" in json.loads(result.output)["message"]
@@ -57,16 +62,19 @@ def test_autoprimary_add_idempotence(mock_utils):
     post.assert_not_called()
 
 
-# def test_autoprimary_list_success(mock_utils):
-#     get = mock_utils.mock_http_get(200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}])
-#     runner = CliRunner()
-#     result = runner.invoke(autoprimary_list, obj=testutils.testobject,)
-#     assert result.exit_code == 0
-#     assert json.loads(result.output) == [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}]
-#     get.assert_called()
-#
-#
-def test_autoprimary_delete_success(mock_utils):
+def test_autoprimary_list_success(mock_utils, testobject):
+    get = mock_utils.mock_http_get(200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}])
+    runner = CliRunner()
+    result = runner.invoke(
+        autoprimary_list,
+        obj=testobject,
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["data"] == [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}]
+    get.assert_called()
+
+
+def test_autoprimary_delete_success(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com", "account": "testaccount"}]
     )
@@ -75,7 +83,7 @@ def test_autoprimary_delete_success(mock_utils):
     result = runner.invoke(
         autoprimary_delete,
         ["2.2.2.2", "ns1.example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "deleted" in json.loads(result.output)["message"]
@@ -83,7 +91,7 @@ def test_autoprimary_delete_success(mock_utils):
     delete.assert_called()
 
 
-def test_autoprimary_delete_already_absent(mock_utils):
+def test_autoprimary_delete_already_absent(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, [{"ip": "2.2.2.2", "nameserver": "ns1.example.com", "account": "testaccount"}]
     )
@@ -92,7 +100,7 @@ def test_autoprimary_delete_already_absent(mock_utils):
     result = runner.invoke(
         autoprimary_delete,
         ["1.1.1.1", "ns1.example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already absent" in json.loads(result.output)["message"]
@@ -113,7 +121,7 @@ def test_autoprimary_delete_already_absent(mock_utils):
         [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}],
     ),
 )
-def test_autoprimary_import_success(mock_utils, file_mock, file_contents):
+def test_autoprimary_import_success(mock_utils, file_mock, file_contents, testobject):
     get = mock_utils.mock_http_get(
         200,
         copy.deepcopy(
@@ -126,7 +134,7 @@ def test_autoprimary_import_success(mock_utils, file_mock, file_contents):
     result = runner.invoke(
         autoprimary_import,
         ["testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "autoprimary" in json.loads(result.output)["message"]
@@ -146,7 +154,7 @@ def test_autoprimary_import_success(mock_utils, file_mock, file_contents):
         ],
     ),
 )
-def test_autoprimary_import_idempotence(mock_utils, file_mock, file_contents):
+def test_autoprimary_import_idempotence(mock_utils, file_mock, file_contents, testobject):
     get = mock_utils.mock_http_get(
         200,
         copy.deepcopy(
@@ -162,7 +170,7 @@ def test_autoprimary_import_idempotence(mock_utils, file_mock, file_contents):
     result = runner.invoke(
         autoprimary_import,
         ["testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -234,7 +242,7 @@ import_testcases = (
     "upstream_content,file_contents,added_content,delete_paths", import_testcases
 )
 def test_autoprimary_import_replace_success(
-    mock_utils, file_mock, upstream_content, file_contents, added_content, delete_paths
+    mock_utils, file_mock, upstream_content, file_contents, added_content, delete_paths, testobject
 ):
     get = mock_utils.mock_http_get(
         200,
@@ -247,7 +255,7 @@ def test_autoprimary_import_replace_success(
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "autoprimary" in json.loads(result.output)["message"]
@@ -262,7 +270,7 @@ def test_autoprimary_import_replace_success(
         assert item in [delete_request[1][0] for delete_request in delete.mock_calls]
 
 
-def test_autoprimary_import_replace_idempotence(mock_utils, file_mock):
+def test_autoprimary_import_replace_idempotence(mock_utils, file_mock, testobject):
     get = mock_utils.mock_http_get(
         200,
         copy.deepcopy(
@@ -283,7 +291,7 @@ def test_autoprimary_import_replace_idempotence(mock_utils, file_mock):
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -313,7 +321,9 @@ returncodes = (
 
 
 @pytest.mark.parametrize("get_status,post_status,delete_status", returncodes)
-def test_autoprimary_import_error(mock_utils, file_mock, get_status, post_status, delete_status):
+def test_autoprimary_import_replace_error(
+    mock_utils, file_mock, get_status, post_status, delete_status, testobject
+):
     get = mock_utils.mock_http_get(
         get_status,
         copy.deepcopy(
@@ -327,14 +337,14 @@ def test_autoprimary_import_error(mock_utils, file_mock, get_status, post_status
         {"ip": "3.3.2.2", "nameserver": "ns1.example.com", "account": "testaccount"},
         {"ip": "1.1.2.2", "nameserver": "ns.example.com"},
     ]
-    post = mock_utils.mock_http_post(post_status, {"success": True})
+    mock_utils.mock_http_post(post_status, {"success": True})
     delete = mock_utils.mock_http_delete(delete_status, {"success": True})
     file_mock.mock_settings_import(copy.deepcopy(file_contents))
     runner = CliRunner()
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -347,7 +357,7 @@ def test_autoprimary_import_error(mock_utils, file_mock, get_status, post_status
 
 @pytest.mark.parametrize("get_status,post_status,delete_status", returncodes)
 def test_autoprimary_import_ignore_error(
-    mock_utils, file_mock, get_status, post_status, delete_status
+    mock_utils, file_mock, get_status, post_status, delete_status, testobject
 ):
     get = mock_utils.mock_http_get(
         get_status,
@@ -369,7 +379,7 @@ def test_autoprimary_import_ignore_error(
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     get.assert_called()
