@@ -92,13 +92,9 @@ class ResultHandler(logging.Handler):
         http_log = {"response": response_data, "request": request_data}
         self.result["http"].append(http_log)
 
-    def set_success(self) -> None:
+    def set_success(self, success: bool = True) -> None:
         """Sets the success status to True in the result dictionary."""
-        self.result["success"] = True
-
-    def set_failed(self) -> None:
-        """Sets the success status to False in the result dictionary."""
-        self.result["success"] = False
+        self.result["success"] = success
 
     def get_result(self) -> dict[str, Any]:
         """Returns the current result dictionary.

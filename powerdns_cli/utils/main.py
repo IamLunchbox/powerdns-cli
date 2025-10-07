@@ -58,6 +58,35 @@ def exit_cli(ctx: click.Context, print_data: bool = False) -> NoReturn:
     raise SystemExit(1)
 
 
+def exit_action(
+    ctx: click.Context,
+    success: bool,
+    response: requests.Response = None,
+    message: str | None = None,
+    print_data: bool = False,
+) -> NoReturn:
+    """
+    Handles action exit logic based on HTTP response status codes.
+
+    Sets the handler's status, message, and data, then exits the CLI.
+    The exit status is determined by whether the response's status code
+    matches the expected status code(s).
+
+    Args:
+        ctx: Click context object.
+        success: Declare if action failed or succeeded.
+        response: HTTP response object.
+        message: Optional message to set in the handler.
+        print_data: If True, sets the response data in the handler.
+    """
+    if message:
+        ctx.obj.handler.set_message(message)
+    if print_data:
+        ctx.obj.handler.set_data(response)
+    ctx.obj.handler.set_success(success)
+    exit_cli(ctx, print_data=print_data)
+
+
 def make_canonical(zone: str) -> str:
     """Ensure a DNS zone name ends with a trailing dot.
 
@@ -302,7 +331,7 @@ def handle_import_early_exit(ctx: click.Context, message: str, ignore_errors: bo
     - Stops all further processing
 
     When ignore_errors is True (permissive mode):
-    - Prints error to stderr but continues execution
+    - Logs error but continues execution
     - Allows processing of remaining items
 
     Args:
@@ -311,7 +340,7 @@ def handle_import_early_exit(ctx: click.Context, message: str, ignore_errors: bo
         ignore_errors: If True, log error and continue; if False, log error and exit
     """
     if ignore_errors:
-        ctx.obj.handler.set_message(message)
+        ctx.obj.logger.error(message)
     else:
         ctx.obj.handler.set_message(message)
         ctx.obj.handler.set_failed()
