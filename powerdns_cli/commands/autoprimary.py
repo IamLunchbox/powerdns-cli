@@ -37,16 +37,24 @@ def autoprimary_add(
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     payload = {"ip": ip, "nameserver": nameserver, "account": account}
+    ctx.obj.logger.info(f"Attempting to add autoprimary {ip}/{nameserver}")
+
     if is_autoprimary_present(uri, ctx, ip, nameserver):
+        ctx.obj.logger.info(f"Autoprimary {ip}/{nameserver} already present")
         utils.exit_action(
             ctx,
             success=True,
             message=f"Autoprimary {ip} with nameserver {nameserver} already present",
         )
+
+    ctx.obj.logger.debug(f"Sending POST request for {ip}/{nameserver}")
     r = utils.http_post(uri, ctx, payload)
     if r.status_code == 201:
+        ctx.obj.logger.info(f"Successfully added autoprimary {ip}/{nameserver}")
         utils.exit_action(ctx, success=True, message=f"Autoprimary {ip}/{nameserver} added")
-    utils.exit_action(ctx, success=False, message=f"Failed adding {ip}/{nameserver}")
+    else:
+        ctx.obj.logger.error(f"Failed to add {ip}/{nameserver}: HTTP {r.status_code}")
+        utils.exit_action(ctx, success=False, message=f"Failed adding {ip}/{nameserver}")
 
 
 @autoprimary.command("delete")
@@ -58,16 +66,25 @@ def autoprimary_delete(ctx, ip, nameserver):
     Deletes an autoprimary from the dns server configuration
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    ctx.obj.logger.info(f"Attempting to delete autoprimary {ip}/{nameserver}")
+
     if is_autoprimary_present(uri, ctx, ip, nameserver):
         uri = (
             f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
         )
+        ctx.obj.logger.debug(f"Sending delete request for {ip}/{nameserver}")
         r = utils.http_delete(uri, ctx)
         if r.status_code == 204:
+            ctx.obj.logger.info(f"Successfully deleted autoprimary {ip}/{nameserver}")
             utils.exit_action(ctx, success=True, message=f"Autoprimary {ip}/{nameserver} deleted")
         else:
+            ctx.obj.logger.error(f"Failed to delete {ip}/{nameserver}: HTTP {r.status_code}")
             utils.exit_action(ctx, success=False, message=f"Failed deleting {ip}/{nameserver}")
-    utils.exit_action(ctx, success=True, message=f"Autoprimary {ip}/{nameserver} already absent")
+    else:
+        ctx.obj.logger.info(f"Autoprimary {ip}/{nameserver} already absent")
+        utils.exit_action(
+            ctx, success=True, message=f"Autoprimary {ip}/{nameserver} already absent"
+        )
 
 
 @autoprimary.command("import")
@@ -81,23 +98,34 @@ def autoprimary_delete(ctx, ip, nameserver):
 @click.pass_context
 def autoprimary_import(ctx, file, replace, ignore_errors):
     """Import a list with your autoprimaries settings"""
+    ctx.obj.logger.info("Starting autoprimary import process")
+
     settings = utils.extract_file(file)
+    ctx.obj.logger.debug(f"Extracted {len(settings)} settings from file")
+
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+    ctx.obj.logger.debug(f"Fetched {len(upstream_settings)} upstream settings")
+
     utils.validate_simple_import(ctx, settings, upstream_settings, replace)
+
     if replace and upstream_settings:
+        ctx.obj.logger.info("Replacing existing autoprimary settings")
         replace_autoprimary_import(uri, ctx, settings, upstream_settings, ignore_errors)
     else:
+        ctx.obj.logger.info("Adding new autoprimary settings")
         for nameserver in settings:
+            ctx.obj.logger.debug(f"Adding nameserver: {nameserver}")
             r = utils.http_post(uri, ctx, payload=nameserver)
             if not r.status_code == 201:
-                ctx.obj.logger.error(f"Failed adding nameserver {nameserver}")
+                ctx.obj.logger.error(f"Failed adding nameserver {nameserver}: HTTP {r.status_code}")
                 if not ignore_errors:
                     utils.exit_action(
                         ctx,
                         success=False,
                         message=f"Failed adding nameserver {nameserver} and exiting early",
                     )
+    ctx.obj.logger.info("Autoprimary import completed successfully")
     utils.exit_action(ctx, success=True, message="Successfully added autoprimary configuration")
 
 
@@ -138,12 +166,21 @@ def is_autoprimary_present(uri: str, ctx: click.Context, ip: str, nameserver: st
     Returns:
         True: If requested autoprimaries are already configured, otherwise False.
     """
+    ctx.obj.logger.debug(
+        f"Checking if autoprimary (IP: {ip}, nameserver: {nameserver}) is already present"
+    )
     upstream_autoprimaries = utils.http_get(uri, ctx)
+
     if upstream_autoprimaries.status_code == 200:
         autoprimaries = upstream_autoprimaries.json()
+        ctx.obj.logger.debug(f"Found {len(autoprimaries)} autoprimary entries to check")
         for primary in autoprimaries:
             if primary.get("nameserver") == nameserver and primary.get("ip") == ip:
+                ctx.obj.logger.info(
+                    f"Autoprimary (IP: {ip}, nameserver: {nameserver}) already exists"
+                )
                 return True
+    ctx.obj.logger.debug("No matching autoprimary found")
     return False
 
 
@@ -168,23 +205,42 @@ def replace_autoprimary_import(
         SystemExit: If an error occurs during the addition or deletion of a nameserver configuration
                    and `ignore_errors` is False.
     """
+
     existing_upstreams = []
     upstreams_to_delete = []
+
+    ctx.obj.logger.debug(
+        f"Comparing {len(settings)} desired settings with {len(upstream_settings)} "
+        f"upstream settings"
+    )
     for nameserver in upstream_settings:
         if nameserver in settings:
             existing_upstreams.append(nameserver)
         else:
             upstreams_to_delete.append(nameserver)
+
+    ctx.obj.logger.debug(
+        f"Found {len(existing_upstreams)} existing and {len(upstreams_to_delete)} "
+        f"obsolete upstreams"
+    )
+
     for nameserver in settings:
         if nameserver not in existing_upstreams:
+            ctx.obj.logger.info(f"Adding new nameserver: {nameserver}")
             r = utils.http_post(uri, ctx, payload=nameserver)
             if r.status_code != 201:
+                ctx.obj.logger.error(f"Failed to add nameserver {nameserver}: HTTP {r.status_code}")
                 utils.handle_import_early_exit(
                     ctx, f"Failed adding nameserver {nameserver}", ignore_errors
                 )
+
     for nameserver in upstreams_to_delete:
+        ctx.obj.logger.info(f"Deleting obsolete nameserver: {nameserver}")
         r = utils.http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
         if not r.status_code == 204:
+            ctx.obj.logger.error(f"Failed to delete nameserver {nameserver}: HTTP {r.status_code}")
             utils.handle_import_early_exit(
                 ctx, f"Failed deleting nameserver {nameserver}", ignore_errors
             )
+
+    ctx.obj.logger.info("Autoprimary import replacement completed")
