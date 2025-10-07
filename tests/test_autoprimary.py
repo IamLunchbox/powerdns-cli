@@ -14,7 +14,7 @@ from powerdns_cli.commands.autoprimary import (
 )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def testobject():
     return testutils.context_object
 

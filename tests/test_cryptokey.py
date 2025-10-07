@@ -19,6 +19,9 @@ from powerdns_cli.commands.cryptokey import (
     cryptokey_unpublish,
 )
 
+@pytest.fixture()
+def testobject():
+    return testutils.context_object
 
 @pytest.fixture
 def mock_utils(mocker):
@@ -166,24 +169,24 @@ class ConditionalMock(testutils.MockUtils):
             mock_http_get.headers = {"Content-Type": "application/json"}
             return mock_http_get
 
-        return self.mocker.patch("powerdns_cli.utils.http_get", side_effect=side_effect)
+        return self.mocker.patch("powerdns_cli.utils.main.http_get", side_effect=side_effect)
 
 
-def test_cryptokey_add_success(mock_utils):
+def test_cryptokey_add_success(mock_utils, testobject):
     get = mock_utils.mock_http_get(200)
     post = mock_utils.mock_http_post(201, json_output={})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_add,
         ["zsk", "example.com", "--algorithm", "ed448"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     get.assert_not_called()
     post.assert_called()
 
 
-def test_cryptokey_add_failed(mock_utils, conditional_mock_utils):
+def test_cryptokey_add_failed(mock_utils, testobject, conditional_mock_utils):
     conditional_mock_utils.mock_http_get()
     error_output = {"error": "The information you provided is incorrect"}
     mock_utils.mock_http_post(500, json_output=error_output)
@@ -194,35 +197,35 @@ def test_cryptokey_add_failed(mock_utils, conditional_mock_utils):
             "zsk",
             "example.com.",
         ],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == error_output
+    assert "Failed creating" in  json.loads(result.output)["message"]
 
 
-def test_cryptokey_import_success(mock_utils, conditional_mock_utils, example_new_key):
+def test_cryptokey_import_success(mock_utils, testobject, conditional_mock_utils, example_new_key):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_new_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
         ["zsk", "example.com.", example_new_key["privatekey"]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_new_key_dict
+    assert json.loads(result.output)["data"] == example_new_key_dict
     post.assert_called()
     get.assert_called()
 
 
-def test_cryptokey_import_already_present(mock_utils, conditional_mock_utils, example_zsk_key):
+def test_cryptokey_import_already_present(mock_utils, testobject, conditional_mock_utils, example_zsk_key):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output={})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
         ["zsk", "example.com.", example_zsk_key["privatekey"]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -230,7 +233,7 @@ def test_cryptokey_import_already_present(mock_utils, conditional_mock_utils, ex
     get.assert_called()
 
 
-def test_cryptokey_import_failed(mock_utils, conditional_mock_utils, example_new_key):
+def test_cryptokey_import_failed(mock_utils, testobject, conditional_mock_utils, example_new_key):
     conditional_mock_utils.mock_http_get()
     error_output = {"error": "The information you provided is incorrect"}
     mock_utils.mock_http_post(500, json_output=error_output)
@@ -238,34 +241,34 @@ def test_cryptokey_import_failed(mock_utils, conditional_mock_utils, example_new
     result = runner.invoke(
         cryptokey_import,
         ["zsk", "example.com.", example_new_key["privatekey"]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == error_output
+    assert "Failed importing" in json.loads(result.output)["message"]
 
 
-def test_cryptokey_delete_success(mock_utils, conditional_mock_utils):
+def test_cryptokey_delete_success(mock_utils, testobject, conditional_mock_utils):
     conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_delete,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Deleted" in json.loads(result.output)["message"]
     delete.assert_called()
 
 
-def test_cryptokey_delete_already_absent(mock_utils, conditional_mock_utils):
+def test_cryptokey_delete_already_absent(mock_utils, testobject, conditional_mock_utils):
     get = mock_utils.mock_http_get(404, json_output={"error": "Not found"})
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_delete,
         ["example.com.", "6"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already absent" in json.loads(result.output)["message"]
@@ -273,28 +276,28 @@ def test_cryptokey_delete_already_absent(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_delete_failure(mock_utils, conditional_mock_utils):
+def test_cryptokey_delete_failure(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(500, json_output={"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_delete,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     delete.assert_called_once()
     get.assert_called_once()
 
 
-def test_cryptokey_disable_success(mock_utils, conditional_mock_utils):
+def test_cryptokey_disable_success(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_disable,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Disabled" in json.loads(result.output)["message"]
@@ -302,14 +305,14 @@ def test_cryptokey_disable_success(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_already_disabled(mock_utils, conditional_mock_utils):
+def test_cryptokey_already_disabled(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_disable,
         ["example.com.", "2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -317,29 +320,29 @@ def test_cryptokey_already_disabled(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_disable_failure(mock_utils, conditional_mock_utils):
+def test_cryptokey_disable_failure(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(500, json_output={"error": "Failed to disable"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_disable,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed to disable" in json.loads(result.output)["error"]
+    assert "Failed disabling" in json.loads(result.output)["message"]
     put.assert_called()
     get.assert_called_once()
 
 
-def test_cryptokey_disable_missing_key(mock_utils, conditional_mock_utils):
+def test_cryptokey_disable_missing_key(mock_utils, testobject, conditional_mock_utils):
     get = mock_utils.mock_http_get(404, json_output={"error": "Not found"})
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_disable,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]
@@ -347,14 +350,14 @@ def test_cryptokey_disable_missing_key(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_enable_success(mock_utils, conditional_mock_utils):
+def test_cryptokey_enable_success(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_enable,
         ["example.com.", "2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Enabled" in json.loads(result.output)["message"]
@@ -362,14 +365,14 @@ def test_cryptokey_enable_success(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_already_enabled(mock_utils, conditional_mock_utils):
+def test_cryptokey_already_enabled(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_enable,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -377,29 +380,29 @@ def test_cryptokey_already_enabled(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_enable_failure(mock_utils, conditional_mock_utils):
+def test_cryptokey_enable_failure(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(500, json_output={"error": "Failed to disable"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_enable,
         ["example.com.", "2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed to disable" in json.loads(result.output)["error"]
+    assert "Failed enabling" in json.loads(result.output)["message"]
     put.assert_called()
     get.assert_called_once()
 
 
-def test_cryptokey_enable_missing_key(mock_utils, conditional_mock_utils):
+def test_cryptokey_enable_missing_key(mock_utils, testobject, conditional_mock_utils):
     get = mock_utils.mock_http_get(404, json_output={"error": "Not found"})
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_enable,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]
@@ -407,76 +410,76 @@ def test_cryptokey_enable_missing_key(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_export_success(conditional_mock_utils, example_ksk_key):
+def test_cryptokey_export_success(conditional_mock_utils, testobject, example_ksk_key):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_export,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_ksk_key
+    assert json.loads(result.output)["data"] == example_ksk_key
     get.assert_called()
 
 
-def test_cryptokey_export_not_found(mock_utils):
+def test_cryptokey_export_not_found(mock_utils, testobject):
     get = mock_utils.mock_http_get(404, {"error": "Not found"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_export,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     get.assert_called()
 
 
-def test_cryptokey_export_failure(mock_utils):
+def test_cryptokey_export_failure(mock_utils, testobject):
     get = mock_utils.mock_http_get(500, {"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_export,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     get.assert_called()
 
 
-def test_cryptokey_list_success(mock_utils, conditional_mock_utils, example_cryptokey_list):
+def test_cryptokey_list_success(mock_utils, testobject, conditional_mock_utils, example_cryptokey_list):
     get = mock_utils.mock_http_get(200, example_cryptokey_list)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_list,
         ["example.com."],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert example_cryptokey_list == json.loads(result.output)
+    assert example_cryptokey_list == json.loads(result.output)["data"]
     get.assert_called()
 
 
-def test_cryptokey_list_failure(mock_utils, conditional_mock_utils):
+def test_cryptokey_list_failure(mock_utils, testobject, conditional_mock_utils):
     get = mock_utils.mock_http_get(500, {"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_list,
         ["example.com."],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     get.assert_called()
 
 
-def test_cryptokey_publish_success(mock_utils, conditional_mock_utils):
+def test_cryptokey_publish_success(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_publish,
         ["example.com.", "2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Published" in json.loads(result.output)["message"]
@@ -484,14 +487,14 @@ def test_cryptokey_publish_success(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_already_published(mock_utils, conditional_mock_utils):
+def test_cryptokey_already_published(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_publish,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -499,29 +502,29 @@ def test_cryptokey_already_published(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_publish_failure(mock_utils, conditional_mock_utils):
+def test_cryptokey_publish_failure(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(500, json_output={"error": "Failed to disable"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_publish,
         ["example.com.", "2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed to disable" in json.loads(result.output)["error"]
+    assert "Failed publish" in json.loads(result.output)["message"]
     put.assert_called()
     get.assert_called_once()
 
 
-def test_cryptokey_publish_missing_key(mock_utils, conditional_mock_utils):
+def test_cryptokey_publish_missing_key(mock_utils, testobject, conditional_mock_utils):
     get = mock_utils.mock_http_get(404, json_output={"error": "Not found"})
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_publish,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]
@@ -529,14 +532,14 @@ def test_cryptokey_publish_missing_key(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_unpublish_success(mock_utils, conditional_mock_utils):
+def test_cryptokey_unpublish_success(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_unpublish,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Unpublished" in json.loads(result.output)["message"]
@@ -544,14 +547,14 @@ def test_cryptokey_unpublish_success(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_already_unpublished(mock_utils, conditional_mock_utils):
+def test_cryptokey_already_unpublished(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_unpublish,
         ["example.com.", "2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -559,29 +562,29 @@ def test_cryptokey_already_unpublished(mock_utils, conditional_mock_utils):
     get.assert_called_once()
 
 
-def test_cryptokey_unpublish_failure(mock_utils, conditional_mock_utils):
+def test_cryptokey_unpublish_failure(mock_utils, testobject, conditional_mock_utils):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(500, json_output={"error": "Failed to disable"})
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_unpublish,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed to disable" in json.loads(result.output)["error"]
+    assert "Failed unpublishing" in json.loads(result.output)["message"]
     put.assert_called()
     get.assert_called_once()
 
 
-def test_cryptokey_unpublish_missing_key(mock_utils, conditional_mock_utils):
+def test_cryptokey_unpublish_missing_key(mock_utils, testobject, conditional_mock_utils):
     get = mock_utils.mock_http_get(404, json_output={"error": "Not found"})
     put = mock_utils.mock_http_put(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_unpublish,
         ["example.com.", "1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]

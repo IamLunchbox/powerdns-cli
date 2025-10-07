@@ -59,13 +59,9 @@ def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm):
     r = utils.http_post(uri, ctx, payload)
 
     if r.status_code == 201:
-        ctx.obj.handler.set_success()
-        ctx.obj.handler.set_data(r)
-        utils.exit_cli(ctx, print_data=True)
+        utils.exit_action(ctx, success=True, response=r, print_data=True)
     else:
-        ctx.obj.handler.set_failed()
-        ctx.obj.handler.set_message("Failed creating the dnssec-key")
-        utils.exit_cli(ctx)
+        utils.exit_action(ctx, success=False, message="Failed creating the dnssec-key")
 
 
 @cryptokey.command("delete")
@@ -80,16 +76,18 @@ def cryptokey_delete(ctx, dns_zone, cryptokey_id):
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} already absent", 0, ctx)
+    exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' already absent", success=True
+    )
     r = utils.http_delete(uri, ctx)
     if r.status_code == 204:
-        ctx.obj.handler.set_success()
-        ctx.obj.handler.set_message(f"Deleted id '{cryptokey_id}' for '{dns_zone}'")
-        utils.exit_cli(ctx, print_data=True)
+        utils.exit_action(
+            ctx, success=True, message=f"Deleted id '{cryptokey_id}' for '{dns_zone}'"
+        )
     else:
-        ctx.obj.handler.set_failed()
-        ctx.obj.handler.set_message(f"Failed to delete id '{cryptokey_id}' for '{dns_zone}'")
-        utils.exit_cli(ctx)
+        utils.exit_action(
+            ctx, success=False, message=f"Failed to delete id '{cryptokey_id}' for '{dns_zone}'"
+        )
 
 
 @cryptokey.command("disable")
@@ -108,18 +106,22 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id):
         "id": cryptokey_id,
         "active": False,
     }
-    r = does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist"
+    )
     if not r.json()["active"]:
-        utils.print_output({"message": f"Cryptokey with id {cryptokey_id} is already inactive"})
-        raise SystemExit(0)
+        utils.exit_action(
+            ctx, success=True, message=f"Cryptokey with id {cryptokey_id} is already inactive"
+        )
     r = utils.http_put(uri, ctx, payload)
-    if utils.create_output(
-        r,
-        (204,),
-        optional_json={"message": f"Disabled id {cryptokey_id} for {dns_zone}"},
-    ):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 204:
+        utils.exit_action(
+            ctx, success=True, message=f"Disabled id '{cryptokey_id}' for '{dns_zone}'"
+        )
+    else:
+        utils.exit_action(
+            ctx, success=False, message=f"Failed disabling '{cryptokey_id}' for '{dns_zone}'"
+        )
 
 
 @cryptokey.command("enable")
@@ -138,18 +140,22 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id):
         "id": cryptokey_id,
         "active": True,
     }
-    r = does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' does not exist"
+    )
     if r.json()["active"]:
-        utils.print_output({"message": f"Cryptokey with id {cryptokey_id} is already active"})
-        raise SystemExit(0)
+        utils.exit_action(
+            ctx, success=True, message=f"Cryptokey with id '{cryptokey_id}' is already active"
+        )
     r = utils.http_put(uri, ctx, payload)
-    if utils.create_output(
-        r,
-        (204,),
-        optional_json={"message": f"Enabled id {cryptokey_id} for {dns_zone}"},
-    ):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 204:
+        utils.exit_action(
+            ctx, success=True, message=f"Enabled id '{cryptokey_id}' for '{dns_zone}'"
+        )
+    else:
+        utils.exit_action(
+            ctx, success=False, message=f"Failed enabling '{cryptokey_id}' for '{dns_zone}'"
+        )
 
 
 @cryptokey.command("export")
@@ -164,11 +170,14 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    exit_if_cryptokey_does_not_exist(ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist")
     r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 200:
+        utils.exit_action(ctx, success=True, response=r, print_data=True)
+    else:
+        utils.exit_action(
+            ctx, success=False, message=f"Failed exporting '{cryptokey_id}' for '{dns_zone}'"
+        )
 
 
 @cryptokey.command("import")
@@ -205,17 +214,14 @@ def cryptokey_import(
         "keytype": key_type,
     }
     if is_dnssec_key_present(uri, secret, ctx):
-        utils.print_output({"message": "The provided dnssec-key is already present at the backend"})
-        raise SystemExit(0)
+        utils.exit_action(
+            ctx, success=True, message="The provided dnssec-key is already present at the backend"
+        )
     r = utils.http_post(uri, ctx, payload)
     if r.status_code == 201:
-        ctx.obj.handler.set_success()
-        ctx.obj.handler.set_data(r)
-        utils.exit_cli(ctx, print_data=True)
+        utils.exit_action(ctx, success=True, response=r, message="Successfully imported cryptokey")
     else:
-        ctx.obj.handler.set_failed()
-        ctx.obj.handler.set_message("Failed importing the provided dnssec-key")
-        utils.exit_cli(ctx)
+        utils.exit_action(ctx, success=False, message="Failed importing cryptokey")
 
 
 @cryptokey.command("list")
@@ -227,9 +233,10 @@ def cryptokey_list(ctx, dns_zone):
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 200:
+        utils.exit_action(ctx, success=True, print_data=True, response=r)
+    else:
+        utils.exit_action(ctx, success=False, message="Failed listing cryptokeys")
 
 
 @cryptokey.command("publish")
@@ -248,19 +255,23 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id):
         "id": cryptokey_id,
         "published": True,
     }
-    r = does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist"
+    )
     if r.json()["published"]:
-        utils.print_output({"message": f"Cryptokey with id {cryptokey_id} already published"})
-        raise SystemExit(0)
+        utils.exit_action(
+            ctx, success=True, message="Cryptokey with id {cryptokey_id} already published"
+        )
     payload["active"] = r.json()["active"]
     r = utils.http_put(uri, ctx, payload)
-    if utils.create_output(
-        r,
-        (204,),
-        optional_json={"message": f"Published id {cryptokey_id} for {dns_zone}"},
-    ):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 204:
+        utils.exit_action(
+            ctx, success=True, message=f"Published id '{cryptokey_id}' for '{dns_zone}'"
+        )
+    else:
+        utils.exit_action(
+            ctx, success=False, message=f"Failed publishing '{cryptokey_id}' for '{dns_zone}'"
+        )
 
 
 @cryptokey.command("spec")
@@ -286,19 +297,23 @@ def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
         "id": cryptokey_id,
         "published": False,
     }
-    r = does_cryptokey_exist(uri, f"Cryptokey with id {cryptokey_id} does not exist", 1, ctx)
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist"
+    )
     if not r.json()["published"]:
-        utils.print_output({"message": f"Cryptokey with id {cryptokey_id} is already unpublished"})
-        raise SystemExit(0)
+        utils.exit_action(
+            ctx, success=True, message=f"Cryptokey '{cryptokey_id}' is already unpublished"
+        )
     payload["active"] = r.json()["active"]
     r = utils.http_put(uri, ctx, payload)
-    if utils.create_output(
-        r,
-        (204,),
-        optional_json={"message": f"Unpublished id {cryptokey_id} for {dns_zone}"},
-    ):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 204:
+        utils.exit_action(
+            ctx, success=True, message=f"Unpublished '{cryptokey_id}' for '{dns_zone}'"
+        )
+    else:
+        utils.exit_action(
+            ctx, success=False, message=f"Failed unpublishing '{cryptokey_id}' for '{dns_zone}'"
+        )
 
 
 def import_cryptokey_pubkeys(
@@ -323,8 +338,7 @@ def import_cryptokey_pubkeys(
     upstream_settings: list = utils.read_settings_from_upstream(uri, ctx)
     # Check for conflicts or early exit
     if new_settings in upstream_settings:
-        utils.print_output({"message": "Your setting is already present"})
-        raise SystemExit(0)
+        utils.exit_action(ctx, success=True, message="Your setting is already present")
 
     # Prepare payload
     payload = new_settings
@@ -358,20 +372,20 @@ def lowercase_secret(secret: str) -> str:
     return before_last_colon.lower() + after_last_colon
 
 
-def does_cryptokey_exist(
-    uri: str, exit_message: str, exit_code: int, ctx: click.Context
+def exit_if_cryptokey_does_not_exist(
+    ctx: click.Context, uri: str, exit_message: str, success: bool = False
 ) -> requests.Response:
     """Checks if the DNS cryptokey already exists in the backend.
 
     Sends a GET request to the provided `uri` to check for the existence of a DNS cryptokey.
-    If the response status code is 404, it prints the provided `exit_message` and exits
-    with the specified `exit_code`. Otherwise, it returns the response object.
+    If the response status code is 404, it prints the provided `exit_message` and exits.
+    Otherwise, it returns the response object.
 
     Args:
         uri (str): The URI to check for the DNS cryptokey.
         exit_message (str): The message to display if the cryptokey does not exist.
-        exit_code (int): The exit code to use if the cryptokey does not exist.
         ctx (click.Context): Click context object for command-line operations.
+        success (bool): Optionally overwrite the stats from failed to success.
 
     Returns:
         requests.Response: The HTTP response object if the cryptokey exists.
@@ -381,6 +395,5 @@ def does_cryptokey_exist(
     """
     r = utils.http_get(uri, ctx)
     if r.status_code == 404:
-        utils.print_output({"message": exit_message})
-        raise SystemExit(exit_code)
+        utils.exit_action(ctx, success=success, message=exit_message)
     return r
