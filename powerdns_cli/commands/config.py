@@ -29,9 +29,9 @@ def config_export(ctx):
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/config"
     r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 200:
+        utils.exit_action(ctx, success=True, print_data=True, response=r)
+    utils.exit_action(ctx, success=False, message="Failed obtaining a configuration export")
 
 
 @config.command("list")
@@ -42,9 +42,9 @@ def config_list(ctx):
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
     r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 200:
+        utils.exit_action(ctx, success=True, print_data=True, response=r)
+    utils.exit_action(ctx, success=False, message="Failed listing servers")
 
 
 @config.command("stats")
@@ -55,9 +55,9 @@ def config_stats(ctx):
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/statistics"
     r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 200:
+        utils.exit_action(ctx, success=True, print_data=True, response=r)
+    utils.exit_action(ctx, success=False, message="Failed getting stats")
 
 
 @config.command("spec")
