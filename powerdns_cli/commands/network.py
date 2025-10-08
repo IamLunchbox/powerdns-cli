@@ -13,6 +13,8 @@ Commands:
     spec: Opens the network API specification in the browser.
 """
 
+from typing import NoReturn
+
 import click
 
 from ..utils import main as utils
@@ -39,14 +41,22 @@ def network_add(ctx, cidr, view_id):
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
+
     if current_network.status_code == 200 and current_network.json()["view"] == view_id:
-        utils.print_output({"message": f"Network {cidr} is already assigned to view {view_id}"})
-        raise SystemExit(0)
+        ctx.obj.logger.info(f"Network {cidr} is already assigned to view {view_id}")
+        utils.exit_action(
+            ctx, success=True, message=f"Network {cidr} is already assigned to view {view_id}"
+        )
+
     payload = {"view": view_id}
     r = utils.http_put(uri, ctx, payload=payload)
-    if utils.create_output(r, (204,), optional_json={"message": f"Added view {view_id} to {cidr}"}):
-        raise SystemExit(0)
-    raise SystemExit(1)
+
+    if r.status_code == 204:
+        ctx.obj.logger.info(f"Added view {view_id} to {cidr}")
+        utils.exit_action(ctx, success=True, message=f"Added view {view_id} to {cidr}")
+    else:
+        ctx.obj.logger.error(f"Failed to add view {view_id} to {cidr}: {r.status_code}")
+        utils.exit_action(ctx, success=False, message=f"Failed to add view {view_id} to {cidr}")
 
 
 @network.command("list")
@@ -57,9 +67,21 @@ def network_list(ctx):
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
+
+    if r.status_code == 200:
+        ctx.obj.logger.info("Successfully listed all registered networks and views")
+        utils.exit_action(
+            ctx,
+            success=True,
+            response=r,
+            message="Successfully listed all registered networks and views",
+            print_data=True,
+        )
+    else:
+        ctx.obj.logger.error(f"Failed to list networks: {r.status_code}")
+        utils.exit_action(
+            ctx, success=False, response=r, message=f"Failed to list networks: {r.status_code}"
+        )
 
 
 @network.command("delete")
@@ -67,21 +89,28 @@ def network_list(ctx):
 @click.pass_context
 def network_delete(ctx, cidr):
     """
-    Add a view of a zone to a specific network.
-    Deleting requires passing an empty string to as view argument.
+    Remove a view association from a specific network.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    ctx.obj.logger.info(f"Attempting to delete view association for network: {cidr}")
+
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 404:
-        utils.print_output({"message": f"Network {cidr} absent"})
-        raise SystemExit(0)
+        ctx.obj.logger.info(f"Network {cidr} not found.")
+        utils.exit_action(ctx, success=True, message=f"Network {cidr} absent")
+
     payload = {"view": ""}
     r = utils.http_put(uri, ctx, payload=payload)
-    if utils.create_output(
-        r, (204,), optional_json={"message": f"Removed view association from {cidr}"}
-    ):
-        raise SystemExit(0)
-    raise SystemExit(1)
+    if r.status_code == 204:
+        ctx.obj.logger.info(f"Successfully removed view association from {cidr}.")
+        utils.exit_action(ctx, success=True, message=f"Removed view association from {cidr}")
+    else:
+        ctx.obj.logger.error(
+            f"Failed to remove view association from {cidr}. Status code: {r.status_code}"
+        )
+        utils.exit_action(
+            ctx, success=False, message=f"Failed to remove view association from {cidr}", response=r
+        )
 
 
 @network.command("export")
@@ -92,10 +121,33 @@ def network_export(ctx, cidr):
     Show the network and its associated views, defaults to /32 if no netmask is provided.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    ctx.obj.logger.info(f"Exporting network: {cidr}")
     r = utils.http_get(uri, ctx)
-    if utils.create_output(r, (200,)):
-        raise SystemExit(0)
-    raise SystemExit(1)
+
+    if r.status_code == 200:
+        utils.exit_action(
+            ctx,
+            success=True,
+            response=r,
+            message=f"Exported network: {cidr}",
+            print_data=True,
+        )
+    elif r.status_code == 404:
+        ctx.obj.logger.warning(f"Network not found: {cidr}")
+        utils.exit_action(
+            ctx,
+            success=False,
+            response=r,
+            message=f"Network not found: {cidr}",
+        )
+    else:
+        ctx.obj.logger.error(f"Failed to export network: {cidr}, status code: {r.status_code}")
+        utils.exit_action(
+            ctx,
+            success=False,
+            response=r,
+            message=f"Failed to export network: {cidr}",
+        )
 
 
 @network.command("import")
@@ -114,32 +166,47 @@ def network_import(ctx, file, replace, ignore_errors):
     """Import network and zone assignments.
     File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}"""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
+    ctx.obj.logger.info(f"Importing networks from file: {file.name}")
+
     nested_settings = utils.extract_file(file)
     if not isinstance(nested_settings, dict) or not isinstance(
         nested_settings.get("networks", None), list
     ):
-        utils.print_output({"error": "Networks must be dict with the key networks"})
-        raise SystemExit(1)
+        ctx.obj.logger.error("Invalid file format: Networks must be a dict with the key 'networks'")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message="Invalid file format: Networks must be a dict with the key 'networks'",
+        )
+
     settings = nested_settings["networks"]
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
+
     if isinstance(upstream_settings.get("networks", None), list):
         upstream_settings = upstream_settings["networks"]
     else:
         upstream_settings = []
+
     if replace and upstream_settings == settings:
-        utils.print_output({"message": "Requested networks are already present"})
-        raise SystemExit(0)
+        ctx.obj.logger.info("Requested networks are already present")
+        utils.exit_action(
+            ctx,
+            success=True,
+            message="Requested networks are already present",
+        )
+
     if not replace and all(item in upstream_settings for item in settings):
-        utils.print_output({"message": "Requested networks are already present"})
-        raise SystemExit(0)
+        ctx.obj.logger.info("Requested networks are already present")
+        utils.exit_action(
+            ctx,
+            success=True,
+            message="Requested networks are already present",
+        )
+
     if replace and upstream_settings:
         replace_network_import(uri, ctx, settings, upstream_settings, ignore_errors)
     else:
         add_network_import(uri, ctx, settings, ignore_errors)
-    utils.print_output(
-        {"message": "Successfully imported networks to views"},
-    )
-    raise SystemExit(0)
 
 
 @network.command("spec")
@@ -150,78 +217,125 @@ def network_spec():
 
 
 def replace_network_import(
-    uri, ctx, settings: list[dict], upstream_settings: list[dict], ignore_errors: bool
-) -> None:
+    uri: str,
+    ctx: click.Context,
+    settings: list[dict],
+    upstream_settings: list[dict],
+    ignore_errors: bool,
+) -> NoReturn:
     """Replaces network configurations by adding new entries and removing obsolete ones.
-
     This function compares the provided `settings` with `upstream_settings` to determine which
     network configurations to add or delete. It sends PUT requests to update or remove network
     configurations as needed. If an error occurs, it either logs the error and continues
     (if `ignore_errors` is True) or aborts the process.
-
     Args:
         uri (str): The base URI for API requests.
         ctx (click.Context): Click context object for command-line operations.
         settings (List[Dict]): List of dictionaries representing desired network configurations.
         upstream_settings (List[Dict]): List of dictionaries representing upstream configurations.
         ignore_errors (bool): If True, continues execution after errors instead of aborting.
-
-    Raises:
-        SystemExit: If an error occurs during the addition or deletion of a network configuration
-                   and `ignore_errors` is False.
     """
     existing_upstreams = []
     upstreams_to_delete = []
+
     for network_item in upstream_settings:
         if network_item in settings:
             existing_upstreams.append(network_item)
         else:
             upstreams_to_delete.append(network_item)
+
     for network_item in upstreams_to_delete:
+        ctx.obj.logger.info(
+            f"Removing network {network_item['network']} from view {network_item['view']}"
+        )
         r = utils.http_put(f"{uri}/{network_item['network']}", ctx, payload={"view": ""})
         if r.status_code != 204:
-            utils.handle_import_early_exit(
-                ctx,
-                f"Failed adding network {network_item['network']} from new {network_item['view']}",
-                ignore_errors,
+            ctx.obj.logger.error(
+                f"Failed to remove network {network_item['network']} "
+                f"from view {network_item['view']}"
             )
-    for network_item in settings:
-        if network_item not in existing_upstreams:
-            r = utils.http_put(
-                f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
-            )
-            if r.status_code != 204:
-                utils.handle_import_early_exit(
+            if not ignore_errors:
+                utils.exit_action(
                     ctx,
-                    f"Failed adding '{network_item['network']}' to '{network_item['view']}'",
-                    ignore_errors,
+                    success=False,
+                    response=r,
+                    message=f"Failed to remove network {network_item['network']} "
+                    f"from view {network_item['view']}",
                 )
 
+    for network_item in settings:
+        if network_item not in existing_upstreams:
+            ctx.obj.logger.info(
+                f"Adding network {network_item['network']} to view {network_item['view']}"
+            )
+            r = utils.http_put(
+                f"{uri}/{network_item['network']}",
+                ctx,
+                payload={"view": network_item["view"]},
+            )
+            if r.status_code != 204:
+                ctx.obj.logger.error(
+                    f"Failed to add network {network_item['network']} to "
+                    f"view {network_item['view']}"
+                )
+                if not ignore_errors:
+                    utils.exit_action(
+                        ctx,
+                        success=False,
+                        response=r,
+                        message=f"Failed to add network {network_item['network']} to "
+                        f"view {network_item['view']}",
+                    )
 
-def add_network_import(uri: str, ctx: click.Context, settings: list, ignore_errors: bool) -> None:
+    ctx.obj.logger.info("Network import completed successfully.")
+    utils.exit_action(
+        ctx,
+        success=True,
+        message="Network import completed successfully.",
+    )
+
+
+def add_network_import(
+    uri: str,
+    ctx: click.Context,
+    settings: list[dict],
+    ignore_errors: bool,
+) -> None:
     """Adds network configurations from an import using HTTP PUT requests.
-
     This function iterates through the provided `settings` and sends a PUT request
     for each network item to the specified URI. If the request fails, it either
     logs the error and continues (if `ignore_errors` is True) or aborts the process.
-
     Args:
         uri: The base URI for API requests.
         ctx: Click context object for command-line operations.
         settings: List of dictionaries representing network configurations to add.
         ignore_errors: If True, continues execution after errors instead of aborting.
-
-    Raises:
-        SystemExit: If an error occurs during the addition of a network configuration
-                   and `ignore_errors` is False.
     """
     for network_item in settings:
+        ctx.obj.logger.info(
+            f"Adding network {network_item['network']} to view {network_item['view']}"
+        )
         r = utils.http_put(
-            f"{uri}/{network_item['network']}", ctx, payload={"view": network_item["view"]}
+            f"{uri}/{network_item['network']}",
+            ctx,
+            payload={"view": network_item["view"]},
         )
         if r.status_code != 204:
-            utils.handle_import_early_exit(
-                ctx,
-                f"Failed adding network {network_item['network']} from new {network_item['view']}",
-                ignore_errors,
+            ctx.obj.logger.error(
+                f"Failed to add network {network_item['network']} to view {network_item['view']}"
             )
+            if not ignore_errors:
+                utils.exit_action(
+                    ctx,
+                    success=False,
+                    response=r,
+                    message=f"Failed to add network {network_item['network']} to "
+                    f"view {network_item['view']}",
+                )
+
+    ctx.obj.logger.info("Network addition completed successfully.")
+    utils.exit_action(
+        ctx,
+        success=True,
+        message="Network addition completed successfully.",
+    )
