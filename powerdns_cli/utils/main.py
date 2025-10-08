@@ -98,15 +98,16 @@ def make_canonical(zone: str) -> str:
     return zone if zone.endswith(".") else zone + "."
 
 
-def confirm(message: str, force: bool) -> None:
-    """Confirmation function to keep users from doing potentially dangerous actions.
-    Uses the force flag to determine if a manual confirmation is required."""
-    if not force:
-        click.echo(message)
-        confirmation = input()
-        if confirmation not in ("y", "Y", "YES", "yes", "Yes"):
-            click.echo("Aborting")
-            raise SystemExit(1)
+#
+# def confirm(message: str, force: bool) -> None:
+#     """Confirmation function to keep users from doing potentially dangerous actions.
+#     Uses the force flag to determine if a manual confirmation is required."""
+#     if not force:
+#         click.echo(message)
+#         confirmation = input()
+#         if confirmation not in ("y", "Y", "YES", "yes", "Yes"):
+#             click.echo("Aborting")
+#             raise SystemExit(1)
 
 
 def create_output(

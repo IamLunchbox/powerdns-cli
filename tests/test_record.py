@@ -90,7 +90,7 @@ def file_mock(mocker):
     return testutils.MockFile(mocker)
 
 
-def test_record_add_success(mock_utils, testobject,  example_zone):
+def test_record_add_success(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -105,7 +105,7 @@ def test_record_add_success(mock_utils, testobject,  example_zone):
     get.assert_called_once()
 
 
-def test_record_add_already_present(mock_utils, testobject,  example_zone):
+def test_record_add_already_present(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -120,7 +120,7 @@ def test_record_add_already_present(mock_utils, testobject,  example_zone):
     assert "already present" in json.loads(result.output)["message"]
 
 
-def test_record_add_failure(mock_utils, testobject,  example_zone):
+def test_record_add_failure(mock_utils, testobject, example_zone):
     mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
@@ -133,7 +133,7 @@ def test_record_add_failure(mock_utils, testobject,  example_zone):
     patch.assert_not_called()
 
 
-def test_record_delete_success(mock_utils, testobject,  example_zone):
+def test_record_delete_success(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -148,7 +148,7 @@ def test_record_delete_success(mock_utils, testobject,  example_zone):
     patch.assert_called()
 
 
-def test_record_delete_already_absent(mock_utils, testobject,  example_zone):
+def test_record_delete_already_absent(mock_utils, testobject, example_zone):
     mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -162,7 +162,7 @@ def test_record_delete_already_absent(mock_utils, testobject,  example_zone):
     patch.assert_not_called()
 
 
-def test_record_delete_failure(mock_utils, testobject,  example_zone):
+def test_record_delete_failure(mock_utils, testobject, example_zone):
     mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
@@ -175,7 +175,7 @@ def test_record_delete_failure(mock_utils, testobject,  example_zone):
     patch.assert_not_called()
 
 
-def test_record_disable_success(mock_utils, testobject,  example_zone):
+def test_record_disable_success(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -204,7 +204,7 @@ def test_record_disable_success(mock_utils, testobject,  example_zone):
     get.assert_called()
 
 
-def test_record_disable_already_disabled(mock_utils, testobject,  example_zone):
+def test_record_disable_already_disabled(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -219,7 +219,7 @@ def test_record_disable_already_disabled(mock_utils, testobject,  example_zone):
     assert "already disabled" in json.loads(result.output)["message"]
 
 
-def test_record_disable_failure(mock_utils, testobject,  example_zone):
+def test_record_disable_failure(mock_utils, testobject, example_zone):
     mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
@@ -232,7 +232,7 @@ def test_record_disable_failure(mock_utils, testobject,  example_zone):
     patch.assert_not_called()
 
 
-def test_record_enable_success(mock_utils, testobject,  example_zone):
+def test_record_enable_success(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -247,7 +247,7 @@ def test_record_enable_success(mock_utils, testobject,  example_zone):
     get.assert_called()
 
 
-def test_record_already_enabled(mock_utils, testobject,  example_zone):
+def test_record_already_enabled(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -262,7 +262,7 @@ def test_record_already_enabled(mock_utils, testobject,  example_zone):
     get.assert_called()
 
 
-def test_record_enabled_failure(mock_utils, testobject,  example_zone):
+def test_record_enabled_failure(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(404, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -276,7 +276,7 @@ def test_record_enabled_failure(mock_utils, testobject,  example_zone):
     get.assert_called()
 
 
-def test_record_extend_success(mock_utils, testobject,  example_zone):
+def test_record_extend_success(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -306,7 +306,7 @@ def test_record_extend_success(mock_utils, testobject,  example_zone):
     get.assert_called()
 
 
-def test_record_extend_success_with_new_rrset(mock_utils, testobject,  example_zone):
+def test_record_extend_success_with_new_rrset(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -334,7 +334,7 @@ def test_record_extend_success_with_new_rrset(mock_utils, testobject,  example_z
     get.assert_called()
 
 
-def test_record_extend_idempotence(mock_utils, testobject,  example_zone):
+def test_record_extend_idempotence(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
@@ -349,7 +349,7 @@ def test_record_extend_idempotence(mock_utils, testobject,  example_zone):
     get.assert_called()
 
 
-def test_record_extend_failure(mock_utils, testobject,  example_zone):
+def test_record_extend_failure(mock_utils, testobject, example_zone):
     mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
@@ -362,7 +362,7 @@ def test_record_extend_failure(mock_utils, testobject,  example_zone):
     patch.assert_not_called()
 
 
-def test_record_export_success(mock_utils, testobject,  example_zone):
+def test_record_export_success(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     runner = CliRunner()
     result = runner.invoke(
@@ -393,7 +393,7 @@ def test_record_export_success(mock_utils, testobject,  example_zone):
     get.assert_called()
 
 
-def test_record_export_failure(mock_utils, testobject,  example_zone):
+def test_record_export_failure(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(404, {"error": "Not found"})
     runner = CliRunner()
     result = runner.invoke(
@@ -402,7 +402,7 @@ def test_record_export_failure(mock_utils, testobject,  example_zone):
         obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed" in json.loads(result.output)['message']
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called()
 
 
@@ -552,7 +552,8 @@ testcase = (
 
 @pytest.mark.parametrize("file_content,upstream_content,added_content,deleted_content", testcase)
 def test_record_import_success(
-    mock_utils, testobject, 
+    mock_utils,
+    testobject,
     file_mock,
     file_content,
     upstream_content,
@@ -576,7 +577,8 @@ def test_record_import_success(
 
 
 def test_record_import_failed(
-    mock_utils, testobject, 
+    mock_utils,
+    testobject,
     file_mock,
     example_zone,
 ):
@@ -621,7 +623,8 @@ def test_record_import_failed(
 
 
 def test_record_import_idempotence(
-    mock_utils, testobject, 
+    mock_utils,
+    testobject,
     file_mock,
     example_zone,
 ):
@@ -674,7 +677,8 @@ def test_record_import_idempotence(
 
 
 def test_record_import_replace_success(
-    mock_utils, testobject, 
+    mock_utils,
+    testobject,
     file_mock,
     example_zone,
 ):
@@ -753,7 +757,8 @@ def test_record_import_replace_success(
 
 
 def test_record_import_replace_failed(
-    mock_utils, testobject, 
+    mock_utils,
+    testobject,
     file_mock,
     example_zone,
 ):
@@ -798,7 +803,8 @@ def test_record_import_replace_failed(
 
 
 def test_record_import_replace_idempotence(
-    mock_utils, testobject, 
+    mock_utils,
+    testobject,
     file_mock,
     example_zone,
 ):

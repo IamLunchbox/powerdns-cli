@@ -19,9 +19,11 @@ from powerdns_cli.commands.cryptokey import (
     cryptokey_unpublish,
 )
 
+
 @pytest.fixture()
 def testobject():
     return testutils.context_object
+
 
 @pytest.fixture
 def mock_utils(mocker):
@@ -200,7 +202,7 @@ def test_cryptokey_add_failed(mock_utils, testobject, conditional_mock_utils):
         obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed creating" in  json.loads(result.output)["message"]
+    assert "Failed creating" in json.loads(result.output)["message"]
 
 
 def test_cryptokey_import_success(mock_utils, testobject, conditional_mock_utils, example_new_key):
@@ -218,7 +220,9 @@ def test_cryptokey_import_success(mock_utils, testobject, conditional_mock_utils
     get.assert_called()
 
 
-def test_cryptokey_import_already_present(mock_utils, testobject, conditional_mock_utils, example_zsk_key):
+def test_cryptokey_import_already_present(
+    mock_utils, testobject, conditional_mock_utils, example_zsk_key
+):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output={})
     runner = CliRunner()
@@ -447,7 +451,9 @@ def test_cryptokey_export_failure(mock_utils, testobject):
     get.assert_called()
 
 
-def test_cryptokey_list_success(mock_utils, testobject, conditional_mock_utils, example_cryptokey_list):
+def test_cryptokey_list_success(
+    mock_utils, testobject, conditional_mock_utils, example_cryptokey_list
+):
     get = mock_utils.mock_http_get(200, example_cryptokey_list)
     runner = CliRunner()
     result = runner.invoke(
