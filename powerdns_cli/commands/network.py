@@ -23,21 +23,24 @@ from ..utils.validation import IPRange
 
 @click.group()
 @click.pass_context
-def network(ctx):
-    """Shows and sets up network views to limit access to dns entries"""
+def network(ctx: click.Context):
+    """Shows and sets up network views to limit access to DNS entries."""
     if ctx.obj.config["major_version"] < 5:
-        utils.print_output({"error": "Your authoritative dns-server does not support networks"})
-        raise SystemExit(1)
+        ctx.obj.logger.error("Your authoritative DNS server does not support networks")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message="Your authoritative DNS server does not support networks",
+        )
 
 
 @network.command("add")
 @click.argument("cidr", type=IPRange)
 @click.argument("view_id", type=click.STRING, metavar="view")
 @click.pass_context
-def network_add(ctx, cidr, view_id):
+def network_add(ctx: click.Context, cidr: str, view_id: str) -> NoReturn:
     """
     Add a view of a zone to a specific network.
-    Deleting requires passing an empty string to as view argument.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
@@ -45,7 +48,9 @@ def network_add(ctx, cidr, view_id):
     if current_network.status_code == 200 and current_network.json()["view"] == view_id:
         ctx.obj.logger.info(f"Network {cidr} is already assigned to view {view_id}")
         utils.exit_action(
-            ctx, success=True, message=f"Network {cidr} is already assigned to view {view_id}"
+            ctx,
+            success=True,
+            message=f"Network {cidr} is already assigned to view {view_id}",
         )
 
     payload = {"view": view_id}
@@ -56,12 +61,16 @@ def network_add(ctx, cidr, view_id):
         utils.exit_action(ctx, success=True, message=f"Added view {view_id} to {cidr}")
     else:
         ctx.obj.logger.error(f"Failed to add view {view_id} to {cidr}: {r.status_code}")
-        utils.exit_action(ctx, success=False, message=f"Failed to add view {view_id} to {cidr}")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message=f"Failed to add view {view_id} to {cidr}: HTTP {r.status_code}",
+        )
 
 
 @network.command("list")
 @click.pass_context
-def network_list(ctx):
+def network_list(ctx: click.Context):
     """
     List all registered networks and views
     """
@@ -72,7 +81,7 @@ def network_list(ctx):
 @network.command("delete")
 @click.argument("cidr", type=IPRange)
 @click.pass_context
-def network_delete(ctx, cidr):
+def network_delete(ctx: click.Context, cidr: str) -> NoReturn:
     """
     Remove a view association from a specific network.
     """
@@ -82,10 +91,11 @@ def network_delete(ctx, cidr):
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 404:
         ctx.obj.logger.info(f"Network {cidr} not found.")
-        utils.exit_action(ctx, success=True, message=f"Network {cidr} absent")
+        utils.exit_action(ctx, success=True, message=f"Network {cidr} is absent")
 
     payload = {"view": ""}
     r = utils.http_put(uri, ctx, payload=payload)
+
     if r.status_code == 204:
         ctx.obj.logger.info(f"Successfully removed view association from {cidr}.")
         utils.exit_action(ctx, success=True, message=f"Removed view association from {cidr}")
@@ -94,14 +104,17 @@ def network_delete(ctx, cidr):
             f"Failed to remove view association from {cidr}. Status code: {r.status_code}"
         )
         utils.exit_action(
-            ctx, success=False, message=f"Failed to remove view association from {cidr}", response=r
+            ctx,
+            success=False,
+            message=f"Failed to remove view association from {cidr}",
+            response=r,
         )
 
 
 @network.command("export")
 @click.argument("cidr", type=IPRange)
 @click.pass_context
-def network_export(ctx, cidr):
+def network_export(ctx: click.Context, cidr: str):
     """
     Show the network and its associated views, defaults to /32 if no netmask is provided.
     """
@@ -119,18 +132,24 @@ def network_export(ctx, cidr):
     help="Replace all network settings with new ones",
 )
 @click.option(
-    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+    "--ignore-errors",
+    type=click.BOOL,
+    is_flag=True,
+    help="Continue import even when requests fail",
 )
 @click.pass_context
-def network_import(ctx, file, replace, ignore_errors):
+def network_import(
+    ctx: click.Context, file: click.File, replace: bool, ignore_errors: bool
+) -> NoReturn:
     """Import network and zone assignments.
-    File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}"""
+    File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}
+    """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     ctx.obj.logger.info(f"Importing networks from file: {file.name}")
 
     nested_settings = utils.extract_file(file)
     if not isinstance(nested_settings, dict) or not isinstance(
-        nested_settings.get("networks", None), list
+        nested_settings.get("networks"), list
     ):
         ctx.obj.logger.error("Invalid file format: Networks must be a dict with the key 'networks'")
         utils.exit_action(
@@ -142,26 +161,18 @@ def network_import(ctx, file, replace, ignore_errors):
     settings = nested_settings["networks"]
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
 
-    if isinstance(upstream_settings.get("networks", None), list):
+    if isinstance(upstream_settings.get("networks"), list):
         upstream_settings = upstream_settings["networks"]
     else:
         upstream_settings = []
 
     if replace and upstream_settings == settings:
         ctx.obj.logger.info("Requested networks are already present")
-        utils.exit_action(
-            ctx,
-            success=True,
-            message="Requested networks are already present",
-        )
+        utils.exit_action(ctx, success=True, message="Requested networks are already present")
 
     if not replace and all(item in upstream_settings for item in settings):
         ctx.obj.logger.info("Requested networks are already present")
-        utils.exit_action(
-            ctx,
-            success=True,
-            message="Requested networks are already present",
-        )
+        utils.exit_action(ctx, success=True, message="Requested networks are already present")
 
     if replace and upstream_settings:
         replace_network_import(uri, ctx, settings, upstream_settings, ignore_errors)
@@ -189,11 +200,11 @@ def replace_network_import(
     configurations as needed. If an error occurs, it either logs the error and continues
     (if `ignore_errors` is True) or aborts the process.
     Args:
-        uri (str): The base URI for API requests.
-        ctx (click.Context): Click context object for command-line operations.
-        settings (List[Dict]): List of dictionaries representing desired network configurations.
-        upstream_settings (List[Dict]): List of dictionaries representing upstream configurations.
-        ignore_errors (bool): If True, continues execution after errors instead of aborting.
+        uri: The base URI for API requests.
+        ctx: Click context object for command-line operations.
+        settings: List of dictionaries representing desired network configurations.
+        upstream_settings: List of dictionaries representing upstream configurations.
+        ignore_errors: If True, continues execution after errors instead of aborting.
     """
     existing_upstreams = []
     upstreams_to_delete = []
@@ -248,11 +259,7 @@ def replace_network_import(
                     )
 
     ctx.obj.logger.info("Network import completed successfully.")
-    utils.exit_action(
-        ctx,
-        success=True,
-        message="Network import completed successfully.",
-    )
+    utils.exit_action(ctx, success=True, message="Network import completed successfully.")
 
 
 def add_network_import(
@@ -260,7 +267,7 @@ def add_network_import(
     ctx: click.Context,
     settings: list[dict],
     ignore_errors: bool,
-) -> None:
+) -> NoReturn:
     """Adds network configurations from an import using HTTP PUT requests.
     This function iterates through the provided `settings` and sends a PUT request
     for each network item to the specified URI. If the request fails, it either
@@ -294,8 +301,4 @@ def add_network_import(
                 )
 
     ctx.obj.logger.info("Network addition completed successfully.")
-    utils.exit_action(
-        ctx,
-        success=True,
-        message="Network addition completed successfully.",
-    )
+    utils.exit_action(ctx, success=True, message="Network addition completed successfully.")
