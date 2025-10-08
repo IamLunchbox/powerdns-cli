@@ -138,7 +138,13 @@ def autoprimary_list(ctx):
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:
-        utils.exit_action(ctx, success=True, response=r, print_data=True)
+        utils.exit_action(
+            ctx,
+            success=True,
+            message="Acquired the list of autoprimaries",
+            response=r,
+            print_data=True,
+        )
     else:
         utils.exit_action(ctx, success=False, message="Failed acquiring the list of autoprimaries")
 

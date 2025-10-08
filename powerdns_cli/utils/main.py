@@ -61,8 +61,8 @@ def exit_cli(ctx: click.Context, print_data: bool = False) -> NoReturn:
 def exit_action(
     ctx: click.Context,
     success: bool,
+    message: str,
     response: requests.Response = None,
-    message: str | None = None,
     print_data: bool = False,
 ) -> NoReturn:
     """
@@ -75,12 +75,11 @@ def exit_action(
     Args:
         ctx: Click context object.
         success: Declare if action failed or succeeded.
+        message: Mmessage to set in the handler.
         response: HTTP response object.
-        message: Optional message to set in the handler.
         print_data: If True, sets the response data in the handler.
     """
-    if message:
-        ctx.obj.handler.set_message(message)
+    ctx.obj.handler.set_message(message)
     if response:
         ctx.obj.handler.set_data(response)
     ctx.obj.handler.set_success(success)

@@ -172,9 +172,9 @@ class ConditionalMock(testutils.MockUtils):
         return self.mocker.patch("powerdns_cli.utils.main.http_get", side_effect=side_effect)
 
 
-def test_cryptokey_add_success(mock_utils, testobject):
+def test_cryptokey_add_success(mock_utils, testobject, example_zsk_key):
     get = mock_utils.mock_http_get(200)
-    post = mock_utils.mock_http_post(201, json_output={})
+    post = mock_utils.mock_http_post(201, json_output=example_zsk_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_add,

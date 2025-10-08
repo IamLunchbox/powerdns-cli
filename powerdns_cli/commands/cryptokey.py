@@ -59,7 +59,9 @@ def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm):
     r = utils.http_post(uri, ctx, payload)
 
     if r.status_code == 201:
-        utils.exit_action(ctx, success=True, response=r, print_data=True)
+        utils.exit_action(
+            ctx, success=True, message=f"Added a new cryptokey with id {r.json()['id']}", response=r
+        )
     else:
         utils.exit_action(ctx, success=False, message="Failed creating the dnssec-key")
 
@@ -173,7 +175,13 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
     exit_if_cryptokey_does_not_exist(ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist")
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:
-        utils.exit_action(ctx, success=True, response=r, print_data=True)
+        utils.exit_action(
+            ctx,
+            success=True,
+            message=f"Exported cryptokey '{cryptokey_id}'",
+            response=r,
+            print_data=True,
+        )
     else:
         utils.exit_action(
             ctx, success=False, message=f"Failed exporting '{cryptokey_id}' for '{dns_zone}'"
@@ -234,7 +242,9 @@ def cryptokey_list(ctx, dns_zone):
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:
-        utils.exit_action(ctx, success=True, print_data=True, response=r)
+        utils.exit_action(
+            ctx, success=True, message="Acquired list of cryptokeys", print_data=True, response=r
+        )
     else:
         utils.exit_action(ctx, success=False, message="Failed listing cryptokeys")
 
