@@ -258,7 +258,7 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
     if response.status_code not in (200, 404):
         ctx.obj.handler.set_message(f"Fetching the settings failed with {response.status_code}")
         ctx.obj.handler.set_failed()
-        exit_cli(ctx, 1)
+        exit_cli(ctx)
 
     if response.status_code == 404:
         return {}
@@ -269,7 +269,7 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
         ctx.obj.logger.error(f"An exception ocurred while decoding upstream JSON:  {e}")
         ctx.obj.handler.set_message("A valid JSON-file could not be obtained from upstream")
         ctx.obj.handler.set_failed()
-        exit_cli(ctx, 1)
+        exit_cli(ctx)
 
 
 def print_output(output: dict | list, stderr: bool = False) -> None:
@@ -285,35 +285,35 @@ def print_output(output: dict | list, stderr: bool = False) -> None:
 def validate_simple_import(
     ctx: click.Context, settings: list[dict], upstream_settings: list[dict], replace: bool
 ) -> None:
-    """Validates metadata import by checking the structure and presence of metadata entries.
+    """Validates metadata import by checking the structure and presence of entries.
 
-    This function ensures that the provided `settings` is a list and checks if the metadata
+    This function ensures that the provided `settings` is a list and checks if the data
     is already present in `upstream_settings`. If `replace` is True, it verifies if the
-    metadata is identical. If not, it checks if all entries in `settings` are already present.
+    data is identical. If not, it checks if all entries in `settings` are already present.
 
     Args:
         ctx: click Context object
-        settings: List of dictionaries representing the metadata entries to validate.
-        upstream_settings: List of dictionaries representing existing upstream metadata entries.
-        replace: If True, checks if the metadata is identical for replacement.
+        settings: List of dictionaries representing the data entries to validate.
+        upstream_settings: List of dictionaries representing existing upstream data entries.
+        replace: If True, checks if the data is identical for replacement.
                  If False, checks if all entries are already present.
 
     Raises:
         SystemExit: Exits with code 1 if `settings` is not a list.
-                   Exits with code 0 if metadata is already present.
+                   Exits with code 0 if data is already present.
     """
     if not isinstance(settings, list):
         ctx.obj.handler.set_message("Data must be provided as a list")
         ctx.obj.handler.set_failed()
-        exit_cli(ctx, 1)
+        exit_cli(ctx)
     if replace and upstream_settings == settings:
         ctx.obj.handler.set_message("Requested data is already present")
         ctx.obj.handler.set_success()
-        exit_cli(ctx, 0)
+        exit_cli(ctx)
     if not replace and all(item in upstream_settings for item in settings):
         ctx.obj.handler.set_message("Requested data is already present")
         ctx.obj.handler.set_success()
-        exit_cli(ctx, 0)
+        exit_cli(ctx)
 
 
 def handle_import_early_exit(ctx: click.Context, message: str, ignore_errors: bool) -> None:
@@ -339,3 +339,50 @@ def handle_import_early_exit(ctx: click.Context, message: str, ignore_errors: bo
         ctx.obj.handler.set_message(message)
         ctx.obj.handler.set_failed()
         exit_cli(ctx)
+
+
+def show_setting(
+    ctx: Any,
+    uri: str,
+    setting_name: str,
+    action: str,
+) -> NoReturn:
+    """
+    Perform an HTTP GET request to the specified URI and log the result.
+
+    Args:
+        ctx: Context object containing logger and other utilities.
+        uri: The URI to send the GET request to.
+        setting_name: The name of the setting being acted upon.
+        action: The action performed (e.g., "update", "fetch").
+
+    Raises:
+        SystemExit: Exits with code 1 GET request is not answered with 200.
+                   Exits with code 0 if `action` was successfull.
+    """
+    r = http_get(uri, ctx)
+    if r.status_code == 200:
+        ctx.obj.logger.info(f"Successfully {action}ed {setting_name}")
+        exit_action(
+            ctx,
+            success=True,
+            message=f"Successfully {action}ed {setting_name}",
+            response=r,
+            print_data=True,
+        )
+    elif r.status_code == 404:
+        ctx.obj.logger.warning(f"Failed {action}ing, {setting_name} not found")
+        exit_action(
+            ctx,
+            success=False,
+            response=r,
+            message=f"Failed {action}ing, {setting_name} not found",
+        )
+    else:
+        ctx.obj.logger.error(f"Failed {action}ing {setting_name} with status code: {r.status_code}")
+        exit_action(
+            ctx,
+            success=False,
+            message=f"Failed {action}ing {setting_name} with status code: {r.status_code}",
+            response=r,
+        )

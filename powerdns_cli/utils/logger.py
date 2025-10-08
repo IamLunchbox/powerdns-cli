@@ -65,7 +65,7 @@ class ResultHandler(logging.Handler):
         """
         self.result["message"] = message
 
-    def set_http_data(self, response: requests.Response, ctx: click.Context | None = None) -> None:
+    def log_http_data(self, response: requests.Response, ctx: click.Context | None = None) -> None:
         """Sets the data in the result dictionary.
 
         Args:

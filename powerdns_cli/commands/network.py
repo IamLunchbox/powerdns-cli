@@ -66,22 +66,7 @@ def network_list(ctx):
     List all registered networks and views
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
-    r = utils.http_get(uri, ctx)
-
-    if r.status_code == 200:
-        ctx.obj.logger.info("Successfully listed all registered networks and views")
-        utils.exit_action(
-            ctx,
-            success=True,
-            response=r,
-            message="Successfully listed all registered networks and views",
-            print_data=True,
-        )
-    else:
-        ctx.obj.logger.error(f"Failed to list networks: {r.status_code}")
-        utils.exit_action(
-            ctx, success=False, response=r, message=f"Failed to list networks: {r.status_code}"
-        )
+    utils.show_setting(ctx, uri, "network", "list")
 
 
 @network.command("delete")
@@ -122,32 +107,7 @@ def network_export(ctx, cidr):
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     ctx.obj.logger.info(f"Exporting network: {cidr}")
-    r = utils.http_get(uri, ctx)
-
-    if r.status_code == 200:
-        utils.exit_action(
-            ctx,
-            success=True,
-            response=r,
-            message=f"Exported network: {cidr}",
-            print_data=True,
-        )
-    elif r.status_code == 404:
-        ctx.obj.logger.warning(f"Network not found: {cidr}")
-        utils.exit_action(
-            ctx,
-            success=False,
-            response=r,
-            message=f"Network not found: {cidr}",
-        )
-    else:
-        ctx.obj.logger.error(f"Failed to export network: {cidr}, status code: {r.status_code}")
-        utils.exit_action(
-            ctx,
-            success=False,
-            response=r,
-            message=f"Failed to export network: {cidr}",
-        )
+    utils.show_setting(ctx, uri, "network", "export")
 
 
 @network.command("import")

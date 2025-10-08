@@ -136,17 +136,7 @@ def autoprimary_list(ctx):
     Lists all currently configured autoprimary servers
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
-    r = utils.http_get(uri, ctx)
-    if r.status_code == 200:
-        utils.exit_action(
-            ctx,
-            success=True,
-            message="Acquired the list of autoprimaries",
-            response=r,
-            print_data=True,
-        )
-    else:
-        utils.exit_action(ctx, success=False, message="Failed acquiring the list of autoprimaries")
+    utils.show_setting(ctx, uri, "autoprimary", "list")
 
 
 @autoprimary.command("spec")

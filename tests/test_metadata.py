@@ -17,6 +17,9 @@ from powerdns_cli.commands.metadata import (
     metadata_update,
 )
 
+@pytest.fixture
+def testobject():
+    return testutils.context_object
 
 @pytest.fixture
 def mock_utils(mocker):
@@ -96,7 +99,7 @@ class ConditionalMock(testutils.MockUtils):
             mock_http_get.headers = {"Content-Type": "application/json"}
             return mock_http_get
 
-        return self.mocker.patch("powerdns_cli.utils.http_get", side_effect=side_effect)
+        return self.mocker.patch("powerdns_cli.utils.main.http_get", side_effect=side_effect)
 
 
 class ExitCodes(NamedTuple):
@@ -112,50 +115,50 @@ class TC(NamedTuple):
     delete_paths: list[str]
 
 
-def test_metadata_add_success(mock_utils, conditional_mock_utils, example_new_data):
+def test_metadata_add_success(mock_utils, testobject,  conditional_mock_utils, example_new_data):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_new_data)
     runner = CliRunner()
     result = runner.invoke(
         metadata_add,
         ["example.com", example_new_data["kind"], example_new_data["metadata"][0]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_new_data
+    assert json.loads(result.output)["data"] == example_new_data
     post.assert_called()
     get.assert_called()
 
 
-def test_metadata_add_idempotence(mock_utils, conditional_mock_utils, example_soa_edit_api):
+def test_metadata_add_idempotence(mock_utils, testobject,  conditional_mock_utils, example_soa_edit_api):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         metadata_add,
         ["example.com", "SOA-EDIT-API", example_soa_edit_api["metadata"][0]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
     get.assert_called()
 
 
-def test_metadata_add_failed(mock_utils, conditional_mock_utils, example_new_data):
+def test_metadata_add_failed(mock_utils, testobject,  conditional_mock_utils, example_new_data):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(500, json_output={"error": "Request failed"})
     runner = CliRunner()
     result = runner.invoke(
         metadata_add,
         ["example.com", example_new_data["kind"], example_new_data["metadata"][0]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Request failed"}
+    assert "Failed" in json.loads(result.output)["message"]
     post.assert_called()
     get.assert_called()
 
 
-def test_metadata_import_success(conditional_mock_utils, mock_utils, file_mock, example_new_data):
+def test_metadata_import_success(conditional_mock_utils, testobject,  mock_utils, file_mock, example_new_data):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
     file_mock.mock_settings_import(copy.deepcopy([example_new_data]))
@@ -163,29 +166,29 @@ def test_metadata_import_success(conditional_mock_utils, mock_utils, file_mock, 
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)["message"]
+    assert "Successfully" in json.loads(result.output)["message"]
     post.assert_called()
     get.assert_called()
 
 
-def test_metadata_import_idempotence(conditional_mock_utils, file_mock, example_also_notify):
+def test_metadata_import_idempotence(conditional_mock_utils, testobject,  file_mock, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     file_mock.mock_settings_import(copy.deepcopy([example_also_notify]))
     runner = CliRunner()
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
     get.assert_called()
 
 
-def test_metadata_import_failed(mock_utils, conditional_mock_utils, file_mock, example_new_data):
+def test_metadata_import_failed(mock_utils, testobject,  conditional_mock_utils, file_mock, example_new_data):
     get = conditional_mock_utils.mock_http_get()
     mock_utils.mock_http_post(500, json_output={"error": "Request failed"})
     file_mock.mock_settings_import(copy.deepcopy([example_new_data]))
@@ -193,7 +196,7 @@ def test_metadata_import_failed(mock_utils, conditional_mock_utils, file_mock, e
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["error"]
@@ -210,6 +213,7 @@ testcodes_to_ignore = (
 @pytest.mark.parametrize("http_get_code,http_post_code,http_delete_code", testcodes_to_ignore)
 def test_metadata_import_failed(
     mock_utils,
+        testobject,
     http_get_code,
     http_post_code,
     http_delete_code,
@@ -224,7 +228,7 @@ def test_metadata_import_failed(
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile", "--ignore-errors"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -292,7 +296,7 @@ import_testcases = (
     "file_contents,upstream_content,added_content,delete_paths", import_testcases
 )
 def test_metadata_import_replace_success(
-    mock_utils, file_mock, file_contents, upstream_content, added_content, delete_paths
+    mock_utils, testobject, file_mock, file_contents, upstream_content, added_content, delete_paths
 ):
     get = mock_utils.mock_http_get(
         200,
@@ -305,10 +309,10 @@ def test_metadata_import_replace_success(
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)["message"]
+    assert "Successfully" in json.loads(result.output)["message"]
     for content in added_content:
         assert content in [items.kwargs["payload"] for items in post.call_args_list]
     for path in delete_paths:
@@ -318,14 +322,14 @@ def test_metadata_import_replace_success(
     get.assert_called()
 
 
-def test_metadata_import_replace_idempotence(conditional_mock_utils, file_mock, example_metadata):
+def test_metadata_import_replace_idempotence(conditional_mock_utils, testobject,  file_mock, example_metadata):
     get = conditional_mock_utils.mock_http_get()
     file_mock.mock_settings_import(copy.deepcopy(example_metadata))
     runner = CliRunner()
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -342,6 +346,7 @@ testcodes = (
 @pytest.mark.parametrize("http_get_code,http_delete_code,http_post_code", testcodes)
 def test_metadata_import_replace_early_exit(
     mock_utils,
+        testobject,
     file_mock,
     example_new_data,
     example_metadata,
@@ -357,7 +362,7 @@ def test_metadata_import_replace_early_exit(
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -381,6 +386,7 @@ testcodes_to_ignore = (
 @pytest.mark.parametrize("http_get_code,http_delete_code,http_post_code", testcodes_to_ignore)
 def test_metadata_import_replace_ignore_errors(
     mock_utils,
+        testobject,
     file_mock,
     example_new_data,
     example_metadata,
@@ -396,7 +402,7 @@ def test_metadata_import_replace_ignore_errors(
     result = runner.invoke(
         metadata_import,
         ["example.com", "testfile", "--replace", "--ignore-errors"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -404,20 +410,20 @@ def test_metadata_import_replace_ignore_errors(
     delete.assert_called()
 
 
-def test_metadata_export_success(conditional_mock_utils, example_metadata):
+def test_metadata_export_success(conditional_mock_utils, testobject,  example_metadata):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         metadata_export,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_metadata
+    assert json.loads(result.output)["data"] == example_metadata
     get.assert_called()
 
 
-def test_metadata_extend_success(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_extend_success(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     example_also_notify["metadata"].extend("192.168.123.111")
     post = mock_utils.mock_http_post(201, json_output=example_also_notify)
@@ -425,43 +431,43 @@ def test_metadata_extend_success(mock_utils, conditional_mock_utils, example_als
     result = runner.invoke(
         metadata_extend,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_also_notify
+    assert json.loads(result.output)["data"] == example_also_notify
     post.assert_called()
     get.assert_called()
 
 
-def test_metadata_extend_idempotence(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_extend_idempotence(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         metadata_extend,
         ["example.com", example_also_notify["kind"], example_also_notify["metadata"][1]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
     get.assert_called()
 
 
-def test_metadata_extend_failed(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_extend_failed(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(500, json_output={"error": "Request failed"})
     runner = CliRunner()
     result = runner.invoke(
         metadata_extend,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Request failed"}
+    assert "Failed" in json.loads(result.output)["message"]
     post.assert_called()
     get.assert_called()
 
 
-def test_metadata_update_success(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_update_success(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     example_also_notify["metadata"] = ["192.168.123.111"]
     put = mock_utils.mock_http_put(200, json_output=example_also_notify)
@@ -469,50 +475,50 @@ def test_metadata_update_success(mock_utils, conditional_mock_utils, example_als
     result = runner.invoke(
         metadata_update,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_also_notify
+    assert json.loads(result.output)["data"] == example_also_notify
     put.assert_called()
     get.assert_called()
 
 
-def test_metadata_update_idempotence(mock_utils, conditional_mock_utils, example_soa_edit_api):
+def test_metadata_update_idempotence(mock_utils, testobject,  conditional_mock_utils, example_soa_edit_api):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         metadata_update,
         ["example.com", example_soa_edit_api["kind"], example_soa_edit_api["metadata"][0]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
     get.assert_called()
 
 
-def test_metadata_update_failed(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_update_failed(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     put = mock_utils.mock_http_put(500, json_output={"error": "Not found"})
     runner = CliRunner()
     result = runner.invoke(
         metadata_update,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Not found"}
+    assert "Failed" in json.loads(result.output)["message"]
     put.assert_called()
     get.assert_called()
 
 
-def test_metadata_delete_success(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_delete_success(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, json_output={"message": "Deleted"})
     runner = CliRunner()
     result = runner.invoke(
         metadata_delete,
         ["example.com", example_also_notify["kind"]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Deleted" in json.loads(result.output)["message"]
@@ -520,29 +526,29 @@ def test_metadata_delete_success(mock_utils, conditional_mock_utils, example_als
     get.assert_called()
 
 
-def test_metadata_delete_idempotence(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_delete_idempotence(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         metadata_delete,
         ["example.com", "X-NEW-DATA"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
     get.assert_called()
 
 
-def test_metadata_delete_failed(mock_utils, conditional_mock_utils, example_also_notify):
+def test_metadata_delete_failed(mock_utils, testobject,  conditional_mock_utils, example_also_notify):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(500, json_output={"Error": "failed"})
     runner = CliRunner()
     result = runner.invoke(
         metadata_delete,
         ["example.com", example_also_notify["kind"]],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "failed" in json.loads(result.output)["Error"]
+    assert "Failed" in json.loads(result.output)["message"]
     delete.assert_called()
     get.assert_called()
