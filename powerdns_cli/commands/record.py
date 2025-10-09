@@ -545,13 +545,7 @@ def validate_rrset_import(ctx: click.Context, rrset: dict[str, Any]) -> None:
         ctx.obj.logger.error("The key 'rrsets' must be present in the RRset dictionary.")
         utils.exit_action(ctx, success=False, message="The key 'rrsets' must be present.")
 
-    if not rrset.get("id") and not rrset.get("name"):
-        ctx.obj.logger.error("Either 'name' or 'id' must be present to determine the zone.")
-        utils.exit_action(
-            ctx,
-            success=False,
-            message="Either 'name' or 'id' must be present to determine the zone.",
-        )
+    utils.is_id_or_name_present(ctx, rrset)
 
     if rrset.get("name") and not rrset.get("id"):
         rrset["id"] = rrset["name"]

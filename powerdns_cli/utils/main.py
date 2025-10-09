@@ -86,60 +86,6 @@ def exit_action(
     exit_cli(ctx, print_data=print_data)
 
 
-def make_canonical(zone: str) -> str:
-    """Ensure a DNS zone name ends with a trailing dot.
-
-    Args:
-        zone: The DNS zone name (e.g., "example.com").
-
-    Returns:
-        The zone name with a trailing dot if not already present.
-    """
-    return zone if zone.endswith(".") else zone + "."
-
-
-#
-# def confirm(message: str, force: bool) -> None:
-#     """Confirmation function to keep users from doing potentially dangerous actions.
-#     Uses the force flag to determine if a manual confirmation is required."""
-#     if not force:
-#         click.echo(message)
-#         confirmation = input()
-#         if confirmation not in ("y", "Y", "YES", "yes", "Yes"):
-#             click.echo("Aborting")
-#             raise SystemExit(1)
-
-
-def create_output(
-    content: requests.Response,
-    exp_status_code: tuple[int, ...],
-    output_text: bool = None,
-    optional_json: dict = None,
-) -> bool:
-    """Helper function to print a message in the appropriate format.
-    Is needed since the powerdns api outputs different content types, not
-    json all the time. Sometimes output is empty (each 204 response) or
-    needs to be plain text - when you want to the BIND / AFXR export."""
-    if content.status_code in exp_status_code and output_text:
-        click.echo(content.text)
-        return True
-    if content.status_code in exp_status_code and optional_json:
-        click.echo(json.dumps(optional_json, indent=4))
-        return True
-    if content.status_code in exp_status_code:
-        click.echo(json.dumps(content.json(), indent=4))
-        return True
-    if content.headers.get("Content-Type", "").startswith("text/plain"):
-        click.echo(json.dumps({"error": content.text}))
-        return False
-    # Catch unexpected empty responses
-    try:
-        click.echo(json.dumps(content.json(), indent=4))
-    except json.JSONDecodeError:
-        print_output({"error": f"Non json response from server with status {content.status_code}"})
-    return False
-
-
 def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     """HTTP DELETE request"""
     try:
@@ -386,4 +332,24 @@ def show_setting(
             success=False,
             message=f"Failed {action}ing {setting_name} with status code: {r.status_code}",
             response=r,
+        )
+
+
+def is_id_or_name_present(ctx: click.Context, dict_to_check: dict[str, str]) -> None:
+    """
+    Validates whether either 'id' or 'name' is present in the provided dictionary.
+
+    Args:
+        ctx: Click context object, used for logging and exiting the CLI.
+        dict_to_check: Dictionary containing 'id' or 'name' keys to validate.
+
+    Raises:
+        SystemExit: Exits the CLI with a failure status if neither 'id' nor 'name' is present.
+    """
+    if not dict_to_check.get("id") and not dict_to_check.get("name"):
+        ctx.obj.logger.error("Either 'name' or 'id' must be present to determine the zone.")
+        exit_action(
+            ctx,
+            success=False,
+            message="Either 'name' or 'id' must be present to determine the zone.",
         )
