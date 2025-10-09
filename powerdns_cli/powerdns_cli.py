@@ -5,6 +5,8 @@ powerdns-cli: Manage PowerDNS Zones/Records
 import click
 import requests
 
+from powerdns_cli.utils.main import ContextObj
+
 from .commands.autoprimary import autoprimary
 from .commands.config import config
 from .commands.cryptokey import cryptokey
@@ -66,7 +68,7 @@ def cli(ctx, apikey, json_output, url, insecure, skip_check, log_level):
     You can also export them with the prefix POWERDNS_CLI_, for example:
     export POWERDNS_CLI_APIKEY=foobar
     """
-    ctx.ensure_object()
+    ctx.ensure_object(ContextObj)
     ctx.obj.config["apihost"] = url
     ctx.obj.config["key"] = apikey
     ctx.obj.config["json"] = json_output
