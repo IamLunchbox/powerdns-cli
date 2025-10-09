@@ -11,14 +11,6 @@ from typing import Any
 import click
 import requests
 
-LOG_LEVELS = {
-    "DEBUG": logging.DEBUG,
-    "INFO": logging.INFO,
-    "WARNING": logging.WARNING,
-    "ERROR": logging.ERROR,
-    "CRITICAL": logging.CRITICAL,
-}
-
 
 class ResultHandler(logging.Handler):
     """A custom logging handler that collects logs, a message, and a success status.
@@ -79,7 +71,7 @@ class ResultHandler(logging.Handler):
         except json.JSONDecodeError:
             response_data["json"] = {}
             response_data["text"] = response.text
-        if ctx and ctx.obj.config["log_level"] == "DEBUG":
+        if ctx and ctx.obj.config["debug"]:
             request_data = {
                 "method": response.request.method,
                 "body": json.loads(response.request.body),

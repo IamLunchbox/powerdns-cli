@@ -90,6 +90,7 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
     """HTTP DELETE request"""
     try:
         request = ctx.obj.session.delete(uri, params=params, timeout=10)
+        ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -99,6 +100,7 @@ def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Resp
     """HTTP GET request"""
     try:
         request = ctx.obj.session.get(uri, params=params, timeout=10)
+        ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -108,6 +110,7 @@ def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response
     """HTTP PATCH request"""
     try:
         request = ctx.obj.session.patch(uri, json=payload, timeout=10)
+        ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -117,6 +120,7 @@ def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
     """HTTP POST request"""
     try:
         request = ctx.obj.session.post(uri, json=payload, timeout=10)
+        ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -128,6 +132,7 @@ def http_put(
     """HTTP PUT request"""
     try:
         request = ctx.obj.session.put(uri, json=payload, params=params, timeout=10)
+        ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
