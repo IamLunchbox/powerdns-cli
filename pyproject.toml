@@ -41,8 +41,8 @@ powerdns-cli = "powerdns_cli.powerdns_cli:main"
 Homepage = "https://github.com/IamLunchbox/powerdns-cli"
 Issues = "https://github.com/IamLunchbox/powerdns-cli/issues"
 
-[tool.setuptools]
-packages = ["powerdns_cli"]
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.pylint.reports]
 score = false
@@ -77,7 +77,7 @@ ignore_errors = true
 
 [tool.tox.env_run_base]
 description = "Unit tests"
-deps = ["pytest", "pytest-mock"]
+deps = [".[dev]"]
 commands = [
     ["pytest", "tests"],
 ]
