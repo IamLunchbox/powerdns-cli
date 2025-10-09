@@ -21,7 +21,7 @@ from typing import Any, NoReturn
 import click
 
 from ..utils import main as utils
-from ..utils.validation import IPAddress, PowerDNSZone
+from ..utils.validation import DefaultCommand, IPAddress, PowerDNSZone
 
 
 @click.group()
@@ -29,7 +29,12 @@ def zone():
     """Manage zones"""
 
 
-@zone.command("add")
+@zone.command(
+    "add",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
 @click.argument(
     "zonetype",
@@ -40,7 +45,12 @@ def zone():
 )
 @click.pass_context
 def zone_add(
-    ctx: click.Context, dns_zone: str, zonetype: str, master: tuple[IPAddress, ...]
+    ctx: click.Context,
+    dns_zone: str,
+    zonetype: str,
+    master: tuple[str, ...],
+    *args,
+    **kwargs,
 ) -> NoReturn:
     """
     Adds a new zone.

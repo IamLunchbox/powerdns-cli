@@ -21,6 +21,7 @@ def testobject():
     obj.config["major_version"] = 5
     obj.config["log_level"] = "INFO"
     obj.config["json"] = True
+    obj.config["pytest"] = True
     return obj
 
 

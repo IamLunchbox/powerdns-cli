@@ -245,6 +245,7 @@ def test_zone_add_failed(mock_utils, testobject, conditional_mock_utils, example
     result = runner.invoke(
         zone_add,
         ["example.org", "NATIVE"],
+        # ["example.org", "NATIVE", "--url", "http://example.com", "--apikey", "testkey", "--skip-check"],
         obj=testobject,
     )
     assert result.exit_code == 1
