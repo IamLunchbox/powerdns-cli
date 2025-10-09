@@ -370,7 +370,7 @@ def reformat_view_imports(ctx: click.Context, local_views: list[dict]) -> list[d
     for item in local_views:
         view_name = next(iter(item.keys()))
         view_zones = next(iter(item.values()))
-        canonical_zones = {utils.make_canonical(view_item) for view_item in view_zones}
+        canonical_zones = {make_canonical(view_item) for view_item in view_zones}
         restructured_settings.append({"name": view_name, "views": canonical_zones})
         ctx.obj.logger.debug(f"Reformatted view '{view_name}' with zones: {canonical_zones}.")
 
@@ -428,3 +428,15 @@ def is_zone_in_view(ctx: click.Context, new_view: dict, upstream: list[dict]) ->
             return False
     ctx.obj.logger.info(f"No upstream view named '{new_view['name']}' found.")
     return False
+
+
+def make_canonical(zone: str) -> str:
+    """Ensure a DNS zone name ends with a trailing dot.
+
+    Args:
+        zone: The DNS zone name (e.g., "example.com").
+
+    Returns:
+        The zone name with a trailing dot if not already present.
+    """
+    return zone if zone.endswith(".") else zone + "."

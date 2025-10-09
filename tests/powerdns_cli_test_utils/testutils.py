@@ -3,15 +3,20 @@ from io import IOBase
 from unittest.mock import MagicMock
 from unittest.mock import MagicMock as unittest_MagicMock
 
+import pytest
 import requests
 
 from powerdns_cli.utils.main import ContextObj
 
-context_object = ContextObj()
-context_object.config["apihost"] = "http://example.com"
-context_object.config["major_version"] = 5
-context_object.config["log_level"] = "INFO"
-context_object.config["json"] = True
+
+@pytest.fixture
+def testobject():
+    obj = ContextObj()
+    obj.config["apihost"] = "http://example.com"
+    obj.config["major_version"] = 5
+    obj.config["log_level"] = "INFO"
+    obj.config["json"] = True
+    return obj
 
 
 class MockUtils:

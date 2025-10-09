@@ -5,6 +5,7 @@ from typing import NamedTuple
 import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
+from powerdns_cli_test_utils.testutils import testobject
 
 from powerdns_cli.commands.autoprimary import (
     autoprimary_add,
@@ -12,11 +13,6 @@ from powerdns_cli.commands.autoprimary import (
     autoprimary_import,
     autoprimary_list,
 )
-
-
-@pytest.fixture()
-def testobject():
-    return testutils.context_object
 
 
 @pytest.fixture

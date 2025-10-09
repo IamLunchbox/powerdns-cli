@@ -5,6 +5,7 @@ from typing import Any, NamedTuple
 import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
+from powerdns_cli_test_utils.testutils import testobject
 
 from powerdns_cli.commands.record import (
     record_add,
@@ -78,11 +79,6 @@ def mock_utils(mocker):
 @pytest.fixture
 def example_zone():
     return copy.deepcopy(example_zone_dict)
-
-
-@pytest.fixture
-def testobject():
-    return testutils.context_object
 
 
 @pytest.fixture
