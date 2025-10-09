@@ -1,7 +1,7 @@
 import json
 
 from click.testing import CliRunner
-from powerdns_cli_test_utils.testutils import testobject, mock_utils
+from powerdns_cli_test_utils.testutils import mock_utils, testobject
 
 from powerdns_cli.commands.config import config_export, config_list, config_stats
 

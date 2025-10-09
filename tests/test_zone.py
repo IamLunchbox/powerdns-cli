@@ -6,7 +6,7 @@ import pytest
 import requests
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import testobject
+from powerdns_cli_test_utils.testutils import mock_utils, testobject
 
 from powerdns_cli.commands.zone import (
     zone_add,
@@ -154,11 +154,6 @@ example_zone_list_list = [example_com_zone_dict]
 @pytest.fixture
 def example_zone_list():
     return copy.deepcopy(example_zone_list_list)
-
-
-@pytest.fixture
-def mock_utils(mocker):
-    return testutils.MockUtils(mocker)
 
 
 @pytest.fixture

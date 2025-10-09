@@ -5,7 +5,7 @@ from typing import Any, NamedTuple
 import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import testobject
+from powerdns_cli_test_utils.testutils import mock_utils, testobject
 
 from powerdns_cli.commands.record import (
     record_add,
@@ -69,11 +69,6 @@ example_zone_dict = {
     "soa_edit_api": "DEFAULT",
     "url": "/api/v1/servers/localhost/zones/example.com.",
 }
-
-
-@pytest.fixture
-def mock_utils(mocker):
-    return testutils.MockUtils(mocker)
 
 
 @pytest.fixture

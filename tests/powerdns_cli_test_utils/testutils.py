@@ -8,9 +8,11 @@ import requests
 
 from powerdns_cli.utils.main import ContextObj
 
+
 @pytest.fixture
 def mock_utils(mocker):
     return MockUtils(mocker)
+
 
 @pytest.fixture
 def testobject():
