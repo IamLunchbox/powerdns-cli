@@ -17,6 +17,11 @@ from powerdns_cli.commands.view import (
 
 
 @pytest.fixture
+def testobject():
+    return testutils.context_object
+
+
+@pytest.fixture
 def mock_utils(mocker):
     return testutils.MockUtils(mocker)
 
@@ -40,14 +45,14 @@ class ViewImports(NamedTuple):
         (404, {"error": "Not found"}),
     ),
 )
-def test_view_add_success(mock_utils, returncodes, return_content):
+def test_view_add_success(mock_utils, testobject, returncodes, return_content):
     get = mock_utils.mock_http_get(returncodes, json_output=return_content)
     post = mock_utils.mock_http_post(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         view_add,
         ["test1", "example.com..variant2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -55,7 +60,7 @@ def test_view_add_success(mock_utils, returncodes, return_content):
     post.assert_called_once()
 
 
-def test_view_add_idempotence(mock_utils):
+def test_view_add_idempotence(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, json_output={"zones": ["example.com..variant1", "example.com."]}
     )
@@ -64,7 +69,7 @@ def test_view_add_idempotence(mock_utils):
     result = runner.invoke(
         view_add,
         ["test1", "example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -72,7 +77,7 @@ def test_view_add_idempotence(mock_utils):
     post.assert_not_called()
 
 
-def test_view_add_failed(mock_utils):
+def test_view_add_failed(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, json_output={"zones": ["example.com..variant1", "example.com."]}
     )
@@ -81,10 +86,10 @@ def test_view_add_failed(mock_utils):
     result = runner.invoke(
         view_add,
         ["test1", "example.com..variant3"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output)["error"] == "Server error"
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
     post.assert_called_once()
 
@@ -133,19 +138,26 @@ testcases = (
 
 @pytest.mark.parametrize("file_contents,upstream_views,added_views,delete_path", testcases)
 def test_view_import_success(
-    mocker, mock_utils, file_mock, file_contents, upstream_views, added_views, delete_path
+    mocker,
+    mock_utils,
+    testobject,
+    file_mock,
+    file_contents,
+    upstream_views,
+    added_views,
+    delete_path,
 ):
-    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=upstream_views)
+    mocker.patch("powerdns_cli.commands.view.get_upstream_views", return_value=upstream_views)
     file_mock.mock_settings_import(file_contents)
     post = mock_utils.mock_http_post(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)["message"]
+    assert "Successfully" in json.loads(result.output)["message"]
     assert post.call_count == len(added_views)
     for item in added_views:
         assert item["path"] in [call.args[0] for call in post.call_args_list]
@@ -184,15 +196,22 @@ testcases_idempotence = (
     "file_contents,upstream_views,added_views,delete_path", testcases_idempotence
 )
 def test_view_import_idempotence(
-    mocker, mock_utils, file_mock, file_contents, upstream_views, added_views, delete_path
+    mocker,
+    mock_utils,
+    testobject,
+    file_mock,
+    file_contents,
+    upstream_views,
+    added_views,
+    delete_path,
 ):
-    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=upstream_views)
+    mocker.patch("powerdns_cli.commands.view.get_upstream_views", return_value=upstream_views)
     file_mock.mock_settings_import(file_contents)
     runner = CliRunner()
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -201,10 +220,11 @@ def test_view_import_idempotence(
 def test_view_import_failed(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
 ):
     mocker.patch(
-        "powerdns_cli.utils.get_upstream_views",
+        "powerdns_cli.commands.view.get_upstream_views",
         return_value=[{"name": "test1", "views": {"example.org"}}],
     )
     file_mock.mock_settings_import(
@@ -215,19 +235,20 @@ def test_view_import_failed(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed" in json.loads(result.output)["error"]
+    assert "Failed" in json.loads(result.output)["message"]
     post.assert_called_once()
 
 
 def test_view_import_early_exit(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
 ):
-    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=[])
+    mocker.patch("powerdns_cli.commands.view.get_upstream_views", return_value=[])
     file_mock.mock_settings_import(
         [{"test1": ["example.org"]}, {"test2": ["example.com", "test.info"]}]
     )
@@ -236,19 +257,20 @@ def test_view_import_early_exit(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed" in json.loads(result.output)["error"]
+    assert "Failed" in json.loads(result.output)["message"]
     post.assert_called_once()
 
 
 def test_view_import_ignore_errors(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
 ):
-    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=[])
+    mocker.patch("powerdns_cli.commands.view.get_upstream_views", return_value=[])
     file_mock.mock_settings_import(
         [{"test1": ["example.org"]}, {"test2": ["example.com", "test.info"]}]
     )
@@ -257,10 +279,10 @@ def test_view_import_ignore_errors(
     result = runner.invoke(
         view_import,
         ["testfile", "--ignore-errors"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.stdout)["message"]
+    assert "Successfully" in json.loads(result.stdout)["message"]
     assert len(post.call_args_list) == 3
 
 
@@ -322,9 +344,16 @@ testcases_replace = (
 
 @pytest.mark.parametrize("file_contents,upstream_views,added_views,delete_path", testcases_replace)
 def test_view_import_replace_success(
-    mocker, mock_utils, file_mock, file_contents, upstream_views, added_views, delete_path
+    mocker,
+    mock_utils,
+    testobject,
+    file_mock,
+    file_contents,
+    upstream_views,
+    added_views,
+    delete_path,
 ):
-    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=upstream_views)
+    mocker.patch("powerdns_cli.commands.view.get_upstream_views", return_value=upstream_views)
     file_mock.mock_settings_import(file_contents)
     post = mock_utils.mock_http_post(204, text_output="")
     delete = mock_utils.mock_http_delete(204, text_output="")
@@ -332,10 +361,10 @@ def test_view_import_replace_success(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)["message"]
+    assert "Successfully" in json.loads(result.output)["message"]
     assert post.call_count == len(added_views)
     assert delete.call_count == len(delete_path)
 
@@ -369,9 +398,16 @@ testcases_replace_idempotence = (
     "file_contents,upstream_views,added_views,delete_path", testcases_replace_idempotence
 )
 def test_view_import_replace_idempotence(
-    mocker, mock_utils, file_mock, file_contents, upstream_views, added_views, delete_path
+    mocker,
+    mock_utils,
+    testobject,
+    file_mock,
+    file_contents,
+    upstream_views,
+    added_views,
+    delete_path,
 ):
-    mocker.patch("powerdns_cli.utils.get_upstream_views", return_value=upstream_views)
+    mocker.patch("powerdns_cli.commands.view.get_upstream_views", return_value=upstream_views)
     file_mock.mock_settings_import(file_contents)
     post = mock_utils.mock_http_post(204, text_output="")
     delete = mock_utils.mock_http_delete(204, text_output="")
@@ -379,7 +415,7 @@ def test_view_import_replace_idempotence(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -395,10 +431,10 @@ def test_view_import_replace_idempotence(
     ),
 )
 def test_view_import_replace_early_exit(
-    mocker, mock_utils, file_mock, post_code, delete_code, post_calls, delete_calls
+    mocker, mock_utils, testobject, file_mock, post_code, delete_code, post_calls, delete_calls
 ):
     mocker.patch(
-        "powerdns_cli.utils.get_upstream_views",
+        "powerdns_cli.commands.view.get_upstream_views",
         return_value=[
             {"name": "test", "views": {"example.com."}},
             {"name": "test2", "views": {"test.info.", "anothertest.info."}},
@@ -413,10 +449,10 @@ def test_view_import_replace_early_exit(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Failed" in json.loads(result.stdout)["error"]
+    assert "Failed" in json.loads(result.stdout)["message"]
     assert post.call_count == post_calls
     assert delete.call_count == delete_calls
 
@@ -424,10 +460,11 @@ def test_view_import_replace_early_exit(
 def test_view_import_replace_ignore_errors(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
 ):
     mocker.patch(
-        "powerdns_cli.utils.get_upstream_views",
+        "powerdns_cli.commands.view.get_upstream_views",
         return_value=[
             {"name": "test", "views": {"example.com."}},
             {"name": "test2", "views": {"test.info.", "anothertest.info."}},
@@ -442,10 +479,10 @@ def test_view_import_replace_ignore_errors(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.stdout)["message"]
+    assert "Successfully" in json.loads(result.stdout)["message"]
     assert post.call_count == 3
     assert delete.call_count == 2
 
@@ -457,14 +494,14 @@ def test_view_import_replace_ignore_errors(
         (404, {"error": "Not found"}),
     ),
 )
-def test_view_update_success(mock_utils, returncodes, return_content):
+def test_view_update_success(mock_utils, testobject, returncodes, return_content):
     get = mock_utils.mock_http_get(returncodes, json_output=return_content)
     post = mock_utils.mock_http_post(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         view_update,
         ["test1", "example.com..variant2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -472,7 +509,7 @@ def test_view_update_success(mock_utils, returncodes, return_content):
     post.assert_called_once()
 
 
-def test_view_update_idempotence(mock_utils):
+def test_view_update_idempotence(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, json_output={"zones": ["example.com..variant1", "example.com."]}
     )
@@ -481,7 +518,7 @@ def test_view_update_idempotence(mock_utils):
     result = runner.invoke(
         view_update,
         ["test1", "example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -489,7 +526,7 @@ def test_view_update_idempotence(mock_utils):
     post.assert_not_called()
 
 
-def test_view_update_failed(mock_utils):
+def test_view_update_failed(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, json_output={"zones": ["example.com..variant1", "example.com."]}
     )
@@ -498,15 +535,15 @@ def test_view_update_failed(mock_utils):
     result = runner.invoke(
         view_update,
         ["test1", "example.com..variant3"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output)["error"] == "Server error"
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
     post.assert_called_once()
 
 
-def test_view_delete_success(mock_utils):
+def test_view_delete_success(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, json_output={"zones": ["example.com..variant1", "example.com."]}
     )
@@ -515,7 +552,7 @@ def test_view_delete_success(mock_utils):
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "Deleted" in json.loads(result.output)["message"]
@@ -530,14 +567,16 @@ def test_view_delete_success(mock_utils):
         (404, {"error": "Not found"}, "absent"),
     ),
 )
-def test_view_delete_idempotence(mock_utils, returncodes, return_content, response_keyword):
+def test_view_delete_idempotence(
+    mock_utils, testobject, returncodes, return_content, response_keyword
+):
     get = mock_utils.mock_http_get(returncodes, json_output=return_content)
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant2"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert response_keyword in json.loads(result.output)["message"]
@@ -545,7 +584,7 @@ def test_view_delete_idempotence(mock_utils, returncodes, return_content, respon
     delete.assert_not_called()
 
 
-def test_view_delete_failed(mock_utils):
+def test_view_delete_failed(mock_utils, testobject):
     get = mock_utils.mock_http_get(
         200, json_output={"zones": ["example.com..variant1", "example.com."]}
     )
@@ -554,61 +593,61 @@ def test_view_delete_failed(mock_utils):
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output)["error"] == "Server error"
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
     delete.assert_called_once()
 
 
-def test_view_list_success(mock_utils):
+def test_view_list_success(mock_utils, testobject):
     output_list = {"views": ["test1", "test2"]}
     get = mock_utils.mock_http_get(200, json_output=copy.deepcopy(output_list))
     runner = CliRunner()
     result = runner.invoke(
         view_list,
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == output_list
+    assert json.loads(result.output)["data"] == output_list
     get.assert_called_once()
 
 
-def test_view_list_failed(mock_utils):
+def test_view_list_failed(mock_utils, testobject):
     get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         view_list,
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output)["error"] == "Server error"
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
 
 
-def test_view_export_success(mock_utils):
+def test_view_export_success(mock_utils, testobject):
     output_dict = {"zones": ["example.com..variant1"]}
     get = mock_utils.mock_http_get(200, json_output=copy.deepcopy(output_dict))
     runner = CliRunner()
     result = runner.invoke(
         view_export,
         ["test1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == output_dict
+    assert json.loads(result.output)["data"] == output_dict
     get.assert_called_once()
 
 
-def test_view_export_failed(mock_utils):
+def test_view_export_failed(mock_utils, testobject):
     get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         view_export,
         ["test1"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output)["error"] == "Server error"
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
