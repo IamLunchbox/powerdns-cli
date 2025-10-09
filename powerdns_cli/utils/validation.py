@@ -15,55 +15,94 @@ Usage:
 """
 
 import ipaddress
+import logging
 import re
-from typing import Any
+from typing import Any, Callable
 
 import click
 import requests
 
-from .logger import LOG_LEVELS
 from .main import exit_action, http_get
 
 
-class PowerDNSZoneType(click.ParamType):
-    """Conversion class to ensure, that a provided string is a valid dns name"""
+def powerdns_zone(f: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to add a 'dns_zone' positional argument to a Click command.
 
-    name = "zone"
+    This decorator applies Click's `argument` decorator to the input function,
+    adding a required positional argument named `dns_zone` of type `str`.
+    This shall ensure, that dns_zone is always correctly given as a parameter to enable
+    the coversion in DefaultCommand.invoke().
 
-    def convert(self, value, param, ctx) -> str:
-        if ctx is None:  # Graciously assume that users run the latest powerdns-version
-            try:
-                if not re.match(
-                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
-                    value,
-                    re.IGNORECASE,
-                ):
-                    raise click.BadParameter("You did not provide a valid zone name.")
-            except (AttributeError, TypeError):
-                self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
+    Args:
+        f (Callable[..., Any]): The Click command function to decorate.
+
+    Returns:
+        Callable[..., Any]: The decorated function with the `dns_zone` argument added.
+
+    Example:
+        >>> @click.command()
+        >>> @powerdns_zone
+        >>> def my_command(dns_zone: str):
+        ...     click.echo(f"DNS Zone: {dns_zone}")
+        ...
+        >>> my_command()
+        # Usage: my_command example.com
+    """
+    return click.argument("dns_zone", type=str, metavar="zone")(f)
+
+
+def validate_dns_zone(ctx: click.Context, value: str) -> str:
+    """
+    Validate a DNS zone name according to PowerDNS version-specific rules.
+
+    This function checks if the provided zone name is valid for the PowerDNS API version
+    specified in the context. If no context is provided, it defaults to the latest version's rules.
+
+    Args:
+        ctx (click.Context): The Click context, which may contain the PowerDNS major version.
+                                       If `None`, the latest version's rules are applied.
+        value (str): The DNS zone name to validate.
+
+    Returns:
+        str: The validated and canonicalized zone name (ensures it ends with a dot).
+
+    Raises:
+        click.BadParameter: If the zone name is invalid for the specified PowerDNS version.
+
+    Examples:
+        >>> validate_dns_zone(None, "example.com")
+        'example.com.'
+        >>> validate_dns_zone(ctx, "example.com..custom")
+        'example.com..custom'
+    """
+    # Regex for PowerDNS >= 5
+    pdns5_regex = re.compile(
+        r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
+        re.IGNORECASE,
+    )
+    # Regex for PowerDNS <= 4
+    pdns4_regex = re.compile(
+        r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
+        re.IGNORECASE,
+    )
+    try:
+        if ctx is None:  # Assume latest version if no context
+            if not pdns5_regex.match(value):
+                raise click.BadParameter("You did not provide a valid zone name.")
         else:
-            try:
-                if ctx.obj.config.get("major_version", 4) >= 5 and not re.match(
-                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)(\.|\.\.[\w_]+)?$",
-                    value,
-                    re.IGNORECASE,
-                ):
-                    raise click.BadParameter("You did not provide a valid zone name.")
-                if ctx.obj.config.get("major_version", 4) <= 4 and not re.match(
-                    r"^((?!-)[-A-Z\d]{1,63}(?<!-)[.])+(?!-)[-A-Z\d]{1,63}(?<!-)[.]?$",
-                    value,
-                    re.IGNORECASE,
-                ):
-                    raise click.BadParameter("You did not provide a valid zone name.")
-            except (AttributeError, TypeError):
-                self.fail(f"{value!r} couldn't be converted to a canonical zone", param, ctx)
+            api_version = ctx.obj.config.get("api_version", 4)
+            if api_version >= 5 and not pdns5_regex.match(value):
+                raise click.BadParameter("You did not provide a valid zone name.")
+            if api_version <= 4 and not pdns4_regex.match(value):
+                raise click.BadParameter("You did not provide a valid zone name.")
+    except (AttributeError, TypeError) as e:
+        raise click.BadParameter(f"{value!r} couldn't be converted to a canonical zone", ctx) from e
 
-        if not value.endswith(".") and ".." not in value:
-            value += "."
-        return value
-
-
-PowerDNSZone = PowerDNSZoneType()
+    # Ensure the zone name ends with a dot (unless it's a relative zone)
+    if not value.endswith(".") and ".." not in value:
+        value += "."
+    return value
 
 
 class AutoprimaryZoneType(click.ParamType):
@@ -171,21 +210,11 @@ class DefaultCommand(click.Command):
         )
         kwargs["params"].append(
             click.Option(
-                ["--skip-check"],
-                help="Skips the preflight request towards your apihost",
-                is_flag=True,
+                ["--api-version"], help="Manually set the API version", type=click.Choice([4, 5])
             )
         )
         kwargs["params"].append(
-            click.Option(
-                ["-l", "--log-level"],
-                help="Set the log level",
-                default="INFO",
-                type=click.Choice(
-                    LOG_LEVELS.keys(),
-                    case_sensitive=False,
-                ),
-            )
+            click.Option(["-d", "--debug"], help="Emit debug logs", is_flag=True)
         )
         super().__init__(*args, **kwargs)
 
@@ -195,39 +224,49 @@ class DefaultCommand(click.Command):
         Args:
             ctx: The click context object, containing command-line arguments and configuration.
         """
+        # skip preflight request and object generation when unit tests run, they are preseeded
+        # by a custom context object
         if ctx.obj.config.get("pytest"):
+            if ctx.params.get("dns_zone"):
+                ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
             super().invoke(ctx)
         ctx.obj.config = {
             "apihost": ctx.params["url"],
             "key": ctx.params["apikey"],
             "json": ctx.params["json_output"],
-            "log_level": ctx.params["log_level"],
-            "skip_check": ctx.params["skip_check"],
+            "debug": ctx.params["debug"],
             "insecure": ctx.params["insecure"],
+            "api_version": ctx.params["api_version"],
         }
-        ctx.obj.logger.setLevel(LOG_LEVELS[ctx.obj.config["log_level"]])
+        if ctx.params["debug"]:
+            ctx.obj.logger.setLevel(logging.DEBUG)
+        else:
+            ctx.obj.logger.setLevel(logging.INFO)
         ctx.obj.logger.debug("Creating session object")
         session = requests.session()
         session.verify = not ctx.obj.config["insecure"]
         session.headers = {"X-API-Key": ctx.obj.config["key"]}
         ctx.obj.session = session
-        if not ctx.obj.config["skip_check"]:
+        if not ctx.obj.config["api_version"]:
             ctx.obj.logger.debug("Performing preflight check and version detection")
             uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
             preflight_request = http_get(uri, ctx)
             if not preflight_request.status_code == 200:
                 exit_action(ctx, False, "Failed to reach server for preflight request.")
-            ctx.obj.config["major_version"] = int(
+            ctx.obj.config["api_version"] = int(
                 [
                     server["version"]
                     for server in preflight_request.json()
                     if server["id"] == "localhost"
                 ][0].split(".")[0]
             )
-            ctx.obj.logger.debug(f"Detected api version {ctx.obj.config['major_version']}")
+            ctx.obj.logger.debug(f"Detected api version {ctx.obj.config['api_version']}")
         else:
-            ctx.obj.logger.debug("Skipped preflight check and set api version to 4")
-            ctx.obj.config["major_version"] = 4
+            ctx.obj.logger.debug(
+                f"Skipped preflight check and set api version to {ctx.obj.config["api_version"]}"
+            )
+        if ctx.params.get("dns_zone"):
+            ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
         super().invoke(ctx)
 
         # try:

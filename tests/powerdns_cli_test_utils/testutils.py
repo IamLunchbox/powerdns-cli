@@ -14,6 +14,13 @@ def mock_utils(mocker):
     return MockUtils(mocker)
 
 
+testenvironment = {
+    "POWERDNS_CLI_URL": "http://example.com",
+    "POWERDNS_CLI_APIKEY": "testkey",
+    "POWERDNS_CLI_API_VERSION": "5",
+}
+
+
 @pytest.fixture
 def testobject():
     obj = ContextObj()

@@ -21,7 +21,7 @@ from typing import Any, NoReturn
 import click
 
 from ..utils import main as utils
-from ..utils.validation import DefaultCommand, IPAddress, PowerDNSZone
+from ..utils.validation import DefaultCommand, IPAddress, powerdns_zone
 
 
 @click.group()
@@ -35,7 +35,8 @@ def zone():
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
     no_args_is_help=True,
 )
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@click.pass_context
+@powerdns_zone
 @click.argument(
     "zonetype",
     type=click.Choice(["MASTER", "NATIVE", "SLAVE"], case_sensitive=False),
@@ -43,7 +44,6 @@ def zone():
 @click.option(
     "-m", "--master", type=IPAddress, help="Set Zone Masters", default=None, multiple=True
 )
-@click.pass_context
 def zone_add(
     ctx: click.Context,
     dns_zone: str,
@@ -82,8 +82,14 @@ def zone_add(
         )
 
 
-@zone.command("delete")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@zone.command(
+    "delete",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
+@powerdns_zone
 @click.option(
     "-f",
     "--force",
@@ -92,8 +98,13 @@ def zone_add(
     default=False,
     show_default=True,
 )
-@click.pass_context
-def zone_delete(ctx: click.Context, dns_zone: str, force: bool) -> NoReturn:
+def zone_delete(
+    ctx: click.Context,
+    dns_zone: str,
+    force: bool,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """
     Deletes a Zone.
     """
@@ -122,9 +133,14 @@ def zone_delete(ctx: click.Context, dns_zone: str, force: bool) -> NoReturn:
         )
 
 
-@zone.command("export")
+@zone.command(
+    "export",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.option(
     "-b",
     "--bind",
@@ -132,7 +148,13 @@ def zone_delete(ctx: click.Context, dns_zone: str, force: bool) -> NoReturn:
     is_flag=True,
     default=False,
 )
-def zone_export(ctx: click.Context, dns_zone: str, bind: bool) -> NoReturn:
+def zone_export(
+    ctx: click.Context,
+    dns_zone: str,
+    bind: bool,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """
     Export the whole zone configuration, either as JSON or BIND
     """
@@ -157,10 +179,20 @@ def zone_export(ctx: click.Context, dns_zone: str, bind: bool) -> NoReturn:
     utils.show_setting(ctx, uri, "zone", "export")
 
 
-@zone.command("flush-cache")
+@zone.command(
+    "flush-cache",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
-def zone_flush_cache(ctx: click.Context, dns_zone: str) -> NoReturn:
+@powerdns_zone
+def zone_flush_cache(
+    ctx: click.Context,
+    dns_zone: str,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """Flushes the cache of the given zone"""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/cache/flush"
     ctx.obj.logger.info(f"Flushing cache for zone: {dns_zone}.")
@@ -178,7 +210,13 @@ def zone_flush_cache(ctx: click.Context, dns_zone: str) -> NoReturn:
         )
 
 
-@zone.command("import")
+@zone.command(
+    "import",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
 @click.argument("file", type=click.File())
 @click.option(
     "-f",
@@ -192,8 +230,14 @@ def zone_flush_cache(ctx: click.Context, dns_zone: str) -> NoReturn:
     help="Merge new configuration with existing settings",
     is_flag=True,
 )
-@click.pass_context
-def zone_import(ctx: click.Context, file: click.File, force: bool, merge: bool) -> NoReturn:
+def zone_import(
+    ctx: click.Context,
+    file: click.File,
+    force: bool,
+    merge: bool,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """
     Directly import zones into the server. Must delete the zone beforehand, since
     most settings may not be changed after a zone is created.
@@ -219,10 +263,20 @@ def zone_import(ctx: click.Context, file: click.File, force: bool, merge: bool) 
     import_zone_settings(uri, ctx, settings, upstream_settings=upstream_settings, merge=merge)
 
 
-@zone.command("notify")
+@zone.command(
+    "notify",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
-def zone_notify(ctx: click.Context, dns_zone: str) -> NoReturn:
+@powerdns_zone
+def zone_notify(
+    ctx: click.Context,
+    dns_zone: str,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """
     Let the server notify its slaves of changes to the given zone.
     Fails when the zone kind is neither master nor slave, or master and slave are
@@ -240,10 +294,20 @@ def zone_notify(ctx: click.Context, dns_zone: str) -> NoReturn:
         utils.exit_action(ctx, False, f"Failed to notify slaves for zone: {dns_zone}.", r)
 
 
-@zone.command("rectify")
+@zone.command(
+    "rectify",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
-def zone_rectify(ctx: click.Context, dns_zone: str) -> NoReturn:
+@powerdns_zone
+def zone_rectify(
+    ctx: click.Context,
+    dns_zone: str,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """
     Rectifies a given zone. Will fail on slave zones and zones without DNSSEC.
     """
@@ -266,11 +330,22 @@ def zone_spec():
     utils.open_spec("zone")
 
 
-@zone.command("search")
+@zone.command(
+    "search",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
 @click.argument("search-string", metavar="STRING")
 @click.option("--max", "max_output", help="Number of items to output", default=5, type=click.INT)
-@click.pass_context
-def zone_search(ctx: click.Context, search_string: str, max_output: int) -> NoReturn:
+def zone_search(
+    ctx: click.Context,
+    search_string: str,
+    max_output: int,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """
     Do fulltext search in the rrset database.
     Use wildcards in your string to ignore leading or trailing characters.
@@ -289,9 +364,13 @@ def zone_search(ctx: click.Context, search_string: str, max_output: int) -> NoRe
         utils.exit_action(ctx, success=False, message="Failed searching zones.", response=r)
 
 
-@zone.command("list")
+@zone.command("list", cls=DefaultCommand, context_settings={"auto_envvar_prefix": "POWERDNS_CLI"})
 @click.pass_context
-def zone_list(ctx: click.Context) -> NoReturn:
+def zone_list(
+    ctx: click.Context,
+    *args,
+    **kwargs,
+) -> NoReturn:
     """
     Shows all configured zones on this dns server, does not display their RRSETs
     """
