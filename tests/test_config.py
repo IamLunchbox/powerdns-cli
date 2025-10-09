@@ -1,16 +1,9 @@
 import json
 
-import pytest
 from click.testing import CliRunner
-from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import testobject
+from powerdns_cli_test_utils.testutils import testobject, mock_utils
 
 from powerdns_cli.commands.config import config_export, config_list, config_stats
-
-
-@pytest.fixture
-def mock_utils(mocker):
-    return testutils.MockUtils(mocker)
 
 
 def test_config_export_success(mock_utils, testobject):
@@ -25,7 +18,7 @@ def test_config_export_success(mock_utils, testobject):
         obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == json_output
+    assert json.loads(result.output)["data"] == json_output
     get.assert_called()
 
 
@@ -49,7 +42,7 @@ def test_config_list_success(mock_utils, testobject):
         obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == json_output
+    assert json.loads(result.output)["data"] == json_output
     get.assert_called()
 
 
@@ -77,7 +70,7 @@ def test_config_stats_success(mock_utils, testobject):
         obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == json_output
+    assert json.loads(result.output)["data"] == json_output
     get.assert_called()
 
 

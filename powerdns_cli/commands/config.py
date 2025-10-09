@@ -30,8 +30,14 @@ def config_export(ctx):
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/config"
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:
-        utils.exit_action(ctx, success=True, print_data=True, response=r)
-    utils.exit_action(ctx, success=False, message="Failed obtaining a configuration export")
+        utils.exit_action(
+            ctx,
+            message="Successfully obtained configuration export.",
+            success=True,
+            print_data=True,
+            response=r,
+        )
+    utils.exit_action(ctx, success=False, message="Failed obtaining a configuration export.")
 
 
 @config.command("list")
@@ -43,8 +49,14 @@ def config_list(ctx):
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:
-        utils.exit_action(ctx, success=True, print_data=True, response=r)
-    utils.exit_action(ctx, success=False, message="Failed listing servers")
+        utils.exit_action(
+            ctx,
+            message="Successfully listed configured dns-servers.",
+            success=True,
+            print_data=True,
+            response=r,
+        )
+    utils.exit_action(ctx, success=False, message="Failed listing servers.", response=r)
 
 
 @config.command("stats")
@@ -56,8 +68,14 @@ def config_stats(ctx):
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/statistics"
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:
-        utils.exit_action(ctx, success=True, print_data=True, response=r)
-    utils.exit_action(ctx, success=False, message="Failed getting stats")
+        utils.exit_action(
+            ctx,
+            message="Successfully queried statistics.",
+            success=True,
+            print_data=True,
+            response=r,
+        )
+    utils.exit_action(ctx, success=False, message="Failed querying statistics.", response=r)
 
 
 @config.command("spec")
