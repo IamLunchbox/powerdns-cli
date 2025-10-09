@@ -6,6 +6,7 @@ import pytest
 import requests
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
+from powerdns_cli_test_utils.testutils import testobject
 
 from powerdns_cli.commands.zone import (
     zone_add,
@@ -191,7 +192,7 @@ class ConditionalMock(testutils.MockUtils):
             mock_http_get.headers = {"Content-Type": "application/json"}
             return mock_http_get
 
-        return self.mocker.patch("powerdns_cli.utils.http_get", side_effect=side_effect)
+        return self.mocker.patch("powerdns_cli.utils.main.http_get", side_effect=side_effect)
 
 
 @pytest.fixture
@@ -210,14 +211,16 @@ def conditional_mock_utils(mocker):
         ("example.com..variant1", "Slave"),
     ),
 )
-def test_zone_add_success(mock_utils, conditional_mock_utils, example_org, domain, servertype):
+def test_zone_add_success(
+    mock_utils, testobject, conditional_mock_utils, example_org, domain, servertype
+):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_org)
     runner = CliRunner()
     result = runner.invoke(
         zone_add,
         ["example.org", "NATIVE"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "created" in json.loads(result.output)["message"]
@@ -225,14 +228,14 @@ def test_zone_add_success(mock_utils, conditional_mock_utils, example_org, domai
     get.assert_called_once()
 
 
-def test_zone_add_idempotence(mock_utils, conditional_mock_utils, example_com):
+def test_zone_add_idempotence(mock_utils, testobject, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_com)
     runner = CliRunner()
     result = runner.invoke(
         zone_add,
         ["example.com", "NATIVE"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -240,62 +243,62 @@ def test_zone_add_idempotence(mock_utils, conditional_mock_utils, example_com):
     get.assert_called_once()
 
 
-def test_zone_add_failed(mock_utils, conditional_mock_utils, example_com):
+def test_zone_add_failed(mock_utils, testobject, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_add,
         ["example.org", "NATIVE"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Server error" in json.loads(result.output)["error"]
+    assert "Failed" in json.loads(result.output)["message"]
     post.assert_called()
     get.assert_called_once()
 
 
-def test_zone_delete_success(mock_utils, conditional_mock_utils, example_org):
+def test_zone_delete_success(mock_utils, testobject, conditional_mock_utils, example_org):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         zone_delete,
         ["example.com", "-f"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "deleted" in json.loads(result.output)["message"]
+    assert "Successfully" in json.loads(result.output)["message"]
     delete.assert_called()
     get.assert_called_once()
 
 
-def test_zone_delete_idempotence(mock_utils, conditional_mock_utils, example_com):
+def test_zone_delete_idempotence(mock_utils, testobject, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         zone_delete,
         ["example.org"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "already absent" in json.loads(result.output)["message"]
+    assert "already" in json.loads(result.output)["message"]
     delete.assert_not_called()
     get.assert_called_once()
 
 
-def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
+def test_zone_delete_failed(mock_utils, testobject, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
     delete = mock_utils.mock_http_delete(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_delete,
         ["example.com", "-f"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Server error" in json.loads(result.output)["error"]
+    assert "Failed" in json.loads(result.output)["message"]
     delete.assert_called()
     get.assert_called_once()
 
@@ -303,10 +306,11 @@ def test_zone_delete_failed(mock_utils, conditional_mock_utils, example_com):
 def test_zone_import_success(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
     example_com,
 ):
-    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    mocker.patch("powerdns_cli.utils.main.read_settings_from_upstream", return_value=example_com)
     post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
     delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
     file_mock.mock_settings_import(
@@ -353,10 +357,10 @@ def test_zone_import_success(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)["message"]
+    assert "Successfully" in json.loads(result.output)["message"]
     assert post.call_count == 1
     assert delete.call_count == 1
     assert added_content == post.call_args_list[0].kwargs["payload"]
@@ -365,10 +369,11 @@ def test_zone_import_success(
 def test_zone_import_merge_success(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
     example_com,
 ):
-    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    mocker.patch("powerdns_cli.utils.main.read_settings_from_upstream", return_value=example_com)
     post = mock_utils.mock_http_post(201, json_output={"message": "OK"})
     delete = mock_utils.mock_http_delete(204, json_output={"message": "OK"})
     file_mock.mock_settings_import(
@@ -455,10 +460,10 @@ def test_zone_import_merge_success(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force", "--merge"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert "imported" in json.loads(result.output)["message"]
+    assert "Successfully" in json.loads(result.output)["message"]
     assert post.call_count == 1
     assert delete.call_count == 1
     assert added_content == post.call_args_list[0].kwargs["payload"]
@@ -467,10 +472,11 @@ def test_zone_import_merge_success(
 def test_zone_import_idempotence(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
     example_com,
 ):
-    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    mocker.patch("powerdns_cli.utils.main.read_settings_from_upstream", return_value=example_com)
     file_mock.mock_settings_import(
         {
             "account": "",
@@ -496,7 +502,7 @@ def test_zone_import_idempotence(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -505,10 +511,11 @@ def test_zone_import_idempotence(
 def test_zone_import_invalid_file(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
     example_com,
 ):
-    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    mocker.patch("powerdns_cli.utils.main.read_settings_from_upstream", return_value=example_com)
     file_mock.mock_settings_import(
         {
             "account": "",
@@ -532,19 +539,20 @@ def test_zone_import_invalid_file(
     result = runner.invoke(
         zone_import,
         ["testfile", "--force"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Either" in json.loads(result.output)["error"]
+    assert "Either" in json.loads(result.output)["message"]
 
 
 def test_zone_import_no_confirm(
     mocker,
     mock_utils,
+    testobject,
     file_mock,
     example_com,
 ):
-    mocker.patch("powerdns_cli.utils.read_settings_from_upstream", return_value=example_com)
+    mocker.patch("powerdns_cli.utils.main.read_settings_from_upstream", return_value=example_com)
     file_mock.mock_settings_import(
         {
             "account": "test123",
@@ -570,154 +578,154 @@ def test_zone_import_no_confirm(
     result = runner.invoke(
         zone_import,
         ["testfile"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
     assert "Aborted" in result.output
 
 
-def test_zone_list_success(conditional_mock_utils, example_zone_list):
+def test_zone_list_success(conditional_mock_utils, testobject, example_zone_list):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         zone_list,
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_zone_list
+    assert json.loads(result.output)["data"] == example_zone_list
     get.assert_called_once()
 
 
-def test_zone_list_failed(mock_utils, example_com):
+def test_zone_list_failed(mock_utils, testobject, example_com):
     get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_list,
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert "Server error" in json.loads(result.output)["error"]
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
 
 
-def test_zone_export_success(mock_utils, conditional_mock_utils, example_com):
+def test_zone_export_success(mock_utils, testobject, conditional_mock_utils, example_com):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         zone_export,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == example_com
+    assert json.loads(result.output)["data"] == example_com
     get.assert_called_once()
 
 
-def test_zone_export_bind(mock_utils, conditional_mock_utils, example_com_bind):
+def test_zone_export_bind(mock_utils, testobject, conditional_mock_utils, example_com_bind):
     get = conditional_mock_utils.mock_http_get()
     runner = CliRunner()
     result = runner.invoke(
         zone_export,
         ["example.com", "-b"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert result.output.rstrip() == example_com_bind.rstrip()
+    assert json.loads(result.output)["message"].rstrip() == example_com_bind.rstrip()
     get.assert_called_once()
 
 
-def test_zone_export_failed(mock_utils):
+def test_zone_export_failed(mock_utils, testobject):
     get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_export,
         ["example.org"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Server error"}
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
 
 
-def test_zone_rectify_success(mock_utils):
+def test_zone_rectify_success(mock_utils, testobject):
     put = mock_utils.mock_http_put(200, json_output={"result": "Rectified"})
     runner = CliRunner()
     result = runner.invoke(
         zone_rectify,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == {"result": "Rectified"}
+    assert "Successfully" in json.loads(result.output)["message"]
     put.assert_called_once()
 
 
-def test_zone_rectify_failed(mock_utils):
+def test_zone_rectify_failed(mock_utils, testobject):
     put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_rectify,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Server error"}
+    assert "Failed" in json.loads(result.output)["message"]
     put.assert_called_once()
 
 
-def test_zone_notify_success(mock_utils):
+def test_zone_notify_success(mock_utils, testobject):
     put = mock_utils.mock_http_put(200, json_output={"result": "Notification queued"})
     runner = CliRunner()
     result = runner.invoke(
         zone_notify,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == {"result": "Notification queued"}
+    assert "Successfully" in json.loads(result.output)["message"]
     put.assert_called_once()
 
 
-def test_zone_notify_failed(mock_utils):
+def test_zone_notify_failed(mock_utils, testobject):
     put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_notify,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Server error"}
+    assert "Failed" in json.loads(result.output)["message"]
     put.assert_called_once()
 
 
-def test_zone_flush_success(mock_utils):
+def test_zone_flush_success(mock_utils, testobject):
     put = mock_utils.mock_http_put(200, json_output={"count": 1, "result": "Flushed cache."})
     runner = CliRunner()
     result = runner.invoke(
         zone_flush_cache,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == {"count": 1, "result": "Flushed cache."}
+    assert "Successfully" in json.loads(result.output)["message"]
     put.assert_called_once()
 
 
-def test_zone_flush_failed(mock_utils):
+def test_zone_flush_failed(mock_utils, testobject):
     put = mock_utils.mock_http_put(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_flush_cache,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Server error"}
+    assert "Failed" in json.loads(result.output)["message"]
     put.assert_called_once()
 
 
-def test_zone_search_success(mock_utils):
+def test_zone_search_success(mock_utils, testobject):
     search_output = copy.deepcopy(
         [
             {"name": "example.org.", "object_type": "zone", "zone_id": "example.org."},
@@ -738,10 +746,10 @@ def test_zone_search_success(mock_utils):
     result = runner.invoke(
         zone_search,
         ["example*"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output) == [
+    assert json.loads(result.output)["data"] == [
         {"name": "example.org.", "object_type": "zone", "zone_id": "example.org."},
         {
             "content": "a.misconfigured.dns.server.invalid. hostmaster.example.org. 2025082401 10800 3600 604800 3600",
@@ -757,14 +765,14 @@ def test_zone_search_success(mock_utils):
     get.assert_called_once()
 
 
-def test_zone_search_failed(mock_utils):
+def test_zone_search_failed(mock_utils, testobject):
     get = mock_utils.mock_http_get(500, json_output={"error": "Server error"})
     runner = CliRunner()
     result = runner.invoke(
         zone_search,
         ["example.com"],
-        obj=testutils.testobject,
+        obj=testobject,
     )
     assert result.exit_code == 1
-    assert json.loads(result.output) == {"error": "Server error"}
+    assert "Failed" in json.loads(result.output)["message"]
     get.assert_called_once()
