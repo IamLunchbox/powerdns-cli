@@ -28,7 +28,7 @@ def config():
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
 )
 @click.pass_context
-def config_export(ctx, *args, **kwargs):
+def config_export(ctx, **kwargs):
     """
     Query the configuration of this PowerDNS instance
     """
@@ -51,7 +51,7 @@ def config_export(ctx, *args, **kwargs):
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
 )
 @click.pass_context
-def config_list(ctx, *args, **kwargs):
+def config_list(ctx, **kwargs):
     """
     Lists configured dns-servers
     """
@@ -74,7 +74,7 @@ def config_list(ctx, *args, **kwargs):
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
 )
 @click.pass_context
-def config_stats(ctx, *args, **kwargs):
+def config_stats(ctx, **kwargs):
     """
     Displays operational statistics of your dns server
     """

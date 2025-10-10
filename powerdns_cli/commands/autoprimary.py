@@ -31,7 +31,7 @@ def autoprimary():
 @click.argument("nameserver", type=AutoprimaryZone)
 @click.option("--account", default="", type=click.STRING, help="Option")
 @click.pass_context
-def autoprimary_add(ctx, ip, nameserver, account, *args, **kwargs):
+def autoprimary_add(ctx, ip, nameserver, account, **kwargs):
     """
     Adds an autoprimary upstream dns server
     """
@@ -66,7 +66,7 @@ def autoprimary_add(ctx, ip, nameserver, account, *args, **kwargs):
 @click.argument("ip", type=IPAddress)
 @click.argument("nameserver", type=AutoprimaryZone)
 @click.pass_context
-def autoprimary_delete(ctx, ip, nameserver, *args, **kwargs):
+def autoprimary_delete(ctx, ip, nameserver, **kwargs):
     """
     Deletes an autoprimary from the dns server configuration
     """
@@ -106,7 +106,7 @@ def autoprimary_delete(ctx, ip, nameserver, *args, **kwargs):
 )
 @click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
 @click.pass_context
-def autoprimary_import(ctx, file, replace, ignore_errors, *args, **kwargs):
+def autoprimary_import(ctx, file, replace, ignore_errors, **kwargs):
     """Import a list with your autoprimaries settings"""
     ctx.obj.logger.info("Starting autoprimary import process")
 
@@ -143,7 +143,7 @@ def autoprimary_import(ctx, file, replace, ignore_errors, *args, **kwargs):
     "list", cls=DefaultCommand, context_settings={"auto_envvar_prefix": "POWERDNS_CLI"}
 )
 @click.pass_context
-def autoprimary_list(ctx, *args, **kwargs):
+def autoprimary_list(ctx, **kwargs):
     """
     Lists all currently configured autoprimary servers
     """

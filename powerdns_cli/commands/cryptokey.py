@@ -50,7 +50,7 @@ def cryptokey():
     type=click.Choice(["rsasha1", "rsasha256", "rsasha512", "ecdsap256sha256", "ed25519", "ed448"]),
     help="Set the key size in bits, required for zsk",
 )
-def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm, *args, **kwargs):
+def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm, **kwargs):
     """
     Adds a cryptokey to the zone. Is disabled and not published by default.
     """
@@ -79,7 +79,7 @@ def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm, *ar
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_delete(ctx, dns_zone, cryptokey_id, *args, **kwargs):
+def cryptokey_delete(ctx, dns_zone, cryptokey_id, **kwargs):
     """
     Deletes the given cryptokey-id from all the configured cryptokeys
     """
@@ -110,7 +110,7 @@ def cryptokey_delete(ctx, dns_zone, cryptokey_id, *args, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_disable(ctx, dns_zone, cryptokey_id, *args, **kwargs):
+def cryptokey_disable(ctx, dns_zone, cryptokey_id, **kwargs):
     """
     Disables the cryptokey for this zone.
     """
@@ -149,7 +149,7 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id, *args, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_enable(ctx, dns_zone, cryptokey_id, *args, **kwargs):
+def cryptokey_enable(ctx, dns_zone, cryptokey_id, **kwargs):
     """
     Enables an already existing cryptokey
     """
@@ -188,7 +188,7 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id, *args, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.STRING)
-def cryptokey_export(ctx, dns_zone, cryptokey_id, *args, **kwargs):
+def cryptokey_export(ctx, dns_zone, cryptokey_id, **kwargs):
     """
     Exports the cryptokey with the given id including the private key
     """
@@ -217,7 +217,7 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id, *args, **kwargs):
     help="Sets the key to active immediately",
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
-def cryptokey_import(ctx, key_type, dns_zone, private_key, active, publish, *args, **kwargs):
+def cryptokey_import(ctx, key_type, dns_zone, private_key, active, publish, **kwargs):
     """
     Adds a cryptokey to the zone. Is disabled and not published by default.
     """
@@ -249,7 +249,7 @@ def cryptokey_import(ctx, key_type, dns_zone, private_key, active, publish, *arg
 )
 @click.pass_context
 @powerdns_zone
-def cryptokey_list(ctx, dns_zone, *args, **kwargs):
+def cryptokey_list(ctx, dns_zone, **kwargs):
     """
     Lists all currently configured cryptokeys for this zone without displaying secrets
     """
@@ -266,7 +266,7 @@ def cryptokey_list(ctx, dns_zone, *args, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_publish(ctx, dns_zone, cryptokey_id, *args, **kwargs):
+def cryptokey_publish(ctx, dns_zone, cryptokey_id, **kwargs):
     """
     Publishes an already existing cryptokey. Implies activating it as well.
     """
@@ -313,7 +313,7 @@ def cryptokey_spec():
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_unpublish(ctx, dns_zone, cryptokey_id, *args, **kwargs):
+def cryptokey_unpublish(ctx, dns_zone, cryptokey_id, **kwargs):
     """
     Unpublishes an already existing cryptokey
     """
