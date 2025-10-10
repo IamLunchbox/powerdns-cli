@@ -5,7 +5,7 @@ from typing import NamedTuple
 import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import mock_utils, testobject, testenvironment
+from powerdns_cli_test_utils.testutils import mock_utils, testenvironment, testobject
 
 from powerdns_cli.commands.autoprimary import (
     autoprimary_add,

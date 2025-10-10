@@ -7,7 +7,7 @@ import pytest
 import requests
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import mock_utils, testobject
+from powerdns_cli_test_utils.testutils import mock_utils, testenvironment, testobject
 
 from powerdns_cli.commands.metadata import (
     metadata_add,
@@ -116,6 +116,7 @@ def test_metadata_add_success(mock_utils, testobject, conditional_mock_utils, ex
         metadata_add,
         ["example.com", example_new_data["kind"], example_new_data["metadata"][0]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_new_data
@@ -132,6 +133,7 @@ def test_metadata_add_idempotence(
         metadata_add,
         ["example.com", "SOA-EDIT-API", example_soa_edit_api["metadata"][0]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -146,6 +148,7 @@ def test_metadata_add_failed(mock_utils, testobject, conditional_mock_utils, exa
         metadata_add,
         ["example.com", example_new_data["kind"], example_new_data["metadata"][0]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -164,6 +167,7 @@ def test_metadata_import_success(
         metadata_import,
         ["example.com", "testfile"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.output)["message"]
@@ -181,6 +185,7 @@ def test_metadata_import_idempotence(
         metadata_import,
         ["example.com", "testfile"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -198,6 +203,7 @@ def test_metadata_import_failed(
         metadata_import,
         ["example.com", "testfile"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["error"]
@@ -230,6 +236,7 @@ def test_metadata_import_failed(
         metadata_import,
         ["example.com", "testfile", "--ignore-errors"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -311,6 +318,7 @@ def test_metadata_import_replace_success(
         metadata_import,
         ["example.com", "testfile", "--replace"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.output)["message"]
@@ -333,6 +341,7 @@ def test_metadata_import_replace_idempotence(
         metadata_import,
         ["example.com", "testfile", "--replace"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -366,6 +375,7 @@ def test_metadata_import_replace_early_exit(
         metadata_import,
         ["example.com", "testfile", "--replace"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -406,6 +416,7 @@ def test_metadata_import_replace_ignore_errors(
         metadata_import,
         ["example.com", "testfile", "--replace", "--ignore-errors"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -420,6 +431,7 @@ def test_metadata_export_success(conditional_mock_utils, testobject, example_met
         metadata_export,
         ["example.com"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_metadata
@@ -437,6 +449,7 @@ def test_metadata_extend_success(
         metadata_extend,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_also_notify
@@ -453,6 +466,7 @@ def test_metadata_extend_idempotence(
         metadata_extend,
         ["example.com", example_also_notify["kind"], example_also_notify["metadata"][1]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -469,6 +483,7 @@ def test_metadata_extend_failed(
         metadata_extend,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -487,6 +502,7 @@ def test_metadata_update_success(
         metadata_update,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_also_notify
@@ -503,6 +519,7 @@ def test_metadata_update_idempotence(
         metadata_update,
         ["example.com", example_soa_edit_api["kind"], example_soa_edit_api["metadata"][0]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -519,6 +536,7 @@ def test_metadata_update_failed(
         metadata_update,
         ["example.com", example_also_notify["kind"], "192.168.123.111"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -536,6 +554,7 @@ def test_metadata_delete_success(
         metadata_delete,
         ["example.com", example_also_notify["kind"]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Deleted" in json.loads(result.output)["message"]
@@ -552,6 +571,7 @@ def test_metadata_delete_idempotence(
         metadata_delete,
         ["example.com", "X-NEW-DATA"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -568,6 +588,7 @@ def test_metadata_delete_failed(
         metadata_delete,
         ["example.com", example_also_notify["kind"]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]

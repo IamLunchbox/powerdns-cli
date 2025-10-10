@@ -18,7 +18,7 @@ from typing import NoReturn
 import click
 
 from ..utils import main as utils
-from ..utils.validation import PowerDNSZone
+from ..utils.validation import DefaultCommand, powerdns_zone
 
 
 @click.group()
@@ -26,12 +26,17 @@ def metadata():
     """Set up metadata for a zone"""
 
 
-@metadata.command("add")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@metadata.command(
+    "add",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@powerdns_zone
 @click.argument("metadata-key", type=click.STRING)
 @click.argument("metadata-value", type=click.STRING)
 @click.pass_context
-def metadata_add(ctx, dns_zone, metadata_key, metadata_value):
+def metadata_add(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
     """
     Adds metadata to a zone. Valid dictionary metadata-keys are not arbitrary and must conform
     to the expected content from the PowerDNS configuration. Custom metadata must be preceded by
@@ -71,11 +76,16 @@ def metadata_add(ctx, dns_zone, metadata_key, metadata_value):
         )
 
 
-@metadata.command("delete")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@metadata.command(
+    "delete",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@powerdns_zone
 @click.argument("metadata-key", type=click.STRING)
 @click.pass_context
-def metadata_delete(ctx, dns_zone, metadata_key):
+def metadata_delete(ctx, dns_zone, metadata_key, **kwargs):
     """
     Deletes a metadata entry for the given zone.
     """
@@ -113,12 +123,17 @@ def metadata_delete(ctx, dns_zone, metadata_key):
 
 # pylint: disable=unused-argument
 # noinspection PyUnusedLocal
-@metadata.command("extend")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@metadata.command(
+    "extend",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@powerdns_zone
 @click.argument("metadata-key", type=click.STRING)
 @click.argument("metadata-value", type=click.STRING)
 @click.pass_context
-def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
+def metadata_extend(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
     """
     Appends a new item to the list of metadata item for a zone
     """
@@ -126,8 +141,13 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
 
 
 # pylint: enable=unused-argument
-@metadata.command("import")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@metadata.command(
+    "import",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@powerdns_zone
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",
@@ -139,7 +159,7 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value):
     "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
 )
 @click.pass_context
-def metadata_import(ctx, dns_zone, file, replace, ignore_errors) -> NoReturn:
+def metadata_import(ctx, dns_zone, file, replace, ignore_errors, **kwargs) -> NoReturn:
     """Import metadata for a DNS zone from a file."""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     ctx.obj.logger.info(f"Importing metadata for zone: {dns_zone}")
@@ -156,8 +176,13 @@ def metadata_import(ctx, dns_zone, file, replace, ignore_errors) -> NoReturn:
         add_metadata_from_import(uri, ctx, upstream_settings, settings, ignore_errors)
 
 
-@metadata.command("export")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@metadata.command(
+    "export",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@powerdns_zone
 @click.option(
     "-l",
     "--limit",
@@ -165,7 +190,7 @@ def metadata_import(ctx, dns_zone, file, replace, ignore_errors) -> NoReturn:
     help="Limit metadata output to this single element",
 )
 @click.pass_context
-def metadata_export(ctx: click.Context, dns_zone: str, limit: str) -> NoReturn:
+def metadata_export(ctx: click.Context, dns_zone: str, limit: str, **kwargs) -> NoReturn:
     """
     Exports the metadata for a given zone. Can optionally be limited to a single key.
     """
@@ -188,16 +213,18 @@ def metadata_spec():
     utils.open_spec("metadata")
 
 
-@metadata.command("update")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@metadata.command(
+    "update",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@powerdns_zone
 @click.argument("metadata-key", type=click.STRING)
 @click.argument("metadata-value", type=click.STRING)
 @click.pass_context
 def metadata_update(
-    ctx: click.Context,
-    dns_zone: str,
-    metadata_key: str,
-    metadata_value: str,
+    ctx: click.Context, dns_zone: str, metadata_key: str, metadata_value: str, **kwargs
 ) -> NoReturn:
     """
     Replaces a set of metadata of a given zone.
