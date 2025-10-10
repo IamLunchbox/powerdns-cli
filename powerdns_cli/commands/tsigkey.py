@@ -28,9 +28,12 @@ def tsigkey():
     """Set up tsigkeys"""
 
 
-@tsigkey.command("add" ,   cls=DefaultCommand,
+@tsigkey.command(
+    "add",
+    cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.pass_context
 @click.argument("name", type=click.STRING)
 @click.argument(
@@ -79,9 +82,12 @@ def tsigkey_add(ctx: click.Context, name: str, algorithm: str, secret: str, **kw
         utils.exit_action(ctx, False, f"Failed to add TSIGKey with name '{name}'.", r)
 
 
-@tsigkey.command("delete",   cls=DefaultCommand,
+@tsigkey.command(
+    "delete",
+    cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.pass_context
 @click.argument("name", type=click.STRING)
 def tsigkey_delete(ctx: click.Context, name: str, **kwargs) -> NoReturn:
@@ -104,9 +110,12 @@ def tsigkey_delete(ctx: click.Context, name: str, **kwargs) -> NoReturn:
         utils.exit_action(ctx, False, f"Failed to delete TSIGKey '{name}'.", r)
 
 
-@tsigkey.command("export",   cls=DefaultCommand,
+@tsigkey.command(
+    "export",
+    cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.pass_context
 @click.argument(
     "key-id",
@@ -120,9 +129,12 @@ def tsigkey_export(ctx: click.Context, key_id: str, **kwargs):
     utils.show_setting(ctx, uri, "tsigkey", "export")
 
 
-@tsigkey.command("import",   cls=DefaultCommand,
+@tsigkey.command(
+    "import",
+    cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.pass_context
 @click.argument("file", type=click.File())
 @click.option(
@@ -155,8 +167,11 @@ def tsigkey_import(
         add_tsigkey_import(uri, ctx, settings, ignore_errors)
 
 
-@tsigkey.command("list",   cls=DefaultCommand,
-    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},)
+@tsigkey.command(
+    "list",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+)
 @click.pass_context
 def tsigkey_list(ctx: click.Context, **kwargs) -> NoReturn:
     """
@@ -173,9 +188,12 @@ def tsigkey_spec():
     utils.open_spec("tsigkey")
 
 
-@tsigkey.command("update",   cls=DefaultCommand,
+@tsigkey.command(
+    "update",
+    cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.pass_context
 @click.argument("name", type=click.STRING)
 @click.option(

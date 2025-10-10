@@ -121,8 +121,6 @@ def metadata_delete(ctx, dns_zone, metadata_key, **kwargs):
         )
 
 
-# pylint: disable=unused-argument
-# noinspection PyUnusedLocal
 @metadata.command(
     "extend",
     cls=DefaultCommand,
@@ -140,7 +138,6 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
     ctx.forward(metadata_add)
 
 
-# pylint: enable=unused-argument
 @metadata.command(
     "import",
     cls=DefaultCommand,

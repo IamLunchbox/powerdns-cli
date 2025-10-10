@@ -49,7 +49,6 @@ def zone_add(
     dns_zone: str,
     zonetype: str,
     master: tuple[str, ...],
-    *args,
     **kwargs,
 ) -> NoReturn:
     """
@@ -102,7 +101,6 @@ def zone_delete(
     ctx: click.Context,
     dns_zone: str,
     force: bool,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """
@@ -152,7 +150,6 @@ def zone_export(
     ctx: click.Context,
     dns_zone: str,
     bind: bool,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """
@@ -190,7 +187,6 @@ def zone_export(
 def zone_flush_cache(
     ctx: click.Context,
     dns_zone: str,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """Flushes the cache of the given zone"""
@@ -235,7 +231,6 @@ def zone_import(
     file: click.File,
     force: bool,
     merge: bool,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """
@@ -274,7 +269,6 @@ def zone_import(
 def zone_notify(
     ctx: click.Context,
     dns_zone: str,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """
@@ -305,7 +299,6 @@ def zone_notify(
 def zone_rectify(
     ctx: click.Context,
     dns_zone: str,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """
@@ -343,7 +336,6 @@ def zone_search(
     ctx: click.Context,
     search_string: str,
     max_output: int,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """
@@ -368,7 +360,6 @@ def zone_search(
 @click.pass_context
 def zone_list(
     ctx: click.Context,
-    *args,
     **kwargs,
 ) -> NoReturn:
     """

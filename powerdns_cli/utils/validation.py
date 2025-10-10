@@ -250,7 +250,7 @@ class DefaultCommand(click.Command):
         if not ctx.obj.config["api_version"]:
             ctx.obj.logger.debug("Performing preflight check and version detection")
             uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
-            preflight_request = http_get(uri, ctx)
+            preflight_request = http_get(uri, ctx, log_request=False)
             if not preflight_request.status_code == 200:
                 exit_action(ctx, False, "Failed to reach server for preflight request.")
             ctx.obj.config["api_version"] = int(
@@ -267,6 +267,16 @@ class DefaultCommand(click.Command):
             )
         if ctx.params.get("dns_zone"):
             ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
+        if ctx.parent.info_name in ("network", "view") and ctx.obj.config["api_version"] < 5:
+            ctx.obj.logger.error(
+                f"Your authoritative DNS server does not support {ctx.parent.info_name}"
+            )
+            exit_action(
+                ctx,
+                success=False,
+                message=f"Your authoritative DNS server does not support {ctx.parent.info_name}s",
+            )
+
         super().invoke(ctx)
 
         # try:

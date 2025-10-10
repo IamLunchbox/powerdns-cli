@@ -18,7 +18,7 @@ from typing import NoReturn
 import click
 
 from ..utils import main as utils
-from ..utils.validation import IPRange, DefaultCommand
+from ..utils.validation import DefaultCommand, IPRange
 
 
 @click.group()
@@ -39,7 +39,6 @@ def network_add(ctx: click.Context, cidr: str, view_id: str, **kwargs) -> NoRetu
     """
     Add a view of a zone to a specific network.
     """
-    utils.check_api_version(ctx, "networks")
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
 
@@ -76,7 +75,6 @@ def network_list(ctx: click.Context, **kwargs):
     """
     List all registered networks and views
     """
-    utils.check_api_version(ctx, "networks")
 
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     utils.show_setting(ctx, uri, "network", "list")
@@ -94,7 +92,6 @@ def network_delete(ctx: click.Context, cidr: str, **kwargs) -> NoReturn:
     """
     Remove a view association from a specific network.
     """
-    utils.check_api_version(ctx, "networks")
 
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     ctx.obj.logger.info(f"Attempting to delete view association for network: {cidr}")
@@ -134,7 +131,6 @@ def network_export(ctx: click.Context, cidr: str, **kwargs):
     """
     Show the network and its associated views, defaults to /32 if no netmask is provided.
     """
-    utils.check_api_version(ctx, "networks")
 
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     ctx.obj.logger.info(f"Exporting network: {cidr}")
@@ -167,7 +163,6 @@ def network_import(
     """Import network and zone assignments.
     File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}
     """
-    utils.check_api_version(ctx, "networks")
 
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     ctx.obj.logger.info(f"Importing networks from file: {file.name}")

@@ -28,10 +28,12 @@ def view(ctx: click.Context):
     """Set view to limit zone access"""
 
 
-@view.command("add",
+@view.command(
+    "add",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("view_id", type=click.STRING, metavar="view")
 @powerdns_zone
 @click.pass_context
@@ -60,10 +62,12 @@ def view_add(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoRet
             )
 
 
-@view.command("delete",
+@view.command(
+    "delete",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("view_id", type=click.STRING, metavar="view")
 @powerdns_zone
 @click.pass_context
@@ -95,10 +99,12 @@ def view_delete(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> No
         )
 
 
-@view.command("export",
+@view.command(
+    "export",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("view_id", type=click.STRING, metavar="view")
 @click.pass_context
 def view_export(ctx, view_id, **kwargs):
@@ -109,10 +115,12 @@ def view_export(ctx, view_id, **kwargs):
     utils.show_setting(ctx, uri, "view", "export")
 
 
-@view.command("import",
+@view.command(
+    "import",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",
@@ -122,7 +130,9 @@ def view_export(ctx, view_id, **kwargs):
 )
 @click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
 @click.pass_context
-def view_import(ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool, **kwargs) -> NoReturn:
+def view_import(
+    ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool, **kwargs
+) -> NoReturn:
     """Imports views and their contents into the server.
     Must be a list of dictionaries, like: [{'view1':['example.org']}]
     """
@@ -181,10 +191,12 @@ def view_spec():
     utils.open_spec("view")
 
 
-@view.command("update",
+@view.command(
+    "update",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.pass_context
 @click.argument("view_id", type=click.STRING, metavar="view")
 @powerdns_zone

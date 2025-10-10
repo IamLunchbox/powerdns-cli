@@ -96,11 +96,14 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
 
 
-def http_get(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
+def http_get(
+    uri: str, ctx: click.Context, params: dict = None, log_request: bool = True
+) -> requests.Response:
     """HTTP GET request"""
     try:
         request = ctx.obj.session.get(uri, params=params, timeout=10)
-        ctx.obj.handler.log_http_data(ctx, request)
+        if log_request:
+            ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
         raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
@@ -357,14 +360,4 @@ def is_id_or_name_present(ctx: click.Context, dict_to_check: dict[str, str]) -> 
             ctx,
             success=False,
             message="Either 'name' or 'id' must be present to determine the zone.",
-        )
-
-
-def check_api_version(ctx, action_name):
-    if ctx.obj.config["api_version"] < 5:
-        ctx.obj.logger.error(f"Your authoritative DNS server does not support {action_name}")
-        exit_action(
-            ctx,
-            success=False,
-            message=f"Your authoritative DNS server does not support {action_name}",
         )

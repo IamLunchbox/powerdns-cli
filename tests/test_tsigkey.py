@@ -7,7 +7,7 @@ import pytest
 import requests
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import mock_utils, testobject, testenvironment
+from powerdns_cli_test_utils.testutils import mock_utils, testenvironment, testobject
 
 from powerdns_cli.commands.tsigkey import (
     tsigkey_add,
@@ -116,7 +116,8 @@ def test_tsigkey_add_success(mock_utils, testobject, conditional_mock_utils, exa
     result = runner.invoke(
         tsigkey_add,
         ["test5", "hmac-sha256"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_new_tsigkey
@@ -133,7 +134,8 @@ def test_tsigkey_add_already_present(
     result = runner.invoke(
         tsigkey_add,
         ["test1", "hmac-sha256"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -150,7 +152,8 @@ def test_tsigkey_add_privatekey_success(
     result = runner.invoke(
         tsigkey_add,
         ["test5", "hmac-sha256", "-s", example_new_tsigkey["key"]],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_new_tsigkey
@@ -167,7 +170,8 @@ def test_tsigkey_add_privatekey_already_present(
     result = runner.invoke(
         tsigkey_add,
         ["test1", "hmac-sha256", "-s", example_tsigkey_test1["key"]],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -182,7 +186,8 @@ def test_tsigkey_delete_success(mock_utils, testobject, conditional_mock_utils):
     result = runner.invoke(
         tsigkey_delete,
         ["test1"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     delete.assert_called()
@@ -196,7 +201,8 @@ def test_tsigkey_delete_not_present(mock_utils, testobject, conditional_mock_uti
     result = runner.invoke(
         tsigkey_delete,
         ["test5"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     delete.assert_not_called()
@@ -211,7 +217,8 @@ def test_tsigkey_export_success(
     result = runner.invoke(
         tsigkey_export,
         ["test1"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -224,7 +231,8 @@ def test_tsigkey_export_fail(mock_utils, testobject, conditional_mock_utils, exa
     result = runner.invoke(
         tsigkey_export,
         ["test5"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert "Failed" in json.loads(result.output)["message"]
     assert result.exit_code != 0
@@ -335,7 +343,8 @@ def test_tsigkey_import_success(
     result = runner.invoke(
         tsigkey_import,
         ["testfile"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.output)["message"]
@@ -441,7 +450,8 @@ def test_tsigkey_import_idempotence(
     result = runner.invoke(
         tsigkey_import,
         ["testfile"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -483,7 +493,8 @@ def test_tsigkey_import_failed(mocker, mock_utils, testobject, file_mock):
     result = runner.invoke(
         tsigkey_import,
         ["testfile"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -526,7 +537,8 @@ def test_tsigkey_import_ignore_errors(mocker, mock_utils, testobject, file_mock)
     result = runner.invoke(
         tsigkey_import,
         ["testfile", "--ignore-errors"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.stdout)["message"]
@@ -628,7 +640,8 @@ def test_tsigkey_import_replace(
     result = runner.invoke(
         tsigkey_import,
         ["testfile", "--replace"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.output)["message"]
@@ -677,7 +690,8 @@ def test_tsigkey_import_replace_failed(mocker, mock_utils, testobject, file_mock
     result = runner.invoke(
         tsigkey_import,
         ["testfile", "--replace"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -733,7 +747,8 @@ def test_tsigkey_import_replace_early_exit(
     result = runner.invoke(
         tsigkey_import,
         ["testfile", "--replace"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -788,7 +803,8 @@ def test_tsigkey_import_replace_ignore_errors(
     result = runner.invoke(
         tsigkey_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.output)["message"]
@@ -849,7 +865,8 @@ def test_tsigkey_import_replace_idempotence(
     result = runner.invoke(
         tsigkey_import,
         ["testfile", "--replace"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -860,7 +877,8 @@ def test_tsigkey_list_success(mock_utils, testobject, conditional_mock_utils, ex
     runner = CliRunner()
     result = runner.invoke(
         tsigkey_list,
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -872,7 +890,8 @@ def test_tsigkey_list_fail(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         tsigkey_list,
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert "Failed" in json.loads(result.output)["message"]
     assert result.exit_code != 0
@@ -888,7 +907,8 @@ def test_tsigkey_update_success(
     result = runner.invoke(
         tsigkey_update,
         ["test1", "-s", example_new_tsigkey["key"], "-n", "test5", "-a", "hmac-sha256"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -905,7 +925,8 @@ def test_tsigkey_update_item_missing(
     result = runner.invoke(
         tsigkey_update,
         ["test5", "-s", example_new_tsigkey["key"], "-n", "test5", "-a", "hmac-sha256"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -922,7 +943,8 @@ def test_tsigkey_update_idempotence(
     result = runner.invoke(
         tsigkey_update,
         ["test1", "-s", example_tsigkey_test1["key"], "-a", "hmac-sha512"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_called()
@@ -939,7 +961,8 @@ def test_tsigkey_update_refuse_rewrite(
     result = runner.invoke(
         tsigkey_update,
         ["test1", "-n", "test2"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -956,7 +979,8 @@ def test_tsigkey_update_rename(
     result = runner.invoke(
         tsigkey_update,
         ["test1", "-n", "test5"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_called()

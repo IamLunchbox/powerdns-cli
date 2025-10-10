@@ -5,7 +5,7 @@ from typing import NamedTuple
 import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import mock_utils, testobject, testenvironment
+from powerdns_cli_test_utils.testutils import mock_utils, testenvironment, testobject
 
 from powerdns_cli.commands.view import (
     view_add,
@@ -43,7 +43,8 @@ def test_view_add_success(mock_utils, testobject, returncodes, return_content):
     result = runner.invoke(
         view_add,
         ["test1", "example.com..variant2"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -60,7 +61,8 @@ def test_view_add_idempotence(mock_utils, testobject):
     result = runner.invoke(
         view_add,
         ["test1", "example.com"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -77,7 +79,8 @@ def test_view_add_failed(mock_utils, testobject):
     result = runner.invoke(
         view_add,
         ["test1", "example.com..variant3"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -145,7 +148,8 @@ def test_view_import_success(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.output)["message"]
@@ -202,7 +206,8 @@ def test_view_import_idempotence(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -226,7 +231,8 @@ def test_view_import_failed(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -248,7 +254,8 @@ def test_view_import_early_exit(
     result = runner.invoke(
         view_import,
         ["testfile"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -270,7 +277,8 @@ def test_view_import_ignore_errors(
     result = runner.invoke(
         view_import,
         ["testfile", "--ignore-errors"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.stdout)["message"]
@@ -352,7 +360,8 @@ def test_view_import_replace_success(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.output)["message"]
@@ -406,7 +415,8 @@ def test_view_import_replace_idempotence(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -440,7 +450,8 @@ def test_view_import_replace_early_exit(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.stdout)["message"]
@@ -470,7 +481,8 @@ def test_view_import_replace_ignore_errors(
     result = runner.invoke(
         view_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Successfully" in json.loads(result.stdout)["message"]
@@ -492,7 +504,8 @@ def test_view_update_success(mock_utils, testobject, returncodes, return_content
     result = runner.invoke(
         view_update,
         ["test1", "example.com..variant2"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -509,7 +522,8 @@ def test_view_update_idempotence(mock_utils, testobject):
     result = runner.invoke(
         view_update,
         ["test1", "example.com"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -526,7 +540,8 @@ def test_view_update_failed(mock_utils, testobject):
     result = runner.invoke(
         view_update,
         ["test1", "example.com..variant3"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -543,7 +558,8 @@ def test_view_delete_success(mock_utils, testobject):
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant1"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Deleted" in json.loads(result.output)["message"]
@@ -567,7 +583,8 @@ def test_view_delete_idempotence(
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant2"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert response_keyword in json.loads(result.output)["message"]
@@ -584,7 +601,8 @@ def test_view_delete_failed(mock_utils, testobject):
     result = runner.invoke(
         view_delete,
         ["test1", "example.com..variant1"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -598,7 +616,8 @@ def test_view_list_success(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         view_list,
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == output_list
@@ -610,7 +629,8 @@ def test_view_list_failed(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         view_list,
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -624,7 +644,8 @@ def test_view_export_success(mock_utils, testobject):
     result = runner.invoke(
         view_export,
         ["test1"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == output_dict
@@ -637,7 +658,8 @@ def test_view_export_failed(mock_utils, testobject):
     result = runner.invoke(
         view_export,
         ["test1"],
-        obj=testobject, env=testenvironment,
+        obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]

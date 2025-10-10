@@ -19,7 +19,7 @@ from typing import Any, NoReturn, TextIO
 import click
 
 from ..utils import main as utils
-from ..utils.validation import powerdns_zone, DefaultCommand
+from ..utils.validation import DefaultCommand, powerdns_zone
 
 
 @click.group()
@@ -27,10 +27,12 @@ def record():
     """Resource records of a zone"""
 
 
-@record.command("add",
+@record.command(
+    "add",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("name", type=click.STRING)
 @powerdns_zone
 @click.argument(
@@ -54,12 +56,7 @@ def record():
 @click.option("--ttl", default=86400, type=click.INT, help="Set time to live")
 @click.pass_context
 def record_add(
-    ctx: click.Context,
-    name: str,
-    dns_zone: str,
-    record_type: str,
-    value: str,
-    ttl: int,**kwargs
+    ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
 ) -> NoReturn:
     """
     Adds a new DNS record of your given type. Use @ if you want to enter a
@@ -88,10 +85,12 @@ def record_add(
         utils.exit_action(ctx, False, f"Failed to create {name} {record_type} {value}", r)
 
 
-@record.command("delete",
+@record.command(
+    "delete",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.pass_context
 @click.argument("name", type=click.STRING)
 @powerdns_zone
@@ -128,7 +127,8 @@ def record_delete(
     record_type: str,
     value: str,
     ttl: int,
-    delete_all: bool, **kwargs
+    delete_all: bool,
+    **kwargs,
 ) -> NoReturn:
     """
     Deletes a record of the precisely given type and value.
@@ -191,10 +191,12 @@ def record_delete(
         utils.exit_action(ctx, False, f"Failed to remove {name} {record_type} {value}", r)
 
 
-@record.command("disable",
+@record.command(
+    "disable",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("name", type=click.STRING)
 @powerdns_zone
 @click.argument(
@@ -218,12 +220,7 @@ def record_delete(
 @click.option("--ttl", default=86400, type=click.INT, help="Set time to live")
 @click.pass_context
 def record_disable(
-    ctx: click.Context,
-    name: str,
-    dns_zone: str,
-    record_type: str,
-    value: str,
-    ttl: int,**kwargs
+    ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
 ) -> NoReturn:
     """
     Disables an existing DNS record. Use @ to target the zone name itself.
@@ -252,10 +249,12 @@ def record_disable(
         utils.exit_action(ctx, False, f"Failed to disable {name} IN {record_type} {value}", r)
 
 
-@record.command("enable",
+@record.command(
+    "enable",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("name", type=click.STRING)
 @powerdns_zone
 @click.argument(
@@ -279,20 +278,18 @@ def record_disable(
 @click.option("--ttl", default=86400, type=click.INT, help="Set default time to live")
 @click.pass_context
 def record_enable(
-    ctx: click.Context,
-    name: str,
-    dns_zone: str,
-    record_type: str,
-    value: str,
-    ttl: int, **kwargs
+    ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
 ) -> NoReturn:
     """Enable a dns-recordset. Does not check if it was disabled beforehand"""
     ctx.forward(record_add)
 
-@record.command("extend",
+
+@record.command(
+    "extend",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("name", type=click.STRING)
 @powerdns_zone
 @click.argument(
@@ -316,12 +313,7 @@ def record_enable(
 @click.option("--ttl", default=86400, type=click.INT, help="Set time to live")
 @click.pass_context
 def record_extend(
-    ctx: click.Context,
-    name: str,
-    dns_zone: str,
-    record_type: str,
-    value: str,
-    ttl: int, **kwargs
+    ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
 ) -> NoReturn:
     """
     Extends records of an existing RRSET. Will create a new RRSET, if it did not exist beforehand.
@@ -360,10 +352,12 @@ def record_extend(
         utils.exit_action(ctx, False, f"Failed to extend {name} IN {record_type} {value}", r)
 
 
-@record.command("export",
+@record.command(
+    "export",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @powerdns_zone
 @click.option("--name", help="Limit output to chosen names", type=click.STRING)
 @click.option(
@@ -387,10 +381,7 @@ def record_extend(
 )
 @click.pass_context
 def record_export(
-    ctx: click.Context,
-    dns_zone: str,
-    name: str,
-    record_type: str, **kwargs
+    ctx: click.Context, dns_zone: str, name: str, record_type: str, **kwargs
 ) -> NoReturn:
     """
     Exports the contents of an existing RRSET.
@@ -413,10 +404,12 @@ def record_export(
     utils.exit_action(ctx, True, "Successfully exported records", print_data=True)
 
 
-@record.command("import",
+@record.command(
+    "import",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
-    no_args_is_help=True,)
+    no_args_is_help=True,
+)
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",

@@ -57,7 +57,7 @@ class ResultHandler(logging.Handler):
         """
         self.result["message"] = message
 
-    def log_http_data(self, response: requests.Response, ctx: click.Context | None = None) -> None:
+    def log_http_data(self, ctx: click.Context, response: requests.Response) -> None:
         """Sets the data in the result dictionary.
 
         Args:
@@ -74,7 +74,7 @@ class ResultHandler(logging.Handler):
         if ctx and ctx.obj.config["debug"]:
             request_data = {
                 "method": response.request.method,
-                "body": json.loads(response.request.body),
+                "body": json.loads(response.request.body) if response.request.body else "",
                 "url": response.request.url,
             }
         else:
