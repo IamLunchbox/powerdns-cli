@@ -20,6 +20,7 @@ from typing import NoReturn, TextIO
 import click
 
 from ..utils import main as utils
+from ..utils.validation import DefaultCommand
 
 
 @click.group()
@@ -27,7 +28,10 @@ def tsigkey():
     """Set up tsigkeys"""
 
 
-@tsigkey.command("add")
+@tsigkey.command("add" ,   cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
+@click.pass_context
 @click.argument("name", type=click.STRING)
 @click.argument(
     "algorithm",
@@ -43,8 +47,7 @@ def tsigkey():
     ),
 )
 @click.option("-s", "--secret", type=click.STRING)
-@click.pass_context
-def tsigkey_add(ctx: click.Context, name: str, algorithm: str, secret: str) -> NoReturn:
+def tsigkey_add(ctx: click.Context, name: str, algorithm: str, secret: str, **kwargs) -> NoReturn:
     """
     Adds a TSIGKey to the server to sign DNS transfer messages.
     """
@@ -76,10 +79,12 @@ def tsigkey_add(ctx: click.Context, name: str, algorithm: str, secret: str) -> N
         utils.exit_action(ctx, False, f"Failed to add TSIGKey with name '{name}'.", r)
 
 
-@tsigkey.command("delete")
-@click.argument("name", type=click.STRING)
+@tsigkey.command("delete",   cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
 @click.pass_context
-def tsigkey_delete(ctx: click.Context, name: str) -> NoReturn:
+@click.argument("name", type=click.STRING)
+def tsigkey_delete(ctx: click.Context, name: str, **kwargs) -> NoReturn:
     """
     Deletes the TSIG-Key with the given name.
     """
@@ -99,13 +104,15 @@ def tsigkey_delete(ctx: click.Context, name: str) -> NoReturn:
         utils.exit_action(ctx, False, f"Failed to delete TSIGKey '{name}'.", r)
 
 
-@tsigkey.command("export")
+@tsigkey.command("export",   cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
 @click.pass_context
 @click.argument(
     "key-id",
     type=click.STRING,
 )
-def tsigkey_export(ctx: click.Context, key_id: str):
+def tsigkey_export(ctx: click.Context, key_id: str, **kwargs):
     """
     Exports a single tsigkey with the given id and its secret key
     """
@@ -113,7 +120,10 @@ def tsigkey_export(ctx: click.Context, key_id: str):
     utils.show_setting(ctx, uri, "tsigkey", "export")
 
 
-@tsigkey.command("import")
+@tsigkey.command("import",   cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
+@click.pass_context
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",
@@ -125,9 +135,8 @@ def tsigkey_export(ctx: click.Context, key_id: str):
     is_flag=True,
     help="Continue import even when requests fail",
 )
-@click.pass_context
 def tsigkey_import(
-    ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool
+    ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool, **kwargs
 ) -> NoReturn:
     """
     Import TSIG keys from a file, with optional replacement of existing keys.
@@ -146,9 +155,10 @@ def tsigkey_import(
         add_tsigkey_import(uri, ctx, settings, ignore_errors)
 
 
-@tsigkey.command("list")
+@tsigkey.command("list",   cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},)
 @click.pass_context
-def tsigkey_list(ctx: click.Context) -> NoReturn:
+def tsigkey_list(ctx: click.Context, **kwargs) -> NoReturn:
     """
     Shows the TSIGKeys for this server
     """
@@ -163,10 +173,12 @@ def tsigkey_spec():
     utils.open_spec("tsigkey")
 
 
-@tsigkey.command("update")
+@tsigkey.command("update",   cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
+@click.pass_context
 @click.argument("name", type=click.STRING)
 @click.option(
-    "-a",
     "--algorithm",
     type=click.Choice(
         [
@@ -181,9 +193,8 @@ def tsigkey_spec():
 )
 @click.option("-s", "--secret", type=click.STRING)
 @click.option("-n", "--new-name", type=click.STRING)
-@click.pass_context
 def tsigkey_update(
-    ctx: click.Context, name: str, algorithm: str, secret: str, new_name: str
+    ctx: click.Context, name: str, algorithm: str, secret: str, new_name: str, **kwargs
 ) -> NoReturn:
     """
     Updates or renames an existing TSIGKey.
