@@ -1,40 +1,10 @@
 """Utilities library for the main cli functions"""
 
 import json
-import logging
 from typing import Any, NoReturn, TextIO
 
 import click
 import requests
-
-from . import logger
-
-# pylint: disable=too-few-public-methods
-
-
-class ContextObj:
-    """A context object for managing logging, configuration, and session state.
-
-    Attributes:
-        handler: A custom logging handler for collecting logs and results.
-        logger: A logger instance for emitting log messages.
-        config: A dictionary for storing configuration settings.
-        session: A placeholder for a session object, initially None.
-    """
-
-    def __init__(self) -> None:
-        """Initializes the ContextObj with a logger, handler, and default configuration."""
-        self.handler = logger.ResultHandler()
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        self.handler.setFormatter(formatter)
-        self.logger = logging.getLogger("cli_logger")
-        self.logger.addHandler(self.handler)
-        self.logger.setLevel(logging.DEBUG)
-        self.config: dict[str, Any] = {}
-        self.session: requests.Session | None = None
-
-
-# pylint: enable=too-few-public-methods
 
 
 def exit_cli(ctx: click.Context, print_data: bool = False) -> NoReturn:

@@ -4,7 +4,7 @@ powerdns-cli: Manage PowerDNS Zones/Records
 """
 import click
 
-from powerdns_cli.utils.main import ContextObj
+from powerdns_cli.utils.validation import ContextObj
 
 from .commands.autoprimary import autoprimary
 from .commands.config import config

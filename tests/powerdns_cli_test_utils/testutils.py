@@ -6,7 +6,7 @@ from unittest.mock import MagicMock as unittest_MagicMock
 import pytest
 import requests
 
-from powerdns_cli.utils.main import ContextObj
+from powerdns_cli.utils.validation import ContextObj
 
 
 @pytest.fixture

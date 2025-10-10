@@ -16,13 +16,25 @@ Usage:
 
 import ipaddress
 import logging
+import os.path
 import re
+import tomllib
 from typing import Any, Callable
 
 import click
 import requests
+from platformdirs import user_config_path
 
+from . import logger
 from .main import exit_action, http_get
+
+DEFAULT_ARGS = {
+    "apihost": "url",
+    "key": "api-key",
+    "json": "json",
+    "debug": "debug",
+    "api_version": "api-version",
+}
 
 
 def powerdns_zone(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -182,7 +194,6 @@ class DefaultCommand(click.Command):
                 help="Provide your apikey manually",
                 type=click.STRING,
                 default=None,
-                required=True,
             )
         )
         kwargs["params"].append(
@@ -197,7 +208,6 @@ class DefaultCommand(click.Command):
                 ["-u", "--url"],
                 help="DNS server api url",
                 type=click.STRING,
-                required=True,
             )
         )
         kwargs["params"].append(
@@ -224,62 +234,142 @@ class DefaultCommand(click.Command):
         Args:
             ctx: The click context object, containing command-line arguments and configuration.
         """
-        # skip preflight request and object generation when unit tests run, they are preseeded
-        # by a custom context object
+        # Skip preflight request and object generation during unit tests
         if ctx.obj.config.get("pytest"):
             if ctx.params.get("dns_zone"):
                 ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
             super().invoke(ctx)
+        DefaultCommand.parse_options(ctx)
+        DefaultCommand.set_session_object(ctx)
+        DefaultCommand.check_api_version(ctx)
+        # Parse and validate dns-zones as early as possible, since api-version is not known
+        # when params are first parsed
+        if ctx.params.get("dns_zone"):
+            ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
+        DefaultCommand.exit_on_incompatible_action(ctx)
+
+        super().invoke(ctx)
+
+    @staticmethod
+    def exit_on_incompatible_action(ctx: click.Context) -> None:
+        """Exit if the requested action is incompatible with the server's API version.
+        API version <5 and actions "network" and "view" are checked.
+
+        Args:
+            ctx: A Click context object containing the logger and configuration.
+        """
+        if ctx.parent.info_name in ("network", "view") and ctx.obj.config["api_version"] < 5:
+            error_message = (
+                f"Your authoritative DNS server does not support {ctx.parent.info_name}s"
+            )
+            ctx.obj.logger.error(error_message)
+            exit_action(ctx, success=False, message=error_message)
+
+    @staticmethod
+    def check_api_version(ctx: click.Context) -> None:
+        """Detect or use the configured API version for the given context.
+
+        Args:
+            ctx: A Click context object containing the logger and configuration.
+
+        Notes:
+            - If the API version is not set, it queries the server to detect the version.
+            - Exits with an error if the server is unreachable or the version cannot be detected.
+        """
+        if not ctx.obj.config["api_version"]:
+            ctx.obj.logger.debug("API version unset, performing version detection")
+            uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
+            preflight_request = http_get(uri, ctx, log_request=False)
+            if preflight_request.status_code != 200:
+                exit_action(ctx, False, "Failed to reach server for version detection.")
+            ctx.obj.config["api_version"] = int(
+                next(
+                    server["version"].split(".")[0]
+                    for server in preflight_request.json()
+                    if server["id"] == "localhost"
+                )
+            )
+            ctx.obj.logger.debug(f"Detected API version {ctx.obj.config['api_version']}")
+        else:
+            ctx.obj.logger.debug(
+                f"Skipped version detection, API version is {ctx.obj.config['api_version']}"
+            )
+
+    @staticmethod
+    def parse_options(ctx: click.Context) -> None:
+        """Parse and set configuration options for the CLI context.
+
+        Args:
+            ctx: A Click context object containing parameters and a config object.
+                Attributes are set by ContextObj
+
+        Notes:
+            - Skips preflight and object generation during unit tests.
+            - Loads additional configuration from a TOML file if present.
+            - Sets logger level based on the debug flag.
+        """
+        # Set configuration from CLI parameters
         ctx.obj.config = {
             "apihost": ctx.params["url"],
-            "key": ctx.params["apikey"],
-            "json": ctx.params["json_output"],
-            "debug": ctx.params["debug"],
-            "insecure": ctx.params["insecure"],
             "api_version": ctx.params["api_version"],
+            "debug": ctx.params["debug"],
+            "key": ctx.params["apikey"],
+            "insecure": ctx.params["insecure"],
+            "json": ctx.params["json_output"],
         }
-        if ctx.params["debug"]:
-            ctx.obj.logger.setLevel(logging.DEBUG)
-        else:
-            ctx.obj.logger.setLevel(logging.INFO)
+
+        # Load additional configuration from TOML file if it exists
+        config_path = user_config_path() / "powerdns-cli" / "config.toml"
+        if os.path.isfile(config_path):
+            with open(config_path, "rb") as f:
+                fileconfig = tomllib.load(f)
+            for ctx_key, conf_key in DEFAULT_ARGS.items():
+                if not ctx.obj.config.get(ctx_key) and fileconfig.get(conf_key.lower()):
+                    ctx.obj.config[ctx_key] = fileconfig[conf_key]
+
+        # Set logger level
+        ctx.obj.logger.setLevel(logging.DEBUG if ctx.obj.config["debug"] else logging.INFO)
+        # Exit if required values are missing
+        if not ctx.obj.config["key"] or not ctx.obj.config["apihost"]:
+            error_msg = (
+                f"Option '--{'apikey' if not ctx.obj.config['key'] else "url"}' is missing, "
+                "provide it through the CLI, environment or configuration file."
+            )
+            raise click.BadParameter(error_msg)
+
+    @staticmethod
+    def set_session_object(ctx: click.Context) -> None:
+        """Initialize and configure a requests session object for the given context."""
         ctx.obj.logger.debug("Creating session object")
         session = requests.session()
         session.verify = not ctx.obj.config["insecure"]
         session.headers = {"X-API-Key": ctx.obj.config["key"]}
         ctx.obj.session = session
-        if not ctx.obj.config["api_version"]:
-            ctx.obj.logger.debug("Performing preflight check and version detection")
-            uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
-            preflight_request = http_get(uri, ctx, log_request=False)
-            if not preflight_request.status_code == 200:
-                exit_action(ctx, False, "Failed to reach server for preflight request.")
-            ctx.obj.config["api_version"] = int(
-                [
-                    server["version"]
-                    for server in preflight_request.json()
-                    if server["id"] == "localhost"
-                ][0].split(".")[0]
-            )
-            ctx.obj.logger.debug(f"Detected api version {ctx.obj.config['api_version']}")
-        else:
-            ctx.obj.logger.debug(
-                f"Skipped preflight check and set api version to {ctx.obj.config["api_version"]}"
-            )
-        if ctx.params.get("dns_zone"):
-            ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
-        if ctx.parent.info_name in ("network", "view") and ctx.obj.config["api_version"] < 5:
-            ctx.obj.logger.error(
-                f"Your authoritative DNS server does not support {ctx.parent.info_name}"
-            )
-            exit_action(
-                ctx,
-                success=False,
-                message=f"Your authoritative DNS server does not support {ctx.parent.info_name}s",
-            )
 
-        super().invoke(ctx)
 
-        # try:
-        #     super().invoke(ctx)
-        # except click.ClickException:
-        #     raise
+# pylint: disable=too-few-public-methods
+
+
+class ContextObj:
+    """A context object for managing logging, configuration, and session state.
+
+    Attributes:
+        handler: A custom logging handler for collecting logs and results.
+        logger: A logger instance for emitting log messages.
+        config: A dictionary for storing configuration settings.
+        session: A placeholder for a session object, initially None.
+    """
+
+    def __init__(self) -> None:
+        """Initializes the ContextObj with a logger, handler, and default configuration."""
+        self.handler = logger.ResultHandler()
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        self.handler.setFormatter(formatter)
+        self.logger = logging.getLogger("cli_logger")
+        self.logger.addHandler(self.handler)
+        self.logger.setLevel(logging.DEBUG)
+        self.config: dict[str, Any] = {}
+        self.session: requests.Session | None = None
+
+
+# pylint: enable=too-few-public-methods
