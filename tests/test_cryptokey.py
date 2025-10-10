@@ -6,7 +6,7 @@ import pytest
 import requests
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import mock_utils, testobject
+from powerdns_cli_test_utils.testutils import mock_utils, testobject, testenvironment
 
 from powerdns_cli.commands.cryptokey import (
     cryptokey_add,
@@ -173,6 +173,7 @@ def test_cryptokey_add_success(mock_utils, testobject, example_zsk_key):
         cryptokey_add,
         ["zsk", "example.com", "--algorithm", "ed448"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     get.assert_not_called()
@@ -191,6 +192,7 @@ def test_cryptokey_add_failed(mock_utils, testobject, conditional_mock_utils):
             "example.com.",
         ],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed creating" in json.loads(result.output)["message"]
@@ -204,6 +206,7 @@ def test_cryptokey_import_success(mock_utils, testobject, conditional_mock_utils
         cryptokey_import,
         ["zsk", "example.com.", example_new_key["privatekey"]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_new_key_dict
@@ -221,6 +224,7 @@ def test_cryptokey_import_already_present(
         cryptokey_import,
         ["zsk", "example.com.", example_zsk_key["privatekey"]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -237,6 +241,7 @@ def test_cryptokey_import_failed(mock_utils, testobject, conditional_mock_utils,
         cryptokey_import,
         ["zsk", "example.com.", example_new_key["privatekey"]],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed importing" in json.loads(result.output)["message"]
@@ -250,6 +255,7 @@ def test_cryptokey_delete_success(mock_utils, testobject, conditional_mock_utils
         cryptokey_delete,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Deleted" in json.loads(result.output)["message"]
@@ -264,6 +270,7 @@ def test_cryptokey_delete_already_absent(mock_utils, testobject, conditional_moc
         cryptokey_delete,
         ["example.com.", "6"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already absent" in json.loads(result.output)["message"]
@@ -279,6 +286,7 @@ def test_cryptokey_delete_failure(mock_utils, testobject, conditional_mock_utils
         cryptokey_delete,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     delete.assert_called_once()
@@ -293,6 +301,7 @@ def test_cryptokey_disable_success(mock_utils, testobject, conditional_mock_util
         cryptokey_disable,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Disabled" in json.loads(result.output)["message"]
@@ -308,6 +317,7 @@ def test_cryptokey_already_disabled(mock_utils, testobject, conditional_mock_uti
         cryptokey_disable,
         ["example.com.", "2"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -323,6 +333,7 @@ def test_cryptokey_disable_failure(mock_utils, testobject, conditional_mock_util
         cryptokey_disable,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed disabling" in json.loads(result.output)["message"]
@@ -338,6 +349,7 @@ def test_cryptokey_disable_missing_key(mock_utils, testobject, conditional_mock_
         cryptokey_disable,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]
@@ -353,6 +365,7 @@ def test_cryptokey_enable_success(mock_utils, testobject, conditional_mock_utils
         cryptokey_enable,
         ["example.com.", "2"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Enabled" in json.loads(result.output)["message"]
@@ -368,6 +381,7 @@ def test_cryptokey_already_enabled(mock_utils, testobject, conditional_mock_util
         cryptokey_enable,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -383,6 +397,7 @@ def test_cryptokey_enable_failure(mock_utils, testobject, conditional_mock_utils
         cryptokey_enable,
         ["example.com.", "2"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed enabling" in json.loads(result.output)["message"]
@@ -398,6 +413,7 @@ def test_cryptokey_enable_missing_key(mock_utils, testobject, conditional_mock_u
         cryptokey_enable,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]
@@ -412,6 +428,7 @@ def test_cryptokey_export_success(conditional_mock_utils, testobject, example_ks
         cryptokey_export,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_ksk_key
@@ -425,6 +442,7 @@ def test_cryptokey_export_not_found(mock_utils, testobject):
         cryptokey_export,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -437,6 +455,7 @@ def test_cryptokey_export_failure(mock_utils, testobject):
         cryptokey_export,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -451,6 +470,7 @@ def test_cryptokey_list_success(
         cryptokey_list,
         ["example.com."],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert example_cryptokey_list == json.loads(result.output)["data"]
@@ -464,6 +484,7 @@ def test_cryptokey_list_failure(mock_utils, testobject, conditional_mock_utils):
         cryptokey_list,
         ["example.com."],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -477,6 +498,7 @@ def test_cryptokey_publish_success(mock_utils, testobject, conditional_mock_util
         cryptokey_publish,
         ["example.com.", "2"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Published" in json.loads(result.output)["message"]
@@ -492,6 +514,7 @@ def test_cryptokey_already_published(mock_utils, testobject, conditional_mock_ut
         cryptokey_publish,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -507,6 +530,7 @@ def test_cryptokey_publish_failure(mock_utils, testobject, conditional_mock_util
         cryptokey_publish,
         ["example.com.", "2"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed publish" in json.loads(result.output)["message"]
@@ -522,6 +546,7 @@ def test_cryptokey_publish_missing_key(mock_utils, testobject, conditional_mock_
         cryptokey_publish,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]
@@ -537,6 +562,7 @@ def test_cryptokey_unpublish_success(mock_utils, testobject, conditional_mock_ut
         cryptokey_unpublish,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Unpublished" in json.loads(result.output)["message"]
@@ -552,6 +578,7 @@ def test_cryptokey_already_unpublished(mock_utils, testobject, conditional_mock_
         cryptokey_unpublish,
         ["example.com.", "2"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -567,6 +594,7 @@ def test_cryptokey_unpublish_failure(mock_utils, testobject, conditional_mock_ut
         cryptokey_unpublish,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed unpublishing" in json.loads(result.output)["message"]
@@ -582,6 +610,7 @@ def test_cryptokey_unpublish_missing_key(mock_utils, testobject, conditional_moc
         cryptokey_unpublish,
         ["example.com.", "1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "does not exist" in json.loads(result.output)["message"]

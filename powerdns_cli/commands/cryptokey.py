@@ -20,7 +20,7 @@ import click
 import requests
 
 from ..utils import main as utils
-from ..utils.validation import PowerDNSZone
+from ..utils.validation import DefaultCommand, powerdns_zone
 
 
 @click.group()
@@ -28,11 +28,16 @@ def cryptokey():
     """Configure cryptokeys"""
 
 
-@cryptokey.command("add")
+@cryptokey.command(
+    "add",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.option(
-    "-a",
     "--active",
     is_flag=True,
     default=False,
@@ -45,8 +50,7 @@ def cryptokey():
     type=click.Choice(["rsasha1", "rsasha256", "rsasha512", "ecdsap256sha256", "ed25519", "ed448"]),
     help="Set the key size in bits, required for zsk",
 )
-@click.pass_context
-def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm):
+def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm, *args, **kwargs):
     """
     Adds a cryptokey to the zone. Is disabled and not published by default.
     """
@@ -66,11 +70,16 @@ def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm):
         utils.exit_action(ctx, success=False, message="Failed creating the dnssec-key")
 
 
-@cryptokey.command("delete")
+@cryptokey.command(
+    "delete",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_delete(ctx, dns_zone, cryptokey_id):
+def cryptokey_delete(ctx, dns_zone, cryptokey_id, *args, **kwargs):
     """
     Deletes the given cryptokey-id from all the configured cryptokeys
     """
@@ -92,11 +101,16 @@ def cryptokey_delete(ctx, dns_zone, cryptokey_id):
         )
 
 
-@cryptokey.command("disable")
+@cryptokey.command(
+    "disable",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_disable(ctx, dns_zone, cryptokey_id):
+def cryptokey_disable(ctx, dns_zone, cryptokey_id, *args, **kwargs):
     """
     Disables the cryptokey for this zone.
     """
@@ -126,11 +140,16 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id):
         )
 
 
-@cryptokey.command("enable")
+@cryptokey.command(
+    "enable",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_enable(ctx, dns_zone, cryptokey_id):
+def cryptokey_enable(ctx, dns_zone, cryptokey_id, *args, **kwargs):
     """
     Enables an already existing cryptokey
     """
@@ -160,11 +179,16 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id):
         )
 
 
-@cryptokey.command("export")
+@cryptokey.command(
+    "export",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.argument("cryptokey-id", type=click.STRING)
-def cryptokey_export(ctx, dns_zone, cryptokey_id):
+def cryptokey_export(ctx, dns_zone, cryptokey_id, *args, **kwargs):
     """
     Exports the cryptokey with the given id including the private key
     """
@@ -176,27 +200,24 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id):
     utils.show_setting(ctx, uri, "cryptokeys", "export")
 
 
-@cryptokey.command("import")
+@cryptokey.command(
+    "import",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.argument("private-key", type=click.STRING)
 @click.option(
-    "-a",
     "--active",
     is_flag=True,
     default=False,
     help="Sets the key to active immediately",
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
-@click.pass_context
-def cryptokey_import(
-    ctx,
-    dns_zone,
-    key_type,
-    private_key,
-    active,
-    publish,
-):
+def cryptokey_import(ctx, key_type, dns_zone, private_key, active, publish, *args, **kwargs):
     """
     Adds a cryptokey to the zone. Is disabled and not published by default.
     """
@@ -220,10 +241,15 @@ def cryptokey_import(
         utils.exit_action(ctx, success=False, message="Failed importing cryptokey")
 
 
-@cryptokey.command("list")
+@cryptokey.command(
+    "list",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
-def cryptokey_list(ctx, dns_zone):
+@powerdns_zone
+def cryptokey_list(ctx, dns_zone, *args, **kwargs):
     """
     Lists all currently configured cryptokeys for this zone without displaying secrets
     """
@@ -231,11 +257,16 @@ def cryptokey_list(ctx, dns_zone):
     utils.show_setting(ctx, uri, "cryptokeys", "list")
 
 
-@cryptokey.command("publish")
+@cryptokey.command(
+    "publish",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_publish(ctx, dns_zone, cryptokey_id):
+def cryptokey_publish(ctx, dns_zone, cryptokey_id, *args, **kwargs):
     """
     Publishes an already existing cryptokey. Implies activating it as well.
     """
@@ -273,11 +304,16 @@ def cryptokey_spec():
     utils.open_spec("cryptokey")
 
 
-@cryptokey.command("unpublish")
+@cryptokey.command(
+    "unpublish",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_unpublish(ctx, dns_zone, cryptokey_id):
+def cryptokey_unpublish(ctx, dns_zone, cryptokey_id, *args, **kwargs):
     """
     Unpublishes an already existing cryptokey
     """
