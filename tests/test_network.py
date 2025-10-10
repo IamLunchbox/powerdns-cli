@@ -5,7 +5,7 @@ from typing import NamedTuple, TypedDict
 import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import mock_utils, testobject
+from powerdns_cli_test_utils.testutils import mock_utils, testobject, testenvironment
 
 from powerdns_cli.commands.network import (
     network_add,
@@ -54,6 +54,7 @@ def test_network_add_success(mock_utils, testobject, valid_networks, statuscode,
         network_add,
         [valid_networks, "test1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Added" in json.loads(result.output)["message"]
@@ -76,6 +77,7 @@ def test_network_add_idempotence(mock_utils, testobject, valid_networks, statusc
         network_add,
         [valid_networks, "test1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -90,6 +92,7 @@ def test_network_add_failed(mock_utils, testobject):
         network_add,
         ["10.0.0.0/8", "test1"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert json.loads(result.output)["message"]
@@ -113,6 +116,7 @@ def test_network_delete_success(mock_utils, testobject, valid_networks, output):
         network_delete,
         [valid_networks],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "Removed" in json.loads(result.output)["message"]
@@ -128,6 +132,7 @@ def test_network_delete_idempotence(mock_utils, testobject):
         network_delete,
         ["0.0.0.0/0"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "absent" in json.loads(result.output)["message"]
@@ -143,6 +148,7 @@ def test_network_delete_failed(mock_utils, testobject):
         network_delete,
         ["0.0.0.0/0"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -202,6 +208,7 @@ def test_network_import_success(
         network_import,
         ["testfile"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "successfully" in json.loads(result.output)["message"]
@@ -246,6 +253,7 @@ def test_network_import_idempotence(
         network_import,
         ["testfile"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -264,6 +272,7 @@ def test_network_import_failed(
         network_import,
         ["testfile"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -282,6 +291,7 @@ def test_network_import_early_exit(
         network_import,
         ["testfile"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -307,6 +317,7 @@ def test_network_import_ignore_errors(mock_utils, testobject, file_mock):
         network_import,
         ["testfile", "--ignore-errors"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "successfully" in json.loads(result.stdout)["message"]
@@ -338,6 +349,7 @@ def test_network_import_replace_success(
         network_import,
         ["testfile", "--replace"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "successfully" in json.loads(result.output)["message"]
@@ -374,6 +386,7 @@ def test_network_import_replace_idempotence(
         network_import,
         ["testfile", "--replace"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
@@ -397,6 +410,7 @@ def test_network_import_replace_failed(mock_utils, testobject, file_mock):
         network_import,
         ["testfile", "--replace"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -424,6 +438,7 @@ def test_network_import_replace_early_exit(
         network_import,
         ["testfile", "--replace"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     get.assert_called_once()
@@ -447,6 +462,7 @@ def test_network_import_replace_ignore_errors(mock_utils, testobject, file_mock)
         network_import,
         ["testfile", "--replace", "--ignore-errors"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert "successfully" in json.loads(result.stdout)["message"]
@@ -468,6 +484,7 @@ def test_network_list_success(
         network_list,
         [],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert list_output == json.loads(result.output)["data"]
@@ -484,6 +501,7 @@ def test_network_list_failed(
         network_list,
         [],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]
@@ -501,6 +519,7 @@ def test_network_export_success(
         network_export,
         ["0.0.0.0/0"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == network_output
@@ -517,6 +536,7 @@ def test_network_export_failed(
         network_export,
         ["0.0.0.0/0"],
         obj=testobject,
+        env=testenvironment,
     )
     assert result.exit_code == 1
     assert "Failed" in json.loads(result.output)["message"]

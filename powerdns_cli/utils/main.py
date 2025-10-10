@@ -358,3 +358,13 @@ def is_id_or_name_present(ctx: click.Context, dict_to_check: dict[str, str]) -> 
             success=False,
             message="Either 'name' or 'id' must be present to determine the zone.",
         )
+
+
+def check_api_version(ctx, action_name):
+    if ctx.obj.config["api_version"] < 5:
+        ctx.obj.logger.error(f"Your authoritative DNS server does not support {action_name}")
+        exit_action(
+            ctx,
+            success=False,
+            message=f"Your authoritative DNS server does not support {action_name}",
+        )

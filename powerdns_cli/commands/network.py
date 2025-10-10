@@ -18,30 +18,28 @@ from typing import NoReturn
 import click
 
 from ..utils import main as utils
-from ..utils.validation import IPRange
+from ..utils.validation import IPRange, DefaultCommand
 
 
 @click.group()
-@click.pass_context
-def network(ctx: click.Context):
+def network():
     """Shows and sets up network views to limit access to DNS entries."""
-    if ctx.obj.config["major_version"] < 5:
-        ctx.obj.logger.error("Your authoritative DNS server does not support networks")
-        utils.exit_action(
-            ctx,
-            success=False,
-            message="Your authoritative DNS server does not support networks",
-        )
 
 
-@network.command("add")
+@network.command(
+    "add",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
 @click.argument("cidr", type=IPRange)
 @click.argument("view_id", type=click.STRING, metavar="view")
-@click.pass_context
-def network_add(ctx: click.Context, cidr: str, view_id: str) -> NoReturn:
+def network_add(ctx: click.Context, cidr: str, view_id: str, **kwargs) -> NoReturn:
     """
     Add a view of a zone to a specific network.
     """
+    utils.check_api_version(ctx, "networks")
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     current_network = utils.http_get(uri, ctx)
 
@@ -68,23 +66,36 @@ def network_add(ctx: click.Context, cidr: str, view_id: str) -> NoReturn:
         )
 
 
-@network.command("list")
+@network.command(
+    "list",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+)
 @click.pass_context
-def network_list(ctx: click.Context):
+def network_list(ctx: click.Context, **kwargs):
     """
     List all registered networks and views
     """
+    utils.check_api_version(ctx, "networks")
+
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     utils.show_setting(ctx, uri, "network", "list")
 
 
-@network.command("delete")
-@click.argument("cidr", type=IPRange)
+@network.command(
+    "delete",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-def network_delete(ctx: click.Context, cidr: str) -> NoReturn:
+@click.argument("cidr", type=IPRange)
+def network_delete(ctx: click.Context, cidr: str, **kwargs) -> NoReturn:
     """
     Remove a view association from a specific network.
     """
+    utils.check_api_version(ctx, "networks")
+
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     ctx.obj.logger.info(f"Attempting to delete view association for network: {cidr}")
 
@@ -111,19 +122,32 @@ def network_delete(ctx: click.Context, cidr: str) -> NoReturn:
         )
 
 
-@network.command("export")
-@click.argument("cidr", type=IPRange)
+@network.command(
+    "export",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
 @click.pass_context
-def network_export(ctx: click.Context, cidr: str):
+@click.argument("cidr", type=IPRange)
+def network_export(ctx: click.Context, cidr: str, **kwargs):
     """
     Show the network and its associated views, defaults to /32 if no netmask is provided.
     """
+    utils.check_api_version(ctx, "networks")
+
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
     ctx.obj.logger.info(f"Exporting network: {cidr}")
     utils.show_setting(ctx, uri, "network", "export")
 
 
-@network.command("import")
+@network.command(
+    "import",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",
@@ -137,13 +161,14 @@ def network_export(ctx: click.Context, cidr: str):
     is_flag=True,
     help="Continue import even when requests fail",
 )
-@click.pass_context
 def network_import(
-    ctx: click.Context, file: click.File, replace: bool, ignore_errors: bool
+    ctx: click.Context, file: click.File, replace: bool, ignore_errors: bool, **kwargs
 ) -> NoReturn:
     """Import network and zone assignments.
     File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}
     """
+    utils.check_api_version(ctx, "networks")
+
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     ctx.obj.logger.info(f"Importing networks from file: {file.name}")
 
