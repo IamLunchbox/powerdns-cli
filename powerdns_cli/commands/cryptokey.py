@@ -16,6 +16,8 @@ Commands:
     spec: Opens the cryptokey API specification in the browser.
 """
 
+from typing import NoReturn
+
 import click
 import requests
 
@@ -44,30 +46,63 @@ def cryptokey():
     help="Sets the key to active immediately",
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
-@click.option("--bits", type=click.INT, help="Set the key size in bits, required for zsk")
+@click.option("--bits", type=click.INT, help="Set the key size in bits, required for ZSK")
 @click.option(
     "--algorithm",
     type=click.Choice(["rsasha1", "rsasha256", "rsasha512", "ecdsap256sha256", "ed25519", "ed448"]),
-    help="Set the key size in bits, required for zsk",
+    help="Set the key algorithm",
 )
-def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm, **kwargs):
+def cryptokey_add(
+    ctx: click.Context,
+    key_type: str,
+    dns_zone: str,
+    active: bool,
+    publish: bool,
+    bits: int,
+    algorithm: str,
+    **kwargs: dict,
+) -> NoReturn:
     """
     Adds a cryptokey to the zone. Is disabled and not published by default.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     payload = {"active": active, "published": publish, "keytype": key_type}
-    # Click CLI escapes newline characters
+
     for key, val in {"bits": bits, "algorithm": algorithm}.items():
         if val:
             payload[key] = val
-    r = utils.http_post(uri, ctx, payload)
 
+    ctx.obj.logger.info(
+        f"Attempting to add a new cryptokey of type '{key_type}' for zone '{dns_zone}'."
+    )
+
+    r = utils.http_post(uri, ctx, payload)
     if r.status_code == 201:
+        ctx.obj.logger.info(
+            f"Successfully added a new cryptokey with id '{r.json()['id']}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=True, message=f"Added a new cryptokey with id {r.json()['id']}", response=r
+            ctx,
+            success=True,
+            message=f"Added a new cryptokey with id {r.json()['id']}.",
+            response=r,
+        )
+    elif r.status_code == 404:
+        ctx.obj.logger.error(f"Failed to create the DNSSEC key: zone '{dns_zone}' does not exist.")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message=f"Failed creating the DNSSEC key, zone '{dns_zone}' does not exist.",
+            response=r,
         )
     else:
-        utils.exit_action(ctx, success=False, message="Failed creating the dnssec-key")
+        ctx.obj.logger.error(f"Failed to create the DNSSEC key for zone '{dns_zone}'.")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message="Failed creating the DNSSEC key.",
+            response=r,
+        )
 
 
 @cryptokey.command(
@@ -79,25 +114,41 @@ def cryptokey_add(ctx, key_type, dns_zone, active, publish, bits, algorithm, **k
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_delete(ctx, dns_zone, cryptokey_id, **kwargs):
+def cryptokey_delete(
+    ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
+) -> NoReturn:
     """
-    Deletes the given cryptokey-id from all the configured cryptokeys
+    Deletes the given cryptokey-id from all the configured cryptokeys.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    exit_if_cryptokey_does_not_exist(
-        ctx, uri, f"Cryptokey with id '{cryptokey_id}' already absent", success=True
+    ctx.obj.logger.info(
+        f"Attempting to delete cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
     )
+
+    exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' already absent.", success=True
+    )
+
     r = utils.http_delete(uri, ctx)
     if r.status_code == 204:
+        ctx.obj.logger.info(
+            f"Successfully deleted cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=True, message=f"Deleted id '{cryptokey_id}' for '{dns_zone}'"
+            ctx, success=True, message=f"Deleted id '{cryptokey_id}' for '{dns_zone}'.", response=r
         )
     else:
+        ctx.obj.logger.error(
+            f"Failed to delete cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=False, message=f"Failed to delete id '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=False,
+            message=f"Failed to delete id '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
         )
 
 
@@ -110,7 +161,9 @@ def cryptokey_delete(ctx, dns_zone, cryptokey_id, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_disable(ctx, dns_zone, cryptokey_id, **kwargs):
+def cryptokey_disable(
+    ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
+) -> NoReturn:
     """
     Disables the cryptokey for this zone.
     """
@@ -118,25 +171,44 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id, **kwargs):
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    payload = {
-        "id": cryptokey_id,
-        "active": False,
-    }
-    r = exit_if_cryptokey_does_not_exist(
-        ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist"
+    payload = {"id": cryptokey_id, "active": False}
+
+    ctx.obj.logger.info(
+        f"Attempting to disable cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
     )
+
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' does not exist.", success=False
+    )
+
     if not r.json()["active"]:
+        ctx.obj.logger.info(f"Cryptokey with id '{cryptokey_id}' is already inactive.")
         utils.exit_action(
-            ctx, success=True, message=f"Cryptokey with id {cryptokey_id} is already inactive"
+            ctx,
+            success=True,
+            message=f"Cryptokey with id '{cryptokey_id}' is already inactive.",
         )
+
     r = utils.http_put(uri, ctx, payload)
     if r.status_code == 204:
+        ctx.obj.logger.info(
+            f"Successfully disabled cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=True, message=f"Disabled id '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=True,
+            message=f"Disabled id '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
         )
     else:
+        ctx.obj.logger.error(
+            f"Failed to disable cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=False, message=f"Failed disabling '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=False,
+            message=f"Failed disabling '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
         )
 
 
@@ -149,33 +221,54 @@ def cryptokey_disable(ctx, dns_zone, cryptokey_id, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_enable(ctx, dns_zone, cryptokey_id, **kwargs):
+def cryptokey_enable(
+    ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
+) -> NoReturn:
     """
-    Enables an already existing cryptokey
+    Enables an already existing cryptokey.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    payload = {
-        "id": cryptokey_id,
-        "active": True,
-    }
-    r = exit_if_cryptokey_does_not_exist(
-        ctx, uri, f"Cryptokey with id '{cryptokey_id}' does not exist"
+    payload = {"id": cryptokey_id, "active": True}
+
+    ctx.obj.logger.info(
+        f"Attempting to enable cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
     )
+
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' does not exist.", success=False
+    )
+
     if r.json()["active"]:
+        ctx.obj.logger.info(f"Cryptokey with id '{cryptokey_id}' is already active.")
         utils.exit_action(
-            ctx, success=True, message=f"Cryptokey with id '{cryptokey_id}' is already active"
+            ctx,
+            success=True,
+            message=f"Cryptokey with id '{cryptokey_id}' is already active.",
         )
+
     r = utils.http_put(uri, ctx, payload)
     if r.status_code == 204:
+        ctx.obj.logger.info(
+            f"Successfully enabled cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=True, message=f"Enabled id '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=True,
+            message=f"Enabled id '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
         )
     else:
+        ctx.obj.logger.error(
+            f"Failed to enable cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=False, message=f"Failed enabling '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=False,
+            message=f"Failed enabling '{cryptokey_id}' for '{dns_zone}'",
+            response=r,
         )
 
 
@@ -188,16 +281,44 @@ def cryptokey_enable(ctx, dns_zone, cryptokey_id, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.STRING)
-def cryptokey_export(ctx, dns_zone, cryptokey_id, **kwargs):
+def cryptokey_export(
+    ctx: click.Context, dns_zone: str, cryptokey_id: str, **kwargs: dict
+) -> NoReturn:
     """
-    Exports the cryptokey with the given id including the private key
+    Exports the cryptokey with the given id including the private key.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    exit_if_cryptokey_does_not_exist(ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist")
-    utils.show_setting(ctx, uri, "cryptokeys", "export")
+
+    ctx.obj.logger.info(
+        f"Attempting to export cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+    )
+
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' does not exist.", success=False
+    )
+
+    if r.status_code == 200:
+        ctx.obj.logger.info(f"Exporting cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'.")
+        utils.exit_action(
+            ctx,
+            success=True,
+            message=f"Exported cryptokey with id '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
+            print_data=True,
+        )
+    else:
+        ctx.obj.logger.error(
+            f"Failed to export cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
+        utils.exit_action(
+            ctx,
+            success=False,
+            message=f"Failed to export cryptokey with id '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
+        )
 
 
 @cryptokey.command(
@@ -217,12 +338,19 @@ def cryptokey_export(ctx, dns_zone, cryptokey_id, **kwargs):
     help="Sets the key to active immediately",
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
-def cryptokey_import(ctx, key_type, dns_zone, private_key, active, publish, **kwargs):
+def cryptokey_import(
+    ctx: click.Context,
+    key_type: str,
+    dns_zone: str,
+    private_key: str,
+    active: bool,
+    publish: bool,
+    **kwargs: dict,
+) -> NoReturn:
     """
-    Adds a cryptokey to the zone. Is disabled and not published by default.
+    Imports a cryptokey to the zone. Is disabled and not published by default.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
-    # Click CLI escapes newline characters
     secret = private_key.replace("\\n", "\n")
     payload = {
         "active": active,
@@ -230,15 +358,36 @@ def cryptokey_import(ctx, key_type, dns_zone, private_key, active, publish, **kw
         "privatekey": secret,
         "keytype": key_type,
     }
+
+    ctx.obj.logger.info(
+        f"Attempting to import cryptokey of type '{key_type}' for zone '{dns_zone}'."
+    )
+
     if is_dnssec_key_present(uri, secret, ctx):
+        ctx.obj.logger.info("The provided DNSSEC key is already present at the backend.")
         utils.exit_action(
-            ctx, success=True, message="The provided dnssec-key is already present at the backend"
+            ctx,
+            success=True,
+            message="The provided DNSSEC key is already present at the backend.",
         )
+
     r = utils.http_post(uri, ctx, payload)
     if r.status_code == 201:
-        utils.exit_action(ctx, success=True, response=r, message="Successfully imported cryptokey")
+        ctx.obj.logger.info(f"Successfully imported cryptokey for zone '{dns_zone}'.")
+        utils.exit_action(
+            ctx,
+            success=True,
+            message="Successfully imported cryptokey.",
+            response=r,
+        )
     else:
-        utils.exit_action(ctx, success=False, message="Failed importing cryptokey")
+        ctx.obj.logger.error(f"Failed to import cryptokey for zone '{dns_zone}'.")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message="Failed importing cryptokey.",
+            response=r,
+        )
 
 
 @cryptokey.command(
@@ -249,12 +398,32 @@ def cryptokey_import(ctx, key_type, dns_zone, private_key, active, publish, **kw
 )
 @click.pass_context
 @powerdns_zone
-def cryptokey_list(ctx, dns_zone, **kwargs):
+def cryptokey_list(ctx: click.Context, dns_zone: str, **kwargs: dict) -> NoReturn:
     """
-    Lists all currently configured cryptokeys for this zone without displaying secrets
+    Lists all currently configured cryptokeys for this zone without displaying secrets.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
-    utils.show_setting(ctx, uri, "cryptokeys", "list")
+
+    ctx.obj.logger.info(f"Attempting to list cryptokeys for zone '{dns_zone}'.")
+
+    r = utils.http_get(uri, ctx)
+    if r.status_code == 200:
+        ctx.obj.logger.info(f"Successfully retrieved cryptokeys for zone '{dns_zone}'.")
+        utils.exit_action(
+            ctx,
+            success=True,
+            message=f"List of cryptokeys for zone '{dns_zone}'.",
+            response=r,
+            print_data=True,
+        )
+    else:
+        ctx.obj.logger.error(f"Failed to list cryptokeys for zone '{dns_zone}'.")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message=f"Failed to list cryptokeys for zone '{dns_zone}'.",
+            response=r,
+        )
 
 
 @cryptokey.command(
@@ -266,7 +435,9 @@ def cryptokey_list(ctx, dns_zone, **kwargs):
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_publish(ctx, dns_zone, cryptokey_id, **kwargs):
+def cryptokey_publish(
+    ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
+) -> NoReturn:
     """
     Publishes an already existing cryptokey. Implies activating it as well.
     """
@@ -274,26 +445,45 @@ def cryptokey_publish(ctx, dns_zone, cryptokey_id, **kwargs):
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    payload = {
-        "id": cryptokey_id,
-        "published": True,
-    }
-    r = exit_if_cryptokey_does_not_exist(
-        ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist"
+    payload = {"id": cryptokey_id, "published": True}
+
+    ctx.obj.logger.info(
+        f"Attempting to publish cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
     )
+
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' does not exist.", success=False
+    )
+
     if r.json()["published"]:
+        ctx.obj.logger.info(f"Cryptokey with id '{cryptokey_id}' is already published.")
         utils.exit_action(
-            ctx, success=True, message="Cryptokey with id {cryptokey_id} already published"
+            ctx,
+            success=True,
+            message=f"Cryptokey with id '{cryptokey_id}' already published.",
         )
+
     payload["active"] = r.json()["active"]
     r = utils.http_put(uri, ctx, payload)
     if r.status_code == 204:
+        ctx.obj.logger.info(
+            f"Successfully published cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=True, message=f"Published id '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=True,
+            message=f"Published id '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
         )
     else:
+        ctx.obj.logger.error(
+            f"Failed to publish cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=False, message=f"Failed publishing '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=False,
+            message=f"Failed publishing '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
         )
 
 
@@ -313,65 +503,56 @@ def cryptokey_spec():
 @click.pass_context
 @powerdns_zone
 @click.argument("cryptokey-id", type=click.INT)
-def cryptokey_unpublish(ctx, dns_zone, cryptokey_id, **kwargs):
+def cryptokey_unpublish(
+    ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
+) -> NoReturn:
     """
-    Unpublishes an already existing cryptokey
+    Unpublishes an already existing cryptokey.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
         f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
-    payload = {
-        "id": cryptokey_id,
-        "published": False,
-    }
-    r = exit_if_cryptokey_does_not_exist(
-        ctx, uri, f"Cryptokey with id {cryptokey_id} does not exist"
+    payload = {"id": cryptokey_id, "published": False}
+
+    ctx.obj.logger.info(
+        f"Attempting to unpublish cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
     )
+
+    r = exit_if_cryptokey_does_not_exist(
+        ctx, uri, f"Cryptokey with id '{cryptokey_id}' does not exist.", success=False
+    )
+
     if not r.json()["published"]:
+        ctx.obj.logger.info(f"Cryptokey with id '{cryptokey_id}' is already unpublished.")
         utils.exit_action(
-            ctx, success=True, message=f"Cryptokey '{cryptokey_id}' is already unpublished"
+            ctx,
+            success=True,
+            message=f"Cryptokey '{cryptokey_id}' is already unpublished.",
         )
+
     payload["active"] = r.json()["active"]
     r = utils.http_put(uri, ctx, payload)
     if r.status_code == 204:
+        ctx.obj.logger.info(
+            f"Successfully unpublished cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
+        )
         utils.exit_action(
-            ctx, success=True, message=f"Unpublished '{cryptokey_id}' for '{dns_zone}'"
+            ctx,
+            success=True,
+            message=f"Unpublished '{cryptokey_id}' for '{dns_zone}'",
+            response=r,
         )
     else:
-        utils.exit_action(
-            ctx, success=False, message=f"Failed unpublishing '{cryptokey_id}' for '{dns_zone}'"
+        ctx.obj.logger.error(
+            f"Failed to unpublish cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
         )
-
-
-def import_cryptokey_pubkeys(
-    uri: str,
-    ctx: click.Context,
-    new_settings: dict,
-) -> dict | list:
-    """Passes the given dictionary or list to the specified URI.
-
-    Args:
-        uri: The endpoint to send the settings to.
-        ctx: Context object for HTTP requests.
-        new_settings: The new settings to import (dict or list).
-
-    Returns:
-        dict | list: The updated settings.
-
-    Raises:
-        SystemExit: If settings already exist and neither merge nor replace is requested,
-                   or if the nested key does not exist.
-    """
-    upstream_settings: list = utils.read_settings_from_upstream(uri, ctx)
-    # Check for conflicts or early exit
-    if new_settings in upstream_settings:
-        utils.exit_action(ctx, success=True, message="Your setting is already present")
-
-    # Prepare payload
-    payload = new_settings
-
-    return payload
+        utils.exit_action(
+            ctx,
+            success=False,
+            message=f"Failed unpublishing '{cryptokey_id}' for '{dns_zone}'.",
+            response=r,
+        )
 
 
 def is_dnssec_key_present(uri: str, secret: str, ctx: click.Context) -> bool:
@@ -423,5 +604,10 @@ def exit_if_cryptokey_does_not_exist(
     """
     r = utils.http_get(uri, ctx)
     if r.status_code == 404:
+        if success:
+            ctx.obj.logger.info("Requested cryptokey does not exist.")
+        else:
+            ctx.obj.logger.error("Requested cryptokey does not exist.")
         utils.exit_action(ctx, success=success, message=exit_message)
+    ctx.obj.logger.info("Requested cryptokey is present.")
     return r
