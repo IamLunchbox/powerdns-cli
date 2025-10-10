@@ -5,7 +5,7 @@ from typing import NamedTuple
 import pytest
 from click.testing import CliRunner
 from powerdns_cli_test_utils import testutils
-from powerdns_cli_test_utils.testutils import mock_utils, testobject
+from powerdns_cli_test_utils.testutils import mock_utils, testobject,  testenvironment
 
 from powerdns_cli.commands.autoprimary import (
     autoprimary_add,
@@ -27,7 +27,7 @@ def test_autoprimary_add_success(mock_utils, testobject):
     result = runner.invoke(
         autoprimary_add,
         ["1.1.1.1", "ns1.example.com", "--account", "testaccount"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "added" in json.loads(result.output)["message"]
@@ -45,7 +45,7 @@ def test_autoprimary_add_idempotence(mock_utils, testobject):
     result = runner.invoke(
         autoprimary_add,
         ["1.1.1.1", "ns1.example.com"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "present" in json.loads(result.output)["message"]
@@ -58,7 +58,7 @@ def test_autoprimary_list_success(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         autoprimary_list,
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == [{"ip": "2.2.2.2", "nameserver": "ns1.example.com"}]
@@ -74,7 +74,7 @@ def test_autoprimary_delete_success(mock_utils, testobject):
     result = runner.invoke(
         autoprimary_delete,
         ["2.2.2.2", "ns1.example.com"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "deleted" in json.loads(result.output)["message"]
@@ -91,7 +91,7 @@ def test_autoprimary_delete_already_absent(mock_utils, testobject):
     result = runner.invoke(
         autoprimary_delete,
         ["1.1.1.1", "ns1.example.com"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "already absent" in json.loads(result.output)["message"]
@@ -125,7 +125,7 @@ def test_autoprimary_import_success(mock_utils, file_mock, file_contents, testob
     result = runner.invoke(
         autoprimary_import,
         ["testfile"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "autoprimary" in json.loads(result.output)["message"]
@@ -161,7 +161,7 @@ def test_autoprimary_import_idempotence(mock_utils, file_mock, file_contents, te
     result = runner.invoke(
         autoprimary_import,
         ["testfile"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -246,7 +246,7 @@ def test_autoprimary_import_replace_success(
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "autoprimary" in json.loads(result.output)["message"]
@@ -282,7 +282,7 @@ def test_autoprimary_import_replace_idempotence(mock_utils, file_mock, testobjec
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     assert "already present" in json.loads(result.output)["message"]
@@ -335,7 +335,7 @@ def test_autoprimary_import_replace_error(
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -370,7 +370,7 @@ def test_autoprimary_import_ignore_error(
     result = runner.invoke(
         autoprimary_import,
         ["testfile", "--replace", "--ignore-errors"],
-        obj=testobject,
+        obj=testobject, env=testenvironment, 
     )
     assert result.exit_code == 0
     get.assert_called()

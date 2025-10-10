@@ -26,7 +26,7 @@ def testobject():
     obj = ContextObj()
     obj.config["apihost"] = "http://example.com"
     obj.config["major_version"] = 5
-    obj.config["log_level"] = "INFO"
+    obj.config["debug"] = False
     obj.config["json"] = True
     obj.config["pytest"] = True
     return obj
