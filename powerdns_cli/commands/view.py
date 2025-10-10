@@ -19,23 +19,23 @@ from typing import NoReturn, TextIO
 import click
 
 from ..utils import main as utils
-from ..utils.validation import PowerDNSZone
+from ..utils.validation import DefaultCommand, powerdns_zone
 
 
 @click.group()
 @click.pass_context
 def view(ctx: click.Context):
     """Set view to limit zone access"""
-    if ctx.obj.config["major_version"] < 5:
-        utils.print_output({"error": "Your authoritative dns-server does not support views."})
-        raise SystemExit(1)
 
 
-@view.command("add")
+@view.command("add",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
 @click.argument("view_id", type=click.STRING, metavar="view")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.pass_context
-def view_add(ctx: click.Context, view_id: str, dns_zone: str) -> NoReturn:
+def view_add(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoReturn:
     """Add a zone to a view, creates the view if it did not exist beforehand."""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
 
@@ -60,11 +60,14 @@ def view_add(ctx: click.Context, view_id: str, dns_zone: str) -> NoReturn:
             )
 
 
-@view.command("delete")
+@view.command("delete",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
 @click.argument("view_id", type=click.STRING, metavar="view")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@powerdns_zone
 @click.pass_context
-def view_delete(ctx: click.Context, view_id: str, dns_zone: str) -> NoReturn:
+def view_delete(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoReturn:
     """Deletes a DNS zone from a view."""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
 
@@ -92,10 +95,13 @@ def view_delete(ctx: click.Context, view_id: str, dns_zone: str) -> NoReturn:
         )
 
 
-@view.command("export")
+@view.command("export",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
 @click.argument("view_id", type=click.STRING, metavar="view")
 @click.pass_context
-def view_export(ctx, view_id):
+def view_export(ctx, view_id, **kwargs):
     """
     Exports a single view for its configured zones
     """
@@ -103,7 +109,10 @@ def view_export(ctx, view_id):
     utils.show_setting(ctx, uri, "view", "export")
 
 
-@view.command("import")
+@view.command("import",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
 @click.argument("file", type=click.File())
 @click.option(
     "--replace",
@@ -113,7 +122,7 @@ def view_export(ctx, view_id):
 )
 @click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
 @click.pass_context
-def view_import(ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool) -> NoReturn:
+def view_import(ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool, **kwargs) -> NoReturn:
     """Imports views and their contents into the server.
     Must be a list of dictionaries, like: [{'view1':['example.org']}]
     """
@@ -151,9 +160,13 @@ def view_import(ctx: click.Context, file: TextIO, replace: bool, ignore_errors: 
     utils.exit_action(ctx, success=True, message="Successfully imported views from file.")
 
 
-@view.command("list")
+@view.command(
+    "list",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+)
 @click.pass_context
-def view_list(ctx):
+def view_list(ctx, **kwargs):
     """
     Shows all views and their configuration as a list
     """
@@ -168,17 +181,16 @@ def view_spec():
     utils.open_spec("view")
 
 
-# pylint: disable=unused-argument
-@view.command("update")
-@click.argument("view_id", type=click.STRING, metavar="view")
-@click.argument("dns_zone", type=PowerDNSZone, metavar="zone")
+@view.command("update",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,)
 @click.pass_context
-def view_update(ctx: click.Context, view_id: str, dns_zone: str):
+@click.argument("view_id", type=click.STRING, metavar="view")
+@powerdns_zone
+def view_update(ctx: click.Context, view_id: str, dns_zone: str, **kwargs):
     """Update a view to contain the given zone"""
     ctx.forward(view_add)
-
-
-# pylint: enable=unused-argument
 
 
 def add_view_import(
