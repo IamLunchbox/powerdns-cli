@@ -1,3 +1,17 @@
+import click
+import pytest
+from powerdns_cli.utils.validation import validate_dns_zone
+def test_valid_zone():
+    canonical_zone = validate_dns_zone(None, "example.com.")
+    converted_zone = validate_dns_zone(None, "example.com")
+    assert converted_zone == "example.com."
+    assert canonical_zone == "example.com."
+
+
+def test_invalid_zone():
+    for bad_zone in ("-example.com.", "example.com..", "^example.com.", "example"):
+        with pytest.raises(click.BadParameter):
+            validate_dns_zone(None, bad_zone)
 # import click
 # import pytest
 #
