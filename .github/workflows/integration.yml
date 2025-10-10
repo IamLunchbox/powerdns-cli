@@ -85,7 +85,7 @@ jobs:
       - name: Delete part of a record
         run: powerdns-cli record delete delete example.org A 10.0.0.2
       - name: Delete full record
-        run: powerdns-cli record delete -a delete example.org A 192.168.0.1
+        run: powerdns-cli record delete --all delete example.org A 192.168.0.1
       - name: Create a record to disable
         run: powerdns-cli record add disable example.org A 10.0.0.1
       - name: Disable record
@@ -125,7 +125,7 @@ jobs:
       - name: Update TSIGKey name
         run: powerdns-cli tsigkey update test1 -n "newname"
       - name: Update TSIGKey algorithm
-        run: powerdns-cli tsigkey update newname -a "hmac-sha512"
+        run: powerdns-cli tsigkey update newname --algorithm "hmac-sha512"
       - name: Export TSIGKey key
         run: powerdns-cli tsigkey export newname
       - name: Import TSIGKeys
@@ -151,7 +151,7 @@ jobs:
       - name: Add autoprimary
         run: powerdns-cli autoprimary add 127.0.0.1 example.org
       - name: Add autoprimary with name
-        run: powerdns-cli autoprimary add -a test123 127.0.0.1 example.com
+        run: powerdns-cli autoprimary add --active test123 127.0.0.1 example.com
       - name: List autoprimaries
         run: powerdns-cli autoprimary list
       - name: Delete autoprimary
