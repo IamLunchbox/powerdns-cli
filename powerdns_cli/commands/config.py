@@ -14,6 +14,7 @@ Commands:
 import click
 
 from ..utils import main as utils
+from ..utils.validation import DefaultCommand
 
 
 @click.group()
@@ -21,9 +22,13 @@ def config():
     """Overall server configuration"""
 
 
-@config.command("export")
+@config.command(
+    "export",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+)
 @click.pass_context
-def config_export(ctx):
+def config_export(ctx, *args, **kwargs):
     """
     Query the configuration of this PowerDNS instance
     """
@@ -40,9 +45,13 @@ def config_export(ctx):
     utils.exit_action(ctx, success=False, message="Failed obtaining a configuration export.")
 
 
-@config.command("list")
+@config.command(
+    "list",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+)
 @click.pass_context
-def config_list(ctx):
+def config_list(ctx, *args, **kwargs):
     """
     Lists configured dns-servers
     """
@@ -59,9 +68,13 @@ def config_list(ctx):
     utils.exit_action(ctx, success=False, message="Failed listing servers.", response=r)
 
 
-@config.command("stats")
+@config.command(
+    "stats",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+)
 @click.pass_context
-def config_stats(ctx):
+def config_stats(ctx, *args, **kwargs):
     """
     Displays operational statistics of your dns server
     """

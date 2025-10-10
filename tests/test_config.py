@@ -1,7 +1,7 @@
 import json
 
 from click.testing import CliRunner
-from powerdns_cli_test_utils.testutils import mock_utils, testobject
+from powerdns_cli_test_utils.testutils import mock_utils, testobject, testenvironment
 
 from powerdns_cli.commands.config import config_export, config_list, config_stats
 
@@ -15,7 +15,7 @@ def test_config_export_success(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         config_export,
-        obj=testobject,
+        obj=testobject, env=testenvironment
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == json_output
@@ -27,7 +27,7 @@ def test_config_export_failure(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         config_export,
-        obj=testobject,
+        obj=testobject,env=testenvironment
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -39,7 +39,7 @@ def test_config_list_success(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         config_list,
-        obj=testobject,
+        obj=testobject, env=testenvironment
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == json_output
@@ -51,7 +51,7 @@ def test_config_list_servers_failure(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         config_list,
-        obj=testobject,
+        obj=testobject,env=testenvironment
     )
     assert result.exit_code == 1
     get.assert_called()
@@ -67,7 +67,7 @@ def test_config_stats_success(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         config_stats,
-        obj=testobject,
+        obj=testobject,env=testenvironment
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == json_output
@@ -79,7 +79,7 @@ def test_config_stats_failure(mock_utils, testobject):
     runner = CliRunner()
     result = runner.invoke(
         config_stats,
-        obj=testobject,
+        obj=testobject,env=testenvironment
     )
     assert result.exit_code == 1
     get.assert_called()
