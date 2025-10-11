@@ -18,7 +18,7 @@ import ipaddress
 import logging
 import os.path
 import re
-import tomllib
+from sys import version_info
 from typing import Any, Callable
 
 import click
@@ -27,6 +27,11 @@ from platformdirs import user_config_path
 
 from . import logger
 from .main import exit_action, http_get
+
+if version_info.minor < 11:
+    import tomli as tomllib
+else:
+    import tomllib
 
 DEFAULT_ARGS = {
     "apihost": "url",
@@ -367,7 +372,7 @@ class ContextObj:
         self.handler.setFormatter(formatter)
         self.logger = logging.getLogger("cli_logger")
         self.logger.addHandler(self.handler)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
         self.config: dict[str, Any] = {}
         self.session: requests.Session | None = None
 
