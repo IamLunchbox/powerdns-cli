@@ -68,7 +68,7 @@ env_list = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.tox.env.lint]
 description = "Linting"
-deps = ["flake8", "pylint", "isort", "black", "coverage", "pytest", "pytest-mock"]
+deps = ["flake8", "pylint", "isort", "black", "coverage", "pytest", "pytest-mock", "tomli"]
 commands = [
     ["isort", "--diff", "--check-only", "."],
     ["flake8", "./powerdns_cli"],
