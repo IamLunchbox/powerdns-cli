@@ -1,5 +1,5 @@
 """
-A collection of custom Click parameter types for DNS and IP validation.
+A collection of custom Click parameter types for DNS and IP validation and classes.
 The types are exposed as the following objects
 - AutoprimaryZone
 - IPRange
@@ -7,7 +7,7 @@ The types are exposed as the following objects
 
 These objects can be directly used as click types, since they which already invoked the classes.
 Additionally, the DefaultCommand Class provides command setup and default options to
-each command.
+each command. The ContextObj class provides a custom scaffold for the click.Context object.
 
 Usage:
     These types can be used as Click parameter types in CLI commands. For example:
@@ -18,8 +18,10 @@ import ipaddress
 import logging
 import os.path
 import re
+from itertools import product
+from pathlib import Path
 from sys import version_info
-from typing import Any, Callable
+from typing import Any, Callable, NamedTuple
 
 import click
 import requests
@@ -33,12 +35,22 @@ if version_info.minor < 11:
 else:
     import tomllib
 
+
+class DefaultDictKey(NamedTuple):
+    """NamedTuple Class to annotate a tuple for easier
+    indication of the usage of the tuple items."""
+
+    ctx_key: str
+    cli_key: str
+
+
 DEFAULT_ARGS = {
-    "apihost": "url",
-    "key": "api-key",
-    "json": "json",
-    "debug": "debug",
-    "api_version": "api-version",
+    DefaultDictKey(ctx_key="apihost", cli_key="url"),
+    DefaultDictKey(ctx_key="key", cli_key="apikey"),
+    DefaultDictKey(ctx_key="json", cli_key="json"),
+    DefaultDictKey(ctx_key="debug", cli_key="debug"),
+    DefaultDictKey(ctx_key="insecure", cli_key="insecure"),
+    DefaultDictKey(ctx_key="api_version", cli_key="api-version"),
 }
 
 
@@ -198,7 +210,6 @@ class DefaultCommand(click.Command):
                 ["-a", "--apikey"],
                 help="Provide your apikey manually",
                 type=click.STRING,
-                default=None,
             )
         )
         kwargs["params"].append(
@@ -240,6 +251,7 @@ class DefaultCommand(click.Command):
             ctx: The click context object, containing command-line arguments and configuration.
         """
         # Skip preflight request and object generation during unit tests
+        # breakpoint()
         if ctx.obj.config.get("pytest"):
             if ctx.params.get("dns_zone"):
                 ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
@@ -322,16 +334,27 @@ class DefaultCommand(click.Command):
             "insecure": ctx.params["insecure"],
             "json": ctx.params["json_output"],
         }
-
         # Load additional configuration from TOML file if it exists
-        config_path = user_config_path() / "powerdns-cli" / "config.toml"
-        if os.path.isfile(config_path):
-            with open(config_path, "rb") as f:
-                fileconfig = tomllib.load(f)
-            for ctx_key, conf_key in DEFAULT_ARGS.items():
-                if not ctx.obj.config.get(ctx_key) and fileconfig.get(conf_key.lower()):
-                    ctx.obj.config[ctx_key] = fileconfig[conf_key]
-
+        app_titles = (
+            user_config_path(appname="powerdns-cli"),
+            user_config_path(appname="powerdns_cli"),
+        )
+        config_files = ("config.toml", "configuration.toml")
+        filepaths = list(product(app_titles, config_files))
+        filepaths.extend(
+            [
+                (Path(os.environ["HOME"]), "powerdns-cli.conf"),
+                (Path(os.environ["HOME"]), "powerdns-cli.conf"),
+            ]
+        )
+        for directory, name in filepaths:
+            if os.path.isfile(directory / name):
+                with open(directory / name, "rb") as f:
+                    fileconfig = tomllib.load(f)
+                for ctx_key, conf_key in DEFAULT_ARGS:
+                    if ctx.obj.config.get(ctx_key) is None and fileconfig.get(conf_key.lower()):
+                        ctx.obj.config[ctx_key] = fileconfig[conf_key]
+                break
         # Set logger level
         ctx.obj.logger.setLevel(logging.DEBUG if ctx.obj.config["debug"] else logging.INFO)
         # Exit if required values are missing
