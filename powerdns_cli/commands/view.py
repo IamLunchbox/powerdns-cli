@@ -23,8 +23,7 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 
 @click.group()
-@click.pass_context
-def view(ctx: click.Context):
+def view():
     """Set view to limit zone access"""
 
 

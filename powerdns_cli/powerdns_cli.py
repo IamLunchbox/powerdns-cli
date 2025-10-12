@@ -53,7 +53,8 @@ def print_version():
 
 def main():
     """Main entrypoint to the cli application"""
-    cli(auto_envvar_prefix="POWERDNS_CLI")
+    # pylint: disable-next=no-value-for-parameter
+    cli()
 
 
 if __name__ == "__main__":
