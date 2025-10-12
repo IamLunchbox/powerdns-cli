@@ -90,7 +90,7 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
     # but it derives the location from HOME
     mocker.patch.dict(os.environ, {"HOME": str(tmp_path)})
 
-    DefaultCommand.parse_options(mock_ctx)
+    DefaultCommand.parse_options(mock_ctx,[])
 
     # Assert that the config was loaded from the TOML file
     expected_values = {
@@ -126,7 +126,7 @@ def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
     # but it derives the location from HOME
     mocker.patch.dict(os.environ, {"HOME": str(tmp_path)})
 
-    DefaultCommand.parse_options(mock_ctx)
+    DefaultCommand.parse_options(mock_ctx,[])
 
     # Assert that the config was loaded from the TOML file
     expected_values = {
@@ -147,7 +147,7 @@ def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
 def test_parse_options_without_toml_config(mock_ctx, mocker, tmp_path):
     # Mock user_config_path to return a non-existent file
     mocker.patch.dict(os.environ, {"HOME": str(tmp_path)})
-    DefaultCommand.parse_options(mock_ctx)
+    DefaultCommand.parse_options(mock_ctx,[])
 
     # Assert that the config was set from CLI params
     assert mock_ctx.obj.config["apihost"] == "http://localhost:8080"
@@ -158,10 +158,10 @@ def test_parse_options_missing_required_params(mock_ctx):
     # Simulate missing apikey
     mock_ctx.params["apikey"] = None
     with pytest.raises(click.BadParameter):
-        DefaultCommand.parse_options(mock_ctx)
+        DefaultCommand.parse_options(mock_ctx,[])
 
     # Simulate missing URL
     mock_ctx.params["apikey"] = "test-api-key"
     mock_ctx.params["url"] = None
     with pytest.raises(click.BadParameter):
-        DefaultCommand.parse_options(mock_ctx)
+        DefaultCommand.parse_options(mock_ctx,[])
