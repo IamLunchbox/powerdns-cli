@@ -251,12 +251,15 @@ class DefaultCommand(click.Command):
             ctx: The click context object, containing command-line arguments and configuration.
         """
         # Skip preflight request and object generation during unit tests
-        # breakpoint()
+        log_backlog = []
         if ctx.obj.config.get("pytest"):
+            log_backlog.append("ctx.obj.config.pytest was 'True'.")
             if ctx.params.get("dns_zone"):
+                log_backlog.append("dns_zone is set, validating.")
                 ctx.params["dns_zone"] = validate_dns_zone(ctx, ctx.params["dns_zone"])
+            log_backlog.append("Invoking click.Command")
             super().invoke(ctx)
-        DefaultCommand.parse_options(ctx)
+        DefaultCommand.parse_options(ctx, log_backlog)
         DefaultCommand.set_session_object(ctx)
         DefaultCommand.check_api_version(ctx)
         # Parse and validate dns-zones as early as possible, since api-version is not known
@@ -313,7 +316,7 @@ class DefaultCommand(click.Command):
             )
 
     @staticmethod
-    def parse_options(ctx: click.Context) -> None:
+    def parse_options(ctx: click.Context, log_backlog: list) -> None:
         """Parse and set configuration options for the CLI context.
 
         Args:
@@ -337,20 +340,27 @@ class DefaultCommand(click.Command):
         # Load additional configuration from TOML file if it exists
         configuration_file = identify_config_file()
         if configuration_file:
+            log_backlog.append(f"Detected {configuration_file} as config")
             with open(configuration_file, "rb") as f:
                 fileconfig = tomllib.load(f)
+            log_backlog.append(f"Configuration file parsed with contents: {fileconfig}")
             for ctx_key, conf_key in DEFAULT_ARGS:
                 if ctx.obj.config.get(ctx_key) is None and fileconfig.get(conf_key.lower()):
+                    log_backlog.append(f"Replacing {ctx_key}:None with {fileconfig[conf_key]}")
                     ctx.obj.config[ctx_key] = fileconfig[conf_key]
 
         # Set logger level
         ctx.obj.logger.setLevel(logging.DEBUG if ctx.obj.config["debug"] else logging.INFO)
+        ctx.obj.logger.debug("Logger set up, logging items from backlog.")
+        for log in log_backlog:
+            ctx.obj.logger.debug(log)
         # Exit if required values are missing
         if not ctx.obj.config["key"] or not ctx.obj.config["apihost"]:
             error_msg = (
                 f"Option '--{'apikey' if not ctx.obj.config['key'] else "url"}' is missing, "
                 "provide it through the CLI, environment or configuration file."
             )
+            ctx.obj.logger.error(error_msg)
             raise click.BadParameter(error_msg)
 
     @staticmethod
