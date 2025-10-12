@@ -1,6 +1,6 @@
 import copy
 import json
-from unittest.mock import MagicMock as unittest_MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 import requests
@@ -145,7 +145,7 @@ def file_mock(mocker):
 
 
 class ConditionalMock(testutils.MockUtils):
-    def mock_http_get(self) -> unittest_MagicMock:
+    def mock_http_get(self) -> MagicMock:
         def side_effect(*args, **kwargs):
             match args[0]:
                 case "http://example.com/api/v1/servers/localhost/zones/example.com./cryptokeys":

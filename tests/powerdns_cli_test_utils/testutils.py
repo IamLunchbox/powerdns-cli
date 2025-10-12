@@ -1,7 +1,6 @@
 import copy
 from io import IOBase
 from unittest.mock import MagicMock
-from unittest.mock import MagicMock as unittest_MagicMock
 
 import pytest
 import requests
@@ -58,7 +57,7 @@ class MockUtils:
 
     def mock_http_get(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
-    ) -> unittest_MagicMock:
+    ) -> MagicMock:
         mock_http_get = self.mocker.MagicMock(spec=requests.Response)
         mock_http_get.json.return_value = json_output
         mock_http_get.text.return_value = text_output
@@ -69,7 +68,7 @@ class MockUtils:
 
     def mock_http_post(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
-    ) -> unittest_MagicMock:
+    ) -> MagicMock:
         mock_http_post = self.mocker.MagicMock(spec=requests.Response)
         mock_http_post.json.return_value = json_output
         mock_http_post.text.return_value = text_output
@@ -80,7 +79,7 @@ class MockUtils:
 
     def mock_http_delete(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
-    ) -> unittest_MagicMock:
+    ) -> MagicMock:
         mock_http_delete = self.mocker.MagicMock(spec=requests.Response)
         mock_http_delete.json.return_value = json_output
         mock_http_delete.text.return_value = text_output
@@ -93,7 +92,7 @@ class MockUtils:
 
     def mock_http_put(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
-    ) -> unittest_MagicMock:
+    ) -> MagicMock:
         mock_http_put = self.mocker.MagicMock(spec=requests.Response)
         mock_http_put.json.return_value = json_output
         mock_http_put.text.return_value = text_output
@@ -104,7 +103,7 @@ class MockUtils:
 
     def mock_http_patch(
         self, status_code: int, json_output: dict | list = None, text_output: str = ""
-    ) -> unittest_MagicMock:
+    ) -> MagicMock:
         mock_http_patch = self.mocker.MagicMock(spec=requests.Response)
         mock_http_patch.json.return_value = json_output
         mock_http_patch.text.return_value = text_output

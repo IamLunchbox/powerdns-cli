@@ -1,6 +1,6 @@
 import copy
 import json
-from unittest.mock import MagicMock as unittest_MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 import requests
@@ -162,7 +162,7 @@ def file_mock(mocker):
 
 
 class ConditionalMock(testutils.MockUtils):
-    def mock_http_get(self) -> unittest_MagicMock:
+    def mock_http_get(self) -> MagicMock:
         mock_http_get = self.mocker.MagicMock(spec=requests.Response)
 
         def side_effect(*args, **kwargs):
