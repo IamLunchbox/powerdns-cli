@@ -425,6 +425,7 @@ def identify_config_file() -> Path | None:
     filepaths.extend(
         [
             (Path(os.environ["HOME"]), "powerdns-cli.conf"),
+            (Path(os.environ["HOME"]), "powerdns_cli.conf"),
         ]
     )
     for directory, name in filepaths:
