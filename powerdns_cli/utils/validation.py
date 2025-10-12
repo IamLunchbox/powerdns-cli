@@ -341,9 +341,10 @@ class DefaultCommand(click.Command):
             log_backlog.append(f"Detected {configuration_file} as config")
             with open(configuration_file, "rb") as f:
                 fileconfig = tomllib.load(f)
+                fileconfig = {key.lower(): value for key, value in fileconfig.items()}
             log_backlog.append(f"Configuration file parsed with contents: {fileconfig}")
             for ctx_key, conf_key in DEFAULT_ARGS:
-                if ctx.obj.config.get(ctx_key) is None and fileconfig.get(conf_key.lower()):
+                if ctx.obj.config.get(ctx_key) is None and fileconfig.get(conf_key):
                     log_backlog.append(f"Replacing {ctx_key}:None with {fileconfig[conf_key]}")
                     ctx.obj.config[ctx_key] = fileconfig[conf_key]
 
@@ -359,7 +360,7 @@ class DefaultCommand(click.Command):
                 "provide it through the CLI, environment or configuration file."
             )
             ctx.obj.logger.error(error_msg)
-            raise click.BadParameter(error_msg)
+            exit_action(ctx, False, error_msg)
 
     @staticmethod
     def set_session_object(ctx: click.Context) -> None:
@@ -422,8 +423,8 @@ def identify_config_file() -> Path | None:
     filepaths = list(product(app_titles, config_files))
     filepaths.extend(
         [
-            (Path(os.environ["HOME"]), "powerdns-cli.conf"),
-            (Path(os.environ["HOME"]), "powerdns_cli.conf"),
+            (Path(os.environ["HOME"]), ".powerdns-cli.conf"),
+            (Path(os.environ["HOME"]), ".powerdns_cli.conf"),
         ]
     )
     for directory, name in filepaths:

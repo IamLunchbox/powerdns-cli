@@ -44,8 +44,8 @@ def mock_ctx():
         ("powerdns-cli", "config.toml"),
         ("powerdns_cli", "configuration.toml"),
         ("powerdns-cli", "configuration.toml"),
-        ("", "powerdns-cli.conf"),
-        ("", "powerdns-cli.conf"),
+        ("", ".powerdns-cli.conf"),
+        ("", ".powerdns-cli.conf"),
     ),
 )
 def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str, filename: str):
@@ -157,11 +157,12 @@ def test_parse_options_without_toml_config(mock_ctx, mocker, tmp_path):
 def test_parse_options_missing_required_params(mock_ctx):
     # Simulate missing apikey
     mock_ctx.params["apikey"] = None
-    with pytest.raises(click.BadParameter):
+    with pytest.raises(SystemExit):
         DefaultCommand.parse_options(mock_ctx,[])
 
     # Simulate missing URL
     mock_ctx.params["apikey"] = "test-api-key"
     mock_ctx.params["url"] = None
-    with pytest.raises(click.BadParameter):
+    with pytest.raises(SystemExit):
         DefaultCommand.parse_options(mock_ctx,[])
+        breakpoint()
