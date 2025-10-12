@@ -335,26 +335,14 @@ class DefaultCommand(click.Command):
             "json": ctx.params["json_output"],
         }
         # Load additional configuration from TOML file if it exists
-        app_titles = (
-            user_config_path(appname="powerdns-cli"),
-            user_config_path(appname="powerdns_cli"),
-        )
-        config_files = ("config.toml", "configuration.toml")
-        filepaths = list(product(app_titles, config_files))
-        filepaths.extend(
-            [
-                (Path(os.environ["HOME"]), "powerdns-cli.conf"),
-                (Path(os.environ["HOME"]), "powerdns-cli.conf"),
-            ]
-        )
-        for directory, name in filepaths:
-            if os.path.isfile(directory / name):
-                with open(directory / name, "rb") as f:
-                    fileconfig = tomllib.load(f)
-                for ctx_key, conf_key in DEFAULT_ARGS:
-                    if ctx.obj.config.get(ctx_key) is None and fileconfig.get(conf_key.lower()):
-                        ctx.obj.config[ctx_key] = fileconfig[conf_key]
-                break
+        configuration_file = identify_config_file()
+        if configuration_file:
+            with open(configuration_file, "rb") as f:
+                fileconfig = tomllib.load(f)
+            for ctx_key, conf_key in DEFAULT_ARGS:
+                if ctx.obj.config.get(ctx_key) is None and fileconfig.get(conf_key.lower()):
+                    ctx.obj.config[ctx_key] = fileconfig[conf_key]
+
         # Set logger level
         ctx.obj.logger.setLevel(logging.DEBUG if ctx.obj.config["debug"] else logging.INFO)
         # Exit if required values are missing
@@ -401,3 +389,35 @@ class ContextObj:
 
 
 # pylint: enable=too-few-public-methods
+
+
+def identify_config_file() -> Path | None:
+    """
+    Identifies and returns the path to the first found PowerDNS CLI configuration file.
+
+    Searches for configuration files in standard user config paths and the user's home directory.
+    The function checks for the following file patterns:
+    - In user config directories (for appnames "powerdns-cli" and "powerdns_cli"):
+        - config.toml
+        - configuration.toml
+    - In the user's home directory:
+        - powerdns-cli.conf
+
+    Returns:
+        Path | None: The path to the first found configuration file, or None if none is found.
+    """
+    app_titles = (
+        user_config_path(appname="powerdns-cli"),
+        user_config_path(appname="powerdns_cli"),
+    )
+    config_files = ("config.toml", "configuration.toml")
+    filepaths = list(product(app_titles, config_files))
+    filepaths.extend(
+        [
+            (Path(os.environ["HOME"]), "powerdns-cli.conf"),
+        ]
+    )
+    for directory, name in filepaths:
+        if os.path.isfile(directory / name):
+            return directory / name
+    return None
