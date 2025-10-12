@@ -54,7 +54,7 @@ score = false
 max-line-length = 100
 
 [tool.pylint."DISABLE"]
-disable = ["unused-argument", "too-many-arguments", "too-many-positional-arguments", "no-value-for-parameter", "too-many-lines"]
+disable = ["too-many-arguments", "too-many-positional-arguments", "unused-argument"]
 
 [tool.bandit]
 exclude_dirs = ["tests"]
