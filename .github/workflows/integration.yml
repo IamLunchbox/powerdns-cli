@@ -209,7 +209,7 @@ jobs:
       - name: Build cli
         run: pip install .
       - name: Write config file
-        run: echo -e 'APIKEY = "1FooBarBaz2"\nURL = "http://localhost:8082\n" > $HOME/powerdns-cli.conf
+        run: echo -e 'APIKEY = "1FooBarBaz2"\nURL = "http://localhost:8082"' > $HOME/powerdns-cli.conf
 # Zone Management Tests
       - name: Add master zone
         run: powerdns-cli zone add example.org MASTER

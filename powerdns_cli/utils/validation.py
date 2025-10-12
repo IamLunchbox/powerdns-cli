@@ -153,9 +153,6 @@ class AutoprimaryZoneType(click.ParamType):
         return value.rstrip(".")
 
 
-AutoprimaryZone = AutoprimaryZoneType()
-
-
 class IPRangeType(click.ParamType):
     """Conversion class to ensure, that a provided string is a valid ip range"""
 
@@ -166,9 +163,6 @@ class IPRangeType(click.ParamType):
             return str(ipaddress.ip_network(value, strict=False))
         except (ValueError, ipaddress.AddressValueError):
             self.fail(f"{value!r} is no valid IP-address range", param, ctx)
-
-
-IPRange = IPRangeType()
 
 
 class IPAddressType(click.ParamType):
@@ -183,7 +177,11 @@ class IPAddressType(click.ParamType):
             self.fail(f"{value!r} is no valid IP-address", param, ctx)
 
 
+# pylint: disable=invalid-name
 IPAddress = IPAddressType()
+AutoprimaryZone = AutoprimaryZoneType()
+IPRange = IPRangeType()
+# pylint: enable=invalid-name
 
 
 class DefaultCommand(click.Command):
