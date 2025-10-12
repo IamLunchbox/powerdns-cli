@@ -63,7 +63,7 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
         ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
+        exit_action(ctx, False, f"Request error: {e}")
 
 
 def http_get(
@@ -76,7 +76,7 @@ def http_get(
             ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
+        exit_action(ctx, False, f"Request error: {e}")
 
 
 def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
@@ -86,7 +86,7 @@ def http_patch(uri: str, ctx: click.Context, payload: dict) -> requests.Response
         ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
+        exit_action(ctx, False, f"Request error: {e}")
 
 
 def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
@@ -96,7 +96,7 @@ def http_post(uri: str, ctx: click.Context, payload: dict) -> requests.Response:
         ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
+        exit_action(ctx, False, f"Request error: {e}")
 
 
 def http_put(
@@ -108,7 +108,7 @@ def http_put(
         ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
-        raise SystemExit(json.dumps({"error": f"Request error: {e}"}, indent=4)) from e
+        exit_action(ctx, False, f"Request error: {e}")
 
 
 def make_dnsname(name: str, zone: str) -> str:
