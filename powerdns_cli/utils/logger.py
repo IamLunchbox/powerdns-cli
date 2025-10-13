@@ -6,6 +6,7 @@ log records,custom messages, and success statuses in a structured dictionary.
 
 import json
 import logging
+from collections import OrderedDict
 from typing import Any
 
 import click
@@ -57,29 +58,34 @@ class ResultHandler(logging.Handler):
         """
         self.result["message"] = message
 
-    def log_http_data(self, ctx: click.Context, response: requests.Response) -> None:
+    def log_http_data(
+        self, ctx: click.Context, response: requests.Response, log_response_body: bool = True
+    ) -> None:
         """Sets the data in the result dictionary.
 
         Args:
             ctx: A click context object to save the response data to.
             response: A requests.Response object.
+            log_response_body: A boolean to determine, if the response body may be logged. Can be
+                turned off to omit sensitive data.
         """
         response_data = {"status_code": response.status_code, "reason": response.reason}
-        try:
-            response_data["json"] = response.json()
-            response_data["text"] = ""
-        except json.JSONDecodeError:
-            response_data["json"] = {}
-            response_data["text"] = response.text
+        if log_response_body:
+            try:
+                response_data["json"] = response.json()
+                response_data["text"] = ""
+            except json.JSONDecodeError:
+                response_data["json"] = {}
+                response_data["text"] = response.text
+        request_data = {
+            "method": response.request.method,
+            "url": response.request.url,
+        }
         if ctx and ctx.obj.config["debug"]:
-            request_data = {
-                "method": response.request.method,
-                "body": json.loads(response.request.body) if response.request.body else "",
-                "url": response.request.url,
-            }
-        else:
-            request_data = {}
-        http_log = {"response": response_data, "request": request_data}
+            request_data["body"] = (
+                json.loads(response.request.body) if response.request.body else ""
+            )
+        http_log = {"request": request_data, "response": response_data}
         self.result["http"].append(http_log)
 
     def set_success(self, success: bool = True) -> None:
@@ -92,4 +98,7 @@ class ResultHandler(logging.Handler):
         Returns:
             Dict[str, Any]: The result dictionary containing logs, message, and success status.
         """
-        return self.result
+        result = OrderedDict(self.result)
+        result.move_to_end("success")
+        result.move_to_end("message")
+        return result
