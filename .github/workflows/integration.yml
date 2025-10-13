@@ -45,18 +45,18 @@ jobs:
       - name: Show version
         run: powerdns-cli version
 # Zone Management Tests
-      - name: Add master zone
-        run: powerdns-cli zone add example.org MASTER
+      - name: Add primary zone
+        run: powerdns-cli zone add example.org PRIMARY
       - name: Add native zone
         run: powerdns-cli zone add example.com. NATIVE
-      - name: Add slave zone
-        run: powerdns-cli zone add example.org. slave
+      - name: Add secondary zone
+        run: powerdns-cli zone add example.org. secondary
       - name: List zones
         run: powerdns-cli zone list
       - name: Add duplicate native zone
         run: powerdns-cli zone add example.org NATIVE
-      - name: Add duplicate master zone
-        run: powerdns-cli zone add example.org MASTER
+      - name: Add duplicate primary zone
+        run: powerdns-cli zone add example.org PRIMARY | grep "already"
       - name: Delete zone
         run: powerdns-cli zone delete -f example.com.
       - name: Delete absent zone
@@ -67,11 +67,15 @@ jobs:
         run: powerdns-cli zone notify example.org
       - name: Import zone
         run: powerdns-cli zone import --force ./integration/import-zone.json
+      - name: Search zone
+        run: powerdns-cli zone search --max 5 "test.example.org"
+      - name: Flush zone cache
+        run: powerdns-cli zone flush-cache example.org.
 # Record Management Tests
       - name: Add Record
         run: powerdns-cli record add add example.org A 10.0.0.1
       - name: Add duplicate record
-        run: powerdns-cli record add add example.org A 10.0.0.2
+        run: powerdns-cli record add add example.org A 10.0.0.2 | grep "already"
       - name: Add CNAME record with different ttl
         run: powerdns-cli record add --ttl 60 cname example.org CNAME "example.org."
       - name: Run extend on no preexisting record
@@ -97,11 +101,7 @@ jobs:
       - name: Export zone as json
         run: powerdns-cli zone export example.org
       - name: Export zone as bind / axfr
-        run: powerdns-cli zone export -b example.org
-      - name: Search
-        run: powerdns-cli zone search --max 5 "test.example.org"
-      - name: Flush zone cache
-        run: powerdns-cli zone flush-cache example.org.
+        run: powerdns-cli record export -b example.org
       - name: Import rrsets
         run: powerdns-cli record import ./integration/import-record.json
 # Config Tests
@@ -211,12 +211,12 @@ jobs:
       - name: Write config file
         run: echo -e 'APIKEY = "1FooBarBaz2"\nURL = "http://localhost:8082"' > $HOME/.powerdns-cli.conf
 # Zone Management Tests
-      - name: Add master zone
-        run: powerdns-cli zone add example.org MASTER
+      - name: Add primary zone
+        run: powerdns-cli zone add example.org PRIMARY
       - name: Add native zone
         run: powerdns-cli zone add example.com. NATIVE
       - name: Add variant zone
-        run: powerdns-cli zone add example.com..variant1 SLAVE
+        run: powerdns-cli zone add example.com..variant1 SECONDARY
       - name: Add view for 10.0.0.0/8
         run: powerdns-cli network add 10.0.0.0/8 test
       - name: Add view for 0.0.0.0/0
