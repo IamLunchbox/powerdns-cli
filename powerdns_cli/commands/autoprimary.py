@@ -18,7 +18,14 @@ from ..utils.validation import AutoprimaryZone, DefaultCommand, IPAddress
 
 @click.group()
 def autoprimary():
-    """Set up autoprimary configuration"""
+    """Change autoprimaries, which may modify this server
+
+    Autoprimaries may automatically provision their secondaries with notifcations.
+    To edit the configured autoprimaries, these action may be used. Additionally,
+    autosecondary support must be enabled within a zone and other requirements must
+    be met. Check the documentation here:
+    https://doc.powerdns.com/authoritative/modes-of-operation.html
+    """
 
 
 @autoprimary.command(

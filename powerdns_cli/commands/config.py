@@ -21,7 +21,7 @@ from ..utils.validation import DefaultCommand
 
 @click.group()
 def config():
-    """Overall server configuration"""
+    """Show servers and their configuration"""
 
 
 @config.command(

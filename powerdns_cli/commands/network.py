@@ -23,7 +23,13 @@ from ..utils.validation import DefaultCommand, IPRange
 
 @click.group()
 def network():
-    """Shows and sets up network views to limit access to DNS entries."""
+    """Set up networks views
+
+    A view contains a list of domains, each member of the view may access. The network
+    endpoint manages these view members. Members consist of IP-addressranges and may include
+    public and private ones. If anyone may query the zones of a view, 0.0.0.0/0 is a valid
+    view member.
+    """
 
 
 @network.command(

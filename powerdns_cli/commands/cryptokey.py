@@ -27,7 +27,11 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def cryptokey():
-    """Configure cryptokeys"""
+    """Manage DNSSEC-Keys
+
+    This action allows configuring DNSSEC-Keys for a single zone. Keys can be published and active.
+    Simply creating or importing an active key does activate DNSSEC automatically.
+    """
 
 
 @cryptokey.command(

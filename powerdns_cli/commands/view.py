@@ -24,7 +24,7 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def view():
-    """Set view to limit zone access"""
+    """Configure views, who limit zone access based on IPs"""
 
 
 @view.command(

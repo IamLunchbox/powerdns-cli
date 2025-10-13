@@ -4,12 +4,12 @@ A Click-based CLI module for managing DNS zones in PowerDNS.
 This module provides a comprehensive set of commands for managing DNS zones.
 
 Commands:
-    add: Adds a new DNS zone with a specified type and optional master servers.
+    add: Adds a new DNS zone with a specified type and optional primary servers.
     delete: Deletes a DNS zone, with an option to force deletion without confirmation.
-    export: Exports a zone's configuration in JSON or BIND format.
+    export: Exports a zone's configuration in JSON.
     flush-cache: Flushes the cache for a specified zone.
     import: Imports a zone from a file, with options to force or merge configurations.
-    notify: Notifies slave servers of changes to a zone.
+    notify: Notifies secondary servers of changes to a zone.
     rectify: Rectifies a zone, ensuring DNSSEC consistency.
     search: Performs a full-text search in the RRSET database.
     list: Lists all configured zones on the DNS server.
@@ -26,7 +26,13 @@ from ..utils.validation import DefaultCommand, IPAddress, powerdns_zone
 
 @click.group()
 def zone():
-    """Manage zones"""
+    """
+    Manage zones and their configuration
+
+    Adding and removing zones is straighforward. Adding a zone keeps default values, which
+    powerdns sets itself. Use zone config to change settings after creating the zone.
+    Or create a json file with your wished configuration and import it.
+    """
 
 
 @zone.command(
@@ -272,9 +278,9 @@ def zone_notify(
     **kwargs,
 ) -> NoReturn:
     """
-    Let the server notify its slaves of changes to the given zone.
-    Fails when the zone kind is neither master nor slave, or master and slave are
-    disabled in the configuration. Only works for slave if renotify is enabled.
+    Let the server notify its secondaries of changes to the given zone.
+    Fails when the zone kind is neither primary nor secondary, or primary and secondary are
+    disabled in the configuration. Only works for secondaries when all preconditions are met.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/notify"
     ctx.obj.logger.info(f"Sending notify request for zone: {dns_zone}.")

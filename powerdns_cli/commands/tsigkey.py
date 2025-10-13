@@ -25,7 +25,7 @@ from ..utils.validation import DefaultCommand
 
 @click.group()
 def tsigkey():
-    """Set up tsigkeys"""
+    """Set up server wide TSIGKeys, to sign transfer messages"""
 
 
 @tsigkey.command(

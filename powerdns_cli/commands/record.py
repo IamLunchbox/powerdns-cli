@@ -24,7 +24,21 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def record():
-    """Resource records of a zone"""
+    """Edit resource records (RRSets) of a zone
+
+    This action enabled changing RRSets of a zone without the necessity (and danger)
+    of specifying additional zone data. It is not possible to only change the ttl of a RRSet.
+    To do this, it is required to remove and readd a RRSet. But facilitating the export and import
+    function may prove useful.
+    By default, the add action will replace the current content of the RRSEt. For example:
+
+    www.example.com in A 127.0.0.1
+    www.example.com in A 127.0.0.2
+
+    will be replaced with powerdns-cli record add www example.com A 10.0.0.1 to:
+    www.example.com in A 10.0.0.1
+
+    """
 
 
 @record.command(
@@ -420,8 +434,9 @@ def record_export(
 def record_import(ctx: click.Context, file: TextIO, replace: bool, **kwargs) -> NoReturn:
     """
     Imports a rrset into a zone.
+
     Imported as a dictionary: {'id':str, 'rrsets':[]}, all other keys are ignored.
-    'name' substitutes 'id'.
+    'name' optionally substitutes 'id'. You may use - to declare the input as STDIN.
     """
     new_rrsets = utils.extract_file(file)
     validate_rrset_import(ctx, new_rrsets)

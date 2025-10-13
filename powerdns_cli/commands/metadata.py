@@ -23,7 +23,14 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def metadata():
-    """Set up metadata for a zone"""
+    """Configure zone metadata
+
+    Metadata has a predefined list of metadata entries, which are validated by the server.
+    If an entry does not match the list, the update will be rejected. It is possible to set
+    custom metadata, if the name starts with '-X'. SOA-EDIT-API may not be edited through the cli.
+    The list of valid metadata items can be found here:
+    https://doc.powerdns.com/authoritative/domainmetadata.html
+    """
 
 
 @metadata.command(
