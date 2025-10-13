@@ -6,6 +6,7 @@ This module provides a comprehensive set of commands for managing DNS zones.
 Commands:
     add: Adds a new DNS zone with a specified type and optional primary servers.
     delete: Deletes a DNS zone, with an option to force deletion without confirmation.
+    config: Updates specific configuration items.
     export: Exports a zone's configuration in JSON.
     flush-cache: Flushes the cache for a specified zone.
     import: Imports a zone from a file, with options to force or merge configurations.
@@ -115,7 +116,7 @@ def zone_delete(
     upstream_zones = query_zones(ctx)
     if dns_zone not in [single_zone["name"] for single_zone in upstream_zones]:
         ctx.obj.logger.info(f"Zone {dns_zone} already absent.")
-        utils.exit_action(ctx, success=True, message=f"Zone {dns_zone} already absent")
+        utils.exit_action(ctx, success=True, message=f"Zone {dns_zone} already absent.")
 
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     warning = f"!!!! WARNING !!!!!\nYou are attempting to delete {dns_zone}\nAre you sure?"
@@ -129,11 +130,118 @@ def zone_delete(
 
     if r.status_code == 204:
         ctx.obj.logger.info(f"Successfully deleted {dns_zone}.")
-        utils.exit_action(ctx, success=True, message=f"Successfully deleted {dns_zone}", response=r)
+        utils.exit_action(
+            ctx, success=True, message=f"Successfully deleted {dns_zone}.", response=r
+        )
     else:
-        ctx.obj.logger.error(f"Failed to delete zone {dns_zone}")
+        ctx.obj.logger.error(f"Failed to delete zone {dns_zone}.")
         utils.exit_action(
             ctx, success=False, message=f"Failed to delete zone {dns_zone}.", response=r
+        )
+
+
+@zone.command(
+    "config",
+    cls=DefaultCommand,
+    context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
+    no_args_is_help=True,
+)
+@click.pass_context
+@powerdns_zone
+@click.option(
+    "--kind",
+    type=click.Choice(["secondary", "primary", "native"], case_sensitive=False),
+    help="Set the zone kind.",
+)
+@click.option(
+    "--primaries",
+    type=click.STRING,
+    multiple=True,
+    help="Set the zone primaries",
+)
+@click.option(
+    "--catalog",
+    type=click.STRING,
+    help="Set the zone catalog.",
+)
+@click.option(
+    "--account",
+    type=click.STRING,
+    help="Set the zone account.",
+)
+@click.option(
+    "--soa-edit",
+    type=click.STRING,
+    help="Set the SOA-EDIT value.",
+)
+@click.option(
+    "--soa-edit-api",
+    type=click.STRING,
+    help="Set the SOA-EDIT-API value.",
+)
+@click.option(
+    "--api-rectify",
+    type=click.BOOL,
+    help="Enable or disable API rectify.",
+)
+@click.option(
+    "--dnssec",
+    type=click.BOOL,
+    help="Enable or disable DNSSEC.",
+)
+@click.option(
+    "--nsec3param",
+    type=click.STRING,
+    help="Set the NSEC3PARAM value, see "
+    "https://doc.powerdns.com/authoritative/dnssec/"
+    "operational.html#setting-the-nsec-modes-and-parameters",
+)
+def zone_config(
+    ctx: click.Context,
+    dns_zone: str,
+    kind: str,
+    primaries: tuple[str, ...],
+    catalog: str,
+    account: str,
+    soa_edit: str,
+    soa_edit_api: str,
+    api_rectify: bool,
+    dnssec: bool,
+    nsec3param: str,
+    **kwargs,
+) -> NoReturn:
+    """
+    Configure overall zone settings.
+    If necessary, this action tries to change the content appropriately to the correct format
+    to not lead to unexpected results. Therefore, if the server does not apply the changes,
+    your input content might be silently discarded by the powerdns api.
+    """
+    setting = parse_settings(ctx, kind, primaries)
+    if check_if_settings_are_present(ctx, dns_zone, setting):
+        ctx.obj.logger.info(f"Settings for {dns_zone} already present.")
+        utils.exit_action(ctx, success=True, message=f"Settings for {dns_zone} already present.")
+    ctx.obj.logger.info(f"Adding {setting} to {dns_zone}.")
+    payload = {"id": dns_zone, **setting}
+    r = utils.http_put(
+        f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}", ctx, payload
+    )
+    if r.status_code == 204 and check_if_settings_are_present(ctx, dns_zone, setting):
+        ctx.obj.logger.info(f"Successfully applied settings to {dns_zone}.")
+        utils.exit_action(
+            ctx, success=True, message=f"Successfully applied settings to {dns_zone}.", response=r
+        )
+    elif r.status_code == 204:
+        ctx.obj.logger.error("Server accepted update but did not change all settings.")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message="Server accepted update but did not change all settings.",
+            response=r,
+        )
+    else:
+        ctx.obj.logger.error(f"Failed to set {setting} in {dns_zone}.")
+        utils.exit_action(
+            ctx, success=False, message=f"Failed to set {setting} in {dns_zone}.", response=r
         )
 
 
@@ -467,3 +575,86 @@ def validate_zone_import(ctx: click.Context, zone_to_import: dict[str, Any]) -> 
         zone_to_import["id"] = zone_to_import["name"]
         ctx.obj.logger.info("Set 'id' from 'name'.")
     ctx.obj.logger.info("Validated zone import file.")
+
+
+def check_if_settings_are_present(
+    ctx: click.Context,
+    dns_zone: str,
+    setting: dict[str, Any],
+) -> bool:
+    """
+    Checks if the specified settings are already present for a given DNS zone.
+
+    This function queries the current zones and verifies if the provided settings
+    already match those of the specified zone. If the zone does not exist, it logs
+    an error and exits.
+
+    Args:
+        ctx: The Click context object, used for logging and configuration.
+        dns_zone: The name of the DNS zone to check.
+        setting: A dictionary of settings to check against the zone's current settings.
+
+    Returns:
+        bool: True if all settings are already present, False otherwise.
+
+    Raises:
+        SystemExit: If the specified zone does not exist.
+    """
+    current_zones = query_zones(ctx)
+    if not any(z for z in current_zones if z["id"] == dns_zone):
+        ctx.obj.logger.error(f"{dns_zone} does not exist, can not edit configuration.")
+        utils.exit_action(
+            ctx, success=False, message=f"{dns_zone} does not exist, can not edit configuration."
+        )
+    else:
+        upstream_zone = [z for z in current_zones if z["id"] == dns_zone][0]
+    if all(value == upstream_zone[key] for key, value in setting.items() if value):
+        return True
+    return False
+
+
+def parse_settings(
+    ctx: click.Context,
+    kind: str,
+    primaries: tuple[str, ...],
+) -> dict[str, Any]:
+    """
+    Parses and validates zone settings from CLI context and arguments.
+
+    This function constructs a dictionary of zone settings based on the provided
+    kind, primaries, and any additional settings present in the Click context.
+    It also performs basic validation to ensure at least one setting is specified.
+
+    Args:
+        ctx: The Click context object, containing all CLI parameters.
+        kind: The zone kind (e.g., "primary" or "secondary").
+        primaries: A list of primary servers for secondary zones.
+
+    Returns:
+        A dictionary of zone settings, ready to be sent to the PowerDNS API.
+
+    Raises:
+        SystemExit: If no settings are specified, logs an error and exits.
+    """
+    setting = {}
+    if kind == "primary":
+        setting["kind"] = "Master"
+    if kind == "secondary":
+        setting["kind"] = "Slave"
+    if primaries:
+        setting["masters"] = list(primaries)
+    for item in (
+        "catalog",
+        "account",
+        "soa_edit",
+        "soa_edit_api",
+        "api_rectify",
+        "dnssec",
+        "nsec3param",
+    ):
+        if ctx.params[item]:
+            setting[item] = ctx.params[item]
+    if not setting:
+        ctx.obj.logger.error("No settings specified.")
+        utils.exit_action(ctx, success=False, message="No settings specified.")
+    return setting

@@ -49,6 +49,10 @@ jobs:
         run: powerdns-cli zone add example.org PRIMARY
       - name: Add native zone
         run: powerdns-cli zone add example.com. NATIVE
+      - name: Change config for native zone
+        run:  powerdns-cli zone config example.com  --kind Primary
+      - name: Idempotent config change
+        run:  powerdns-cli zone config example.com  --kind Primary | grep already
       - name: Add secondary zone
         run: powerdns-cli zone add example.org. secondary
       - name: List zones
@@ -74,6 +78,8 @@ jobs:
 # Record Management Tests
       - name: Add Record
         run: powerdns-cli record add add example.org A 10.0.0.1
+      - name: Add extra record
+        run: powerdns-cli record add add example.org A 10.0.0.2
       - name: Add duplicate record
         run: powerdns-cli record add add example.org A 10.0.0.2 | grep "already"
       - name: Add CNAME record with different ttl
