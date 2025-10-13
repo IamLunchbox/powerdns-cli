@@ -295,9 +295,9 @@ class DefaultCommand(click.Command):
             - Exits with an error if the server is unreachable or the version cannot be detected.
         """
         if not ctx.obj.config["api_version"]:
-            ctx.obj.logger.debug("API version unset, performing version detection")
+            ctx.obj.logger.debug("API version unset, performing version detection.")
             uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
-            preflight_request = http_get(uri, ctx, log_request=False)
+            preflight_request = http_get(uri, ctx, log_body=False)
             if preflight_request.status_code != 200:
                 exit_action(ctx, False, "Failed to reach server for version detection.")
             ctx.obj.config["api_version"] = int(
@@ -338,14 +338,14 @@ class DefaultCommand(click.Command):
         # Load additional configuration from TOML file if it exists
         configuration_file = identify_config_file()
         if configuration_file:
-            log_backlog.append(f"Detected {configuration_file} as config")
+            log_backlog.append(f"Detected {configuration_file} as config.")
             with open(configuration_file, "rb") as f:
                 fileconfig = tomllib.load(f)
                 fileconfig = {key.lower(): value for key, value in fileconfig.items()}
-            log_backlog.append(f"Configuration file parsed with contents: {fileconfig}")
+            log_backlog.append(f"Configuration file parsed with contents: {fileconfig}.")
             for ctx_key, conf_key in DEFAULT_ARGS:
                 if ctx.obj.config.get(ctx_key) is None and fileconfig.get(conf_key):
-                    log_backlog.append(f"Replacing {ctx_key}:None with {fileconfig[conf_key]}")
+                    log_backlog.append(f"Replacing {ctx_key}:None with {fileconfig[conf_key]}.")
                     ctx.obj.config[ctx_key] = fileconfig[conf_key]
 
         # Set logger level
