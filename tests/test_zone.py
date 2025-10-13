@@ -86,19 +86,6 @@ def example_com():
     return copy.deepcopy(example_com_zone_dict)
 
 
-example_com_zone_bind = """example.com.    3600    IN      SOA     a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025082405 10800 3600 604800 3600
-mail.example.com.       86400   IN      MX      0 mail.example.com.
-test.example.com.       86400   IN      A       10.0.0.1
-test.example.com.       86400   IN      A       10.0.0.2
-test2.example.com.      86400   IN      A       10.0.1.1
-"""
-
-
-@pytest.fixture
-def example_com_bind():
-    return copy.deepcopy(example_com_zone_bind)
-
-
 example_org_zone_dict = {
     "account": "",
     "api_rectify": False,
@@ -173,10 +160,6 @@ class ConditionalMock(testutils.MockUtils):
                 case "http://example.com/api/v1/servers/localhost/zones/example.com.":
                     json_output = copy.deepcopy(example_com_zone_dict)
                     status_code = 200
-                case "http://example.com/api/v1/servers/localhost/zones/example.com./export":
-                    mock_http_get.text = copy.deepcopy(example_com_zone_bind)
-                    json_output = {}
-                    status_code = 200
                 case value if "http://example.com/api/v1/servers/localhost/zones/" in value:
                     json_output = {"error": "Not found"}
                     status_code = 404
@@ -198,12 +181,12 @@ def conditional_mock_utils(mocker):
 @pytest.mark.parametrize(
     "domain,servertype",
     (
-        ("example.com", "NATIVE"),
-        ("example.com", "MASTER"),
-        ("example.com", "slave"),
+        ("example.org", "NATIVE"),
+        ("example.org", "Primary"),
+        ("example.org", "secondary"),
         ("example.com..variant1", "NATIVE"),
-        ("example.com..variant1", "mASTER"),
-        ("example.com..variant1", "Slave"),
+        ("example.com..variant1", "PRIMARY"),
+        ("example.com..variant1", "SECONDARY"),
     ),
 )
 def test_zone_add_success(
@@ -213,7 +196,7 @@ def test_zone_add_success(
     post = mock_utils.mock_http_post(201, json_output=example_org)
     runner = CliRunner()
     result = runner.invoke(
-        zone_add, ["example.org", "NATIVE"], obj=testobject, env=testutils.testenvironment
+        zone_add, [domain, servertype], obj=testobject, env=testutils.testenvironment
     )
     assert result.exit_code == 0
     assert "created" in json.loads(result.output)["message"]
@@ -582,17 +565,6 @@ def test_zone_export_success(mock_utils, testobject, conditional_mock_utils, exa
     )
     assert result.exit_code == 0
     assert json.loads(result.output)["data"] == example_com
-    get.assert_called_once()
-
-
-def test_zone_export_bind(mock_utils, testobject, conditional_mock_utils, example_com_bind):
-    get = conditional_mock_utils.mock_http_get()
-    runner = CliRunner()
-    result = runner.invoke(
-        zone_export, ["example.com", "-b"], obj=testobject, env=testutils.testenvironment
-    )
-    assert result.exit_code == 0
-    assert json.loads(result.output)["message"].rstrip() == example_com_bind.rstrip()
     get.assert_called_once()
 
 

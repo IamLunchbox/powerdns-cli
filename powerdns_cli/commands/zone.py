@@ -45,16 +45,16 @@ def zone():
 @powerdns_zone
 @click.argument(
     "zonetype",
-    type=click.Choice(["MASTER", "NATIVE", "SLAVE"], case_sensitive=False),
+    type=click.Choice(["PRIMARY", "NATIVE", "SECONDARY"], case_sensitive=False),
 )
 @click.option(
-    "-m", "--master", type=IPAddress, help="Set Zone Masters", default=None, multiple=True
+    "-p", "--primaries", type=IPAddress, help="Set zone primaries", default=None, multiple=True
 )
 def zone_add(
     ctx: click.Context,
     dns_zone: str,
     zonetype: str,
-    master: tuple[str, ...],
+    primaries: tuple[str, ...],
     **kwargs,
 ) -> NoReturn:
     """
@@ -64,7 +64,7 @@ def zone_add(
     payload = {
         "name": dns_zone,
         "kind": zonetype.capitalize(),
-        "masters": list(master),
+        "masters": list(primaries),
     }
 
     current_zones = query_zones(ctx)
@@ -145,39 +145,15 @@ def zone_delete(
 )
 @click.pass_context
 @powerdns_zone
-@click.option(
-    "-b",
-    "--bind",
-    help="Use bind format as output",
-    is_flag=True,
-    default=False,
-)
 def zone_export(
     ctx: click.Context,
     dns_zone: str,
-    bind: bool,
     **kwargs,
 ) -> NoReturn:
     """
-    Export the whole zone configuration, either as JSON or BIND
+    Export the whole zone configuration
     """
-    if bind:
-        ctx.obj.logger.info(f"Exporting {dns_zone} in BIND format.")
-        uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/export"
-        r = utils.http_get(uri, ctx)
-        if r.status_code == 200:
-            ctx.obj.handler.set_message(r.text)
-            ctx.obj.handler.set_data(r)
-            ctx.obj.handler.set_success()
-            utils.exit_cli(ctx)
-        elif r.status_code == 404:
-            ctx.obj.handler.set_message(f"Failed exporting {dns_zone}, not found.")
-            ctx.obj.handler.set_success(False)
-            utils.exit_cli(ctx)
-        ctx.obj.handler.set_message(f"Failed exporting {dns_zone}, unknown error.")
-        ctx.obj.handler.set_success(False)
-        utils.exit_cli(ctx)
-    ctx.obj.logger.info(f"Exporting {dns_zone} as JSON.")
+    ctx.obj.logger.info(f"Exporting {dns_zone}.")
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     utils.show_setting(ctx, uri, "zone", "export")
 

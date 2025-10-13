@@ -373,6 +373,7 @@ def record_extend(
     no_args_is_help=True,
 )
 @powerdns_zone
+@click.option("--bind", "-b", help="Print all records in bind format", is_flag=True)
 @click.option("--name", help="Limit output to chosen names", type=click.STRING)
 @click.option(
     "record_type",
@@ -395,11 +396,28 @@ def record_extend(
 )
 @click.pass_context
 def record_export(
-    ctx: click.Context, dns_zone: str, name: str, record_type: str, **kwargs
+    ctx: click.Context, dns_zone: str, bind: bool, name: str, record_type: str, **kwargs
 ) -> NoReturn:
     """
-    Exports the contents of an existing RRSET.
+    Exports the contents of a single or all existing RRSets.
+
     """
+    if bind:
+        ctx.obj.logger.info(f"Exporting {dns_zone} in BIND format.")
+        uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/export"
+        r = utils.http_get(uri, ctx)
+        if r.status_code == 200:
+            ctx.obj.handler.set_message(r.text)
+            ctx.obj.handler.set_data(r)
+            ctx.obj.handler.set_success()
+            utils.exit_cli(ctx)
+        elif r.status_code == 404:
+            ctx.obj.handler.set_message(f"Failed exporting {dns_zone}, not found.")
+            ctx.obj.handler.set_success(False)
+            utils.exit_cli(ctx)
+        ctx.obj.handler.set_message(f"Failed exporting {dns_zone}, unknown error.")
+        ctx.obj.handler.set_success(False)
+        utils.exit_cli(ctx)
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     if name:
         name = utils.make_dnsname(name, dns_zone)
@@ -414,7 +432,8 @@ def record_export(
             output_list.append(rrset)
     if not output_list and not any((name, record_type)):
         output_list = rrsets
-    ctx.obj.handler.result["data"] = output_list
+    output_with_id = {"id": dns_zone, "rrsets": output_list}
+    ctx.obj.handler.result["data"] = output_with_id
     utils.exit_action(ctx, True, "Successfully exported records", print_data=True)
 
 
@@ -528,9 +547,13 @@ def check_records_for_identical_content(
 
     ctx.obj.logger.info("Checking if requested RRsets are already present in the upstream zone.")
     # Normalize both sets of RRsets
-    new_rrset_contents = [_normalize_rrset(item) for item in new_rrsets["rrsets"]]
+    new_rrset_contents = [
+        _normalize_rrset(item) for item in new_rrsets["rrsets"] if item["type"] != "SOA"
+    ]
     ctx.obj.logger.debug(f"Normalized new rrsets: {new_rrset_contents}")
-    upstream_rrset_contents = [_normalize_rrset(item) for item in upstream_zone["rrsets"]]
+    upstream_rrset_contents = [
+        _normalize_rrset(item) for item in upstream_zone["rrsets"] if item["type"] != "SOA"
+    ]
     ctx.obj.logger.debug(f"Normalized upstream rrsets: {upstream_rrset_contents}")
 
     # Check for presence of all new RRsets in upstream
@@ -727,6 +750,17 @@ def is_value_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
         f"Checking if value is present for RRSet: {new_rrset['name']} ({new_rrset['type']})"
     )
     zone_rrsets = query_zone_rrsets(uri, ctx)
+    # remove modified_at to enable idempotence
+    zone_rrsets = [
+        {
+            **entry,
+            "records": [
+                {k: v for k, v in record_entry.items() if k != "modified_at"}
+                for record_entry in entry["records"]
+            ],
+        }
+        for entry in zone_rrsets
+    ]
 
     for rrset in zone_rrsets:
         if all(rrset[key] == new_rrset[key] for key in ("name", "type", "ttl")) and all(

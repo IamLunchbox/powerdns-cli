@@ -1,6 +1,7 @@
 import copy
 import json
 from typing import Any, NamedTuple
+from unittest.mock import MagicMock
 
 import pytest
 from click.testing import CliRunner
@@ -16,6 +17,13 @@ from powerdns_cli.commands.record import (
     record_extend,
     record_import,
 )
+
+example_com_bind = """example.com.    3600    IN      SOA     a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025082405 10800 3600 604800 3600
+mail.example.com.       86400   IN      MX      0 mail.example.com.
+test.example.com.       86400   IN      A       10.0.0.1
+test.example.com.       86400   IN      A       10.0.0.2
+test2.example.com.      86400   IN      A       10.0.1.1
+"""
 
 example_zone_dict = {
     "account": "",
@@ -379,7 +387,7 @@ def test_record_export_success(mock_utils, testobject, example_zone):
         env=testenvironment,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output)["data"] == [
+    assert json.loads(result.output)["data"]["rrsets"] == [
         {
             "comments": [],
             "name": "test.example.com.",
@@ -869,3 +877,20 @@ def test_record_import_replace_idempotence(
     assert result.exit_code == 0
     assert "already" in json.loads(result.output)["message"]
     get.assert_called_once()
+
+
+def test_record_export_bind(mocker, testobject):
+    def return_json():
+        return {}
+
+    response = MagicMock()
+    response.text = copy.deepcopy(example_com_bind)
+    response.json = return_json
+    response.status_code = 200
+    mocker.patch("powerdns_cli.utils.main.http_get", return_value=response)
+    runner = CliRunner()
+    result = runner.invoke(
+        record_export, ["example.com", "-b"], obj=testobject, env=testutils.testenvironment
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["message"].rstrip() == example_com_bind.rstrip()
