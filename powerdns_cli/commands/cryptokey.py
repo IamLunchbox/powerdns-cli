@@ -80,7 +80,7 @@ def cryptokey_add(
         f"Attempting to add a new cryptokey of type '{key_type}' for zone '{dns_zone}'."
     )
 
-    r = utils.http_post(uri, ctx, payload)
+    r = utils.http_post(uri, ctx, payload, log_body=False)
     if r.status_code == 201:
         ctx.obj.logger.info(
             f"Successfully added a new cryptokey with id '{r.json()['id']}' for zone '{dns_zone}'."
