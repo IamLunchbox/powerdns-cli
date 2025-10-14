@@ -16,7 +16,7 @@ Commands:
     spec: Opens the cryptokey API specification in the browser.
 """
 
-from typing import NoReturn
+from typing import NoReturn, TextIO
 
 import click
 import requests
@@ -42,6 +42,13 @@ def cryptokey():
 )
 @click.pass_context
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
+@click.argument(
+    "algorithm",
+    type=click.Choice(
+        ["rsasha1", "rsasha256", "rsasha512", "ecdsap256sha256", "ed25519", "ed448"],
+        case_sensitive=False,
+    ),
+)
 @powerdns_zone
 @click.option(
     "--active",
@@ -50,36 +57,45 @@ def cryptokey():
     help="Sets the key to active immediately",
 )
 @click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
-@click.option("--bits", type=click.INT, help="Set the key size in bits, required for ZSK")
-@click.option(
-    "--algorithm",
-    type=click.Choice(["rsasha1", "rsasha256", "rsasha512", "ecdsap256sha256", "ed25519", "ed448"]),
-    help="Set the key algorithm",
-)
+@click.option("-b", "--bits", type=click.INT, help="Set the key size in bits, required for ZSK")
 def cryptokey_add(
     ctx: click.Context,
     key_type: str,
+    algorithm: str,
     dns_zone: str,
     active: bool,
     publish: bool,
     bits: int,
-    algorithm: str,
     **kwargs: dict,
 ) -> NoReturn:
     """
-    Adds a cryptokey to the zone. Is disabled and not published by default.
+    Adds a cryptokey to the zone.
+
+    A new cryptokey is disabled and not published by default. Either add the flags here or use
+    publish / active with the appropriate id to change the setting later on.
+    If an RSA key is requested, the size of the rsa-key must be specified as well.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
-    payload = {"active": active, "published": publish, "keytype": key_type}
+    payload = {
+        "active": active,
+        "published": publish,
+        "keytype": key_type,
+    }
+    if bits:
+        payload["bits"] = bits
 
-    for key, val in {"bits": bits, "algorithm": algorithm}.items():
-        if val:
-            payload[key] = val
-
+    if payload.get("algorithm", "").startswith("rsa") and not payload.get("bits"):
+        ctx.obj.logger.error(
+            "Setting a key with a rsa algorithm requires a bitsize to be passed as well."
+        )
+        utils.exit_action(
+            ctx,
+            success=False,
+            message="Setting a key with a rsa algorithm requires a bitsize to be passed as well.",
+        )
     ctx.obj.logger.info(
         f"Attempting to add a new cryptokey of type '{key_type}' for zone '{dns_zone}'."
     )
-
     r = utils.http_post(uri, ctx, payload, log_body=False)
     if r.status_code == 201:
         ctx.obj.logger.info(
@@ -89,7 +105,6 @@ def cryptokey_add(
             ctx,
             success=True,
             message=f"Added a new cryptokey with id {r.json()['id']}.",
-            response=r,
         )
     elif r.status_code == 404:
         ctx.obj.logger.error(f"Failed to create the DNSSEC key: zone '{dns_zone}' does not exist.")
@@ -101,6 +116,7 @@ def cryptokey_add(
         )
     else:
         ctx.obj.logger.error(f"Failed to create the DNSSEC key for zone '{dns_zone}'.")
+        ctx.obj.handler.set_data(r)
         utils.exit_action(
             ctx,
             success=False,
@@ -122,7 +138,7 @@ def cryptokey_delete(
     ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
 ) -> NoReturn:
     """
-    Deletes the given cryptokey-id from all the configured cryptokeys.
+    Deletes a cryptokey.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
@@ -148,6 +164,7 @@ def cryptokey_delete(
         ctx.obj.logger.error(
             f"Failed to delete cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
         )
+        ctx.obj.handler.set_data(r)
         utils.exit_action(
             ctx,
             success=False,
@@ -169,7 +186,7 @@ def cryptokey_disable(
     ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
 ) -> NoReturn:
     """
-    Disables the cryptokey for this zone.
+    Disables a cryptokey.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
@@ -208,6 +225,7 @@ def cryptokey_disable(
         ctx.obj.logger.error(
             f"Failed to disable cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
         )
+        ctx.obj.handler.set_data(r)
         utils.exit_action(
             ctx,
             success=False,
@@ -268,6 +286,7 @@ def cryptokey_enable(
         ctx.obj.logger.error(
             f"Failed to enable cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
         )
+        ctx.obj.handler.set_data(r)
         utils.exit_action(
             ctx,
             success=False,
@@ -289,7 +308,7 @@ def cryptokey_export(
     ctx: click.Context, dns_zone: str, cryptokey_id: str, **kwargs: dict
 ) -> NoReturn:
     """
-    Exports the cryptokey with the given id including the private key.
+    Exports a cryptokey - including the private key.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
@@ -317,6 +336,7 @@ def cryptokey_export(
         ctx.obj.logger.error(
             f"Failed to export cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
         )
+        ctx.obj.handler.set_data(r)
         utils.exit_action(
             ctx,
             success=False,
@@ -334,7 +354,7 @@ def cryptokey_export(
 @click.pass_context
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
 @powerdns_zone
-@click.argument("private-key", type=click.STRING)
+@click.argument("private-key", type=click.File())
 @click.option(
     "--active",
     is_flag=True,
@@ -346,16 +366,28 @@ def cryptokey_import(
     ctx: click.Context,
     key_type: str,
     dns_zone: str,
-    private_key: str,
+    private_key: TextIO,
     active: bool,
     publish: bool,
     **kwargs: dict,
 ) -> NoReturn:
     """
-    Imports a cryptokey to the zone. Is disabled and not published by default.
+    Imports a cryptokey secret to the zone.
+
+    The imported cryptokey is disabled and not published by default. Can be read from stdin
+    if - is specified.
+    File format: {"privatekey": "Yourprivatekey", ...} - all other keys are ignored.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
-    secret = private_key.replace("\\n", "\n")
+    secret = utils.extract_file(ctx, private_key)
+    if not secret.get("privatekey"):
+        ctx.obj.logger.error("Failed importing the file, dict key 'privatekey' is missing.")
+        utils.exit_action(
+            ctx,
+            success=False,
+            message="Failed importing the file, dict key 'privatekey' is missing.",
+        )
+    secret = secret["privatekey"].replace("\\n", "\n")
     payload = {
         "active": active,
         "published": publish,

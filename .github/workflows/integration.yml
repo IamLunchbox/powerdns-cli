@@ -166,16 +166,17 @@ jobs:
         run: powerdns-cli autoprimary import integration/import-autoprimary.json
 # Cryptokey Tests
       - name: Add ZSK cryptokey
-        run: powerdns-cli cryptokey add --algorithm ecdsap256sha256 --bits 256 zsk example.org
+        run: powerdns-cli cryptokey add --bits 256 zsk ecdsap256sha256 example.org
       - name: Add ksk cryptokey
-        run: powerdns-cli cryptokey add ksk example.org
+        run: powerdns-cli cryptokey add ksk ed25519 example.org
       - name: Import a cryptokey secret
         run: >
           powerdns-cli 
-          cryptokey import 
+          cryptokey 
+          import 
           ksk
-          example.org 
-          'Private-key-format: v1.2\nAlgorithm: 13 (ECDSAP256SHA256)\nPrivateKey: 1nM02+BeuUuppbSgtDBIV3106HMTdLNMqV7rnb4t0iA=\n'
+          example.org
+          ./integration/import-cryptokey.json
       - name: List cryptokeys
         run: powerdns-cli cryptokey list example.org
       - name: Delete a cryptokey
@@ -241,7 +242,7 @@ jobs:
         run: powerdns-cli view list
       - name: Show the zones of unrestricted view
         run: powerdns-cli view export unrestricted
-      - name: Test zone import
+      - name: Test view import
         run: powerdns-cli view import ./integration/import-view.json
       - name: Stop and remove manual service container
         if: always()

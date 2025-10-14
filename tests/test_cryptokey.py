@@ -171,7 +171,7 @@ def test_cryptokey_add_success(mock_utils, testobject, example_zsk_key):
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_add,
-        ["zsk", "example.com", "--algorithm", "ed448"],
+        ["zsk", "ed448", "example.com"],
         obj=testobject,
         env=testenvironment,
     )
@@ -189,6 +189,9 @@ def test_cryptokey_add_failed(mock_utils, testobject, conditional_mock_utils):
         cryptokey_add,
         [
             "zsk",
+            "rsasha512",
+            "-b",
+            "2048",
             "example.com.",
         ],
         obj=testobject,
@@ -198,31 +201,33 @@ def test_cryptokey_add_failed(mock_utils, testobject, conditional_mock_utils):
     assert "Failed creating" in json.loads(result.output)["message"]
 
 
-def test_cryptokey_import_success(mock_utils, testobject, conditional_mock_utils, example_new_key):
+def test_cryptokey_import_success(mocker, mock_utils, testobject, conditional_mock_utils, example_new_key):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_new_key)
+    mocker.patch("powerdns_cli.utils.main.extract_file",return_value=example_new_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
-        ["zsk", "example.com.", example_new_key["privatekey"]],
+        ["zsk", "example.com.", "testfile"],
         obj=testobject,
         env=testenvironment,
     )
     assert result.exit_code == 0
-    assert json.loads(result.output)["data"] == example_new_key_dict
+    assert "Successfully" in json.loads(result.output)["message"]
     post.assert_called()
     get.assert_called()
 
 
 def test_cryptokey_import_already_present(
-    mock_utils, testobject, conditional_mock_utils, example_zsk_key
+    mocker, mock_utils, testobject, conditional_mock_utils, example_zsk_key
 ):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output={})
+    mocker.patch("powerdns_cli.utils.main.extract_file",return_value=example_zsk_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
-        ["zsk", "example.com.", example_zsk_key["privatekey"]],
+        ["zsk", "example.com.", "testfile"],
         obj=testobject,
         env=testenvironment,
     )
@@ -232,14 +237,14 @@ def test_cryptokey_import_already_present(
     get.assert_called()
 
 
-def test_cryptokey_import_failed(mock_utils, testobject, conditional_mock_utils, example_new_key):
+def test_cryptokey_import_failed(mocker, mock_utils, testobject, conditional_mock_utils, example_new_key):
     conditional_mock_utils.mock_http_get()
-    error_output = {"error": "The information you provided is incorrect"}
-    mock_utils.mock_http_post(500, json_output=error_output)
+    mock_utils.mock_http_post(500, json_output={"error":"Server error"})
+    mocker.patch("powerdns_cli.utils.main.extract_file",return_value=example_new_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
-        ["zsk", "example.com.", example_new_key["privatekey"]],
+        ["zsk", "example.com.","testfile"],
         obj=testobject,
         env=testenvironment,
     )
