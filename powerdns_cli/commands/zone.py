@@ -331,7 +331,7 @@ def zone_import(
     This might have side effects for other settings, as cryptokeys are associated with a zone!
     """
     ctx.obj.logger.info("Importing zone configuration from file.")
-    settings = utils.extract_file(file)
+    settings = utils.extract_file(ctx, file)
     validate_zone_import(ctx, settings)
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{settings['id']}"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)

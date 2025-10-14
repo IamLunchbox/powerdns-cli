@@ -156,15 +156,16 @@ def open_spec(action: str) -> SystemExit:
     raise SystemExit(click.launch(url))
 
 
-def extract_file(input_file: TextIO) -> dict | list:
+def extract_file(ctx: click.Context, input_file: TextIO) -> dict | list:
     """Extracts a json object from a file input and returns it."""
     try:
         return_object = json.load(input_file)
     except (json.JSONDecodeError, ValueError, TypeError) as e:
-        print_output({"error": f"Loading the file failed with {e}"})
-        raise SystemExit(1) from e
+        ctx.obj.logger.error(f"Failed loading the file with {e}.")
+        exit_action(ctx, False, f"Failed loading the file with {e}.")
     if not isinstance(return_object, (dict, list)):
-        raise ValueError("utils.extract file returned an unexpected filetype")
+        ctx.obj.logger.error("Failed loading the file due to an unexpected filetype.")
+        exit_action(ctx, False, "Failed loading the file due to an unexpected filetype.")
     return return_object
 
 
@@ -200,16 +201,6 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
         exit_cli(ctx)
 
 
-def print_output(output: dict | list, stderr: bool = False) -> None:
-    """Pretty-print a dictionary or list as formatted JSON to stdout.
-
-    Args:
-        output: The dictionary or list to be printed.
-        stderr: Print output to standard error instead of stdout.
-    """
-    click.echo(json.dumps(output, indent=4), err=stderr)
-
-
 def validate_simple_import(
     ctx: click.Context, settings: list[dict], upstream_settings: list[dict], replace: bool
 ) -> None:
@@ -241,31 +232,6 @@ def validate_simple_import(
     if not replace and all(item in upstream_settings for item in settings):
         ctx.obj.handler.set_message("Requested data is already present")
         ctx.obj.handler.set_success()
-        exit_cli(ctx)
-
-
-def handle_import_early_exit(ctx: click.Context, message: str, ignore_errors: bool) -> None:
-    """
-    Handle import errors with configurable behavior based on ignore_errors flag.
-
-    When ignore_errors is False (strict mode):
-    - Prints error to stdout and exits immediately with code 1
-    - Stops all further processing
-
-    When ignore_errors is True (permissive mode):
-    - Logs error but continues execution
-    - Allows processing of remaining items
-
-    Args:
-        ctx: Click context object
-        message: Dictionary containing error information (typically with 'error' key)
-        ignore_errors: If True, log error and continue; if False, log error and exit
-    """
-    if ignore_errors:
-        ctx.obj.logger.error(message)
-    else:
-        ctx.obj.handler.set_message(message)
-        ctx.obj.handler.set_failed()
         exit_cli(ctx)
 
 

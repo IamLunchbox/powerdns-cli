@@ -173,7 +173,7 @@ def network_import(
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     ctx.obj.logger.info(f"Importing networks from file: {file.name}")
 
-    nested_settings = utils.extract_file(file)
+    nested_settings = utils.extract_file(ctx, file)
     if not isinstance(nested_settings, dict) or not isinstance(
         nested_settings.get("networks"), list
     ):

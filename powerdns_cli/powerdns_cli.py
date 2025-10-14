@@ -15,7 +15,6 @@ from .commands.record import record
 from .commands.tsigkey import tsigkey
 from .commands.view import view
 from .commands.zone import zone
-from .utils import main as utils
 
 
 # create click command group with 3 global options
@@ -48,7 +47,7 @@ def print_version():
     # pylint: disable-next=import-outside-toplevel
     import importlib
 
-    utils.print_output({"version": importlib.metadata.version("powerdns-cli")})
+    click.echo(f"powerdns-cli version {importlib.metadata.version('powerdns-cli')}")
 
 
 def main():

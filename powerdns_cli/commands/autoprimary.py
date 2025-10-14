@@ -117,7 +117,7 @@ def autoprimary_import(ctx, file, replace, ignore_errors, **kwargs):
     """Import a list with your autoprimaries settings"""
     ctx.obj.logger.info("Starting autoprimary import process")
 
-    settings = utils.extract_file(file)
+    settings = utils.extract_file(ctx, file)
     ctx.obj.logger.debug(f"Extracted {len(settings)} settings from file")
 
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
@@ -245,7 +245,7 @@ def replace_autoprimary_import(
             r = utils.http_post(uri, ctx, payload=nameserver)
             if r.status_code != 201:
                 ctx.obj.logger.error(f"Failed to add nameserver {nameserver}: HTTP {r.status_code}")
-                utils.handle_import_early_exit(
+                handle_import_early_exit(
                     ctx, f"Failed adding nameserver {nameserver}", ignore_errors
                 )
 
@@ -254,8 +254,31 @@ def replace_autoprimary_import(
         r = utils.http_delete(f"{uri}/{nameserver['nameserver']}/{nameserver['ip']}", ctx)
         if not r.status_code == 204:
             ctx.obj.logger.error(f"Failed to delete nameserver {nameserver}: HTTP {r.status_code}")
-            utils.handle_import_early_exit(
-                ctx, f"Failed deleting nameserver {nameserver}", ignore_errors
-            )
+            handle_import_early_exit(ctx, f"Failed deleting nameserver {nameserver}", ignore_errors)
 
     ctx.obj.logger.info("Autoprimary import replacement completed")
+
+
+def handle_import_early_exit(ctx: click.Context, message: str, ignore_errors: bool) -> None:
+    """
+    Handle import errors with configurable behavior based on ignore_errors flag.
+
+    When ignore_errors is False (strict mode):
+    - Prints error to stdout and exits immediately with code 1
+    - Stops all further processing
+
+    When ignore_errors is True (permissive mode):
+    - Logs error but continues execution
+    - Allows processing of remaining items
+
+    Args:
+        ctx: Click context object
+        message: Dictionary containing error information (typically with 'error' key)
+        ignore_errors: If True, log error and continue; if False, log error and exit
+    """
+    if ignore_errors:
+        ctx.obj.logger.error(message)
+    else:
+        ctx.obj.handler.set_message(message)
+        ctx.obj.handler.set_failed()
+        utils.exit_cli(ctx)

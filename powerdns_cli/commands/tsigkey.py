@@ -154,7 +154,7 @@ def tsigkey_import(
     Import TSIG keys from a file, with optional replacement of existing keys.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
-    settings = utils.extract_file(file)
+    settings = utils.extract_file(ctx, file)
     upstream_settings = get_tsigkey_settings(uri, ctx)
 
     utils.validate_simple_import(ctx, settings, upstream_settings, replace)

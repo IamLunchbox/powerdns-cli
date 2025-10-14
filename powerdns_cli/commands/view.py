@@ -138,7 +138,7 @@ def view_import(
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
     ctx.obj.logger.info("Importing views from file.")
 
-    settings = utils.extract_file(file)
+    settings = utils.extract_file(ctx, file)
     if not validate_view_import(ctx, settings):
         ctx.obj.logger.error("Invalid view structure provided.")
         utils.exit_action(

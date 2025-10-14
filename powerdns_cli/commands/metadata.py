@@ -167,7 +167,7 @@ def metadata_import(ctx, dns_zone, file, replace, ignore_errors, **kwargs) -> No
     """Import metadata for a DNS zone from a file."""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     ctx.obj.logger.info(f"Importing metadata for zone: {dns_zone}")
-    settings = utils.extract_file(file)
+    settings = utils.extract_file(ctx, file)
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     utils.validate_simple_import(ctx, settings, upstream_settings, replace)
     metadata_remove_soa_edit_api(settings, upstream_settings)

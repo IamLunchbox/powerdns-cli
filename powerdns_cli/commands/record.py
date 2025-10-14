@@ -457,7 +457,7 @@ def record_import(ctx: click.Context, file: TextIO, replace: bool, **kwargs) -> 
     Imported as a dictionary: {'id':str, 'rrsets':[]}, all other keys are ignored.
     'name' optionally substitutes 'id'. You may use - to declare the input as STDIN.
     """
-    new_rrsets = utils.extract_file(file)
+    new_rrsets = utils.extract_file(ctx, file)
     validate_rrset_import(ctx, new_rrsets)
 
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{new_rrsets['id']}"
