@@ -76,11 +76,7 @@ def cryptokey_add(
     If an RSA key is requested, the size of the rsa-key must be specified as well.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
-    payload = {
-        "active": active,
-        "published": publish,
-        "keytype": key_type,
-    }
+    payload = {"active": active, "published": publish, "keytype": key_type, "algorithm": algorithm}
     if bits:
         payload["bits"] = bits
 

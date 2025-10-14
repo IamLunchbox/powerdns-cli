@@ -1,16 +1,19 @@
 import json
 import logging
+from collections import OrderedDict
 from unittest.mock import MagicMock
 
-import pytest
-from collections import OrderedDict
-import requests
 import click
+import pytest
+import requests
+
 from powerdns_cli.utils.logger import ResultHandler
+
 
 @pytest.fixture
 def result_handler():
     return ResultHandler()
+
 
 def test_result_handler_init(result_handler):
     assert result_handler.result == {
@@ -21,17 +24,20 @@ def test_result_handler_init(result_handler):
         "data": None,
     }
 
+
 def test_emit(result_handler, mocker):
     record = logging.LogRecord("name", logging.INFO, "pathname", 0, "msg", (), None)
     result_handler.setFormatter(logging.Formatter("%(message)s"))
     result_handler.emit(record)
     assert result_handler.result["logs"] == ["msg"]
 
+
 def test_set_data_with_json(result_handler, mocker):
     mock_response = mocker.Mock(spec=requests.Response)
     mock_response.json.return_value = {"key": "value"}
     result_handler.set_data(mock_response)
     assert result_handler.result["data"] == {"key": "value"}
+
 
 def test_set_data_with_text(result_handler, mocker):
     mock_response = mocker.Mock(spec=requests.Response)
@@ -40,9 +46,11 @@ def test_set_data_with_text(result_handler, mocker):
     result_handler.set_data(mock_response)
     assert result_handler.result["data"] == "plain text"
 
+
 def test_set_message(result_handler):
     result_handler.set_message("test message")
     assert result_handler.result["message"] == "test message"
+
 
 def test_log_http_data_with_json(result_handler, mocker):
     mock_response = mocker.Mock(spec=requests.Response)
@@ -59,19 +67,22 @@ def test_log_http_data_with_json(result_handler, mocker):
     mock_ctx.obj.config = {"debug": True}
 
     result_handler.log_http_data(mock_ctx, mock_response)
-    assert result_handler.result["http"] == [{
-        "request": {
-            "method": "GET",
-            "url": "http://example.com",
-            "body": {"body": "data"},
-        },
-        "response": {
-            "status_code": 200,
-            "reason": "OK",
-            "json": {"key": "value"},
-            "text": "",
-        },
-    }]
+    assert result_handler.result["http"] == [
+        {
+            "request": {
+                "method": "GET",
+                "url": "http://example.com",
+                "body": {"body": "data"},
+            },
+            "response": {
+                "status_code": 200,
+                "reason": "OK",
+                "json": {"key": "value"},
+                "text": "",
+            },
+        }
+    ]
+
 
 def test_log_http_data_with_text(result_handler, mocker):
     mock_response = mocker.Mock(spec=requests.Response)
@@ -89,19 +100,22 @@ def test_log_http_data_with_text(result_handler, mocker):
     mock_ctx.obj.config = {"debug": True}
 
     result_handler.log_http_data(mock_ctx, mock_response)
-    assert result_handler.result["http"] == [{
-        "request": {
-            "method": "GET",
-            "url": "http://example.com",
-            "body": "",
-        },
-        "response": {
-            "status_code": 200,
-            "reason": "OK",
-            "json": {},
-            "text": "plain text",
-        },
-    }]
+    assert result_handler.result["http"] == [
+        {
+            "request": {
+                "method": "GET",
+                "url": "http://example.com",
+                "body": "",
+            },
+            "response": {
+                "status_code": 200,
+                "reason": "OK",
+                "json": {},
+                "text": "plain text",
+            },
+        }
+    ]
+
 
 def test_log_http_data_no_debug(result_handler):
     mock_response = MagicMock(spec=requests.Response)
@@ -118,24 +132,28 @@ def test_log_http_data_no_debug(result_handler):
     mock_ctx.obj.config = {"debug": False}
 
     result_handler.log_http_data(mock_ctx, mock_response)
-    assert result_handler.result["http"] == [{
-        "request": {
-            "method": "GET",
-            "url": "http://example.com",
-        },
-        "response": {
-            "status_code": 200,
-            "reason": "OK",
-            "json": {"key": "value"},
-            "text": "",
-        },
-    }]
+    assert result_handler.result["http"] == [
+        {
+            "request": {
+                "method": "GET",
+                "url": "http://example.com",
+            },
+            "response": {
+                "status_code": 200,
+                "reason": "OK",
+                "json": {"key": "value"},
+                "text": "",
+            },
+        }
+    ]
+
 
 def test_set_success(result_handler):
     result_handler.set_success(True)
     assert result_handler.result["success"] is True
     result_handler.set_success(False)
     assert result_handler.result["success"] is False
+
 
 def test_get_result(result_handler):
     result_handler.set_message("test message")

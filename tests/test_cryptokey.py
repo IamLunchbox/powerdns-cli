@@ -26,6 +26,11 @@ def conditional_mock_utils(mocker):
     return ConditionalMock(mocker)
 
 
+@pytest.fixture
+def file_mock(mocker):
+    return testutils.MockFile(mocker)
+
+
 example_cryptokey_list_list = [
     {
         "active": True,
@@ -201,10 +206,12 @@ def test_cryptokey_add_failed(mock_utils, testobject, conditional_mock_utils):
     assert "Failed creating" in json.loads(result.output)["message"]
 
 
-def test_cryptokey_import_success(mocker, mock_utils, testobject, conditional_mock_utils, example_new_key):
+def test_cryptokey_import_success(
+    file_mock, mock_utils, testobject, conditional_mock_utils, example_new_key
+):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output=example_new_key)
-    mocker.patch("powerdns_cli.utils.main.extract_file",return_value=example_new_key)
+    file_mock.mock_settings_import(example_new_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
@@ -219,11 +226,11 @@ def test_cryptokey_import_success(mocker, mock_utils, testobject, conditional_mo
 
 
 def test_cryptokey_import_already_present(
-    mocker, mock_utils, testobject, conditional_mock_utils, example_zsk_key
+    file_mock, mock_utils, testobject, conditional_mock_utils, example_zsk_key
 ):
     get = conditional_mock_utils.mock_http_get()
     post = mock_utils.mock_http_post(201, json_output={})
-    mocker.patch("powerdns_cli.utils.main.extract_file",return_value=example_zsk_key)
+    file_mock.mock_settings_import(example_zsk_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
@@ -237,14 +244,16 @@ def test_cryptokey_import_already_present(
     get.assert_called()
 
 
-def test_cryptokey_import_failed(mocker, mock_utils, testobject, conditional_mock_utils, example_new_key):
+def test_cryptokey_import_failed(
+    file_mock, mock_utils, testobject, conditional_mock_utils, example_new_key
+):
     conditional_mock_utils.mock_http_get()
-    mock_utils.mock_http_post(500, json_output={"error":"Server error"})
-    mocker.patch("powerdns_cli.utils.main.extract_file",return_value=example_new_key)
+    mock_utils.mock_http_post(500, json_output={"error": "Server error"})
+    file_mock.mock_settings_import(example_new_key)
     runner = CliRunner()
     result = runner.invoke(
         cryptokey_import,
-        ["zsk", "example.com.","testfile"],
+        ["zsk", "example.com.", "testfile"],
         obj=testobject,
         env=testenvironment,
     )
