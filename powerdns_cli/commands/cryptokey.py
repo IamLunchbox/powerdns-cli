@@ -363,7 +363,8 @@ def cryptokey_import(
     The imported cryptokey is disabled and not published by default.
     Can be read from stdin when '-' is used instead of a file path.
     Only privatekey is required, powerdns defaults to published: True and active: False.
-    File format: {"privatekey": "Yourprivatekey", "active": bool, "published": bool}.
+    File format:
+    {"privatekey": "Yourprivatekey", "active": bool, "published": bool}
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     secret = utils.extract_file(ctx, private_key)

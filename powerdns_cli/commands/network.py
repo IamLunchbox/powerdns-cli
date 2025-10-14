@@ -156,7 +156,8 @@ def network_import(
     ctx: click.Context, file: click.File, replace: bool, ignore_errors: bool, **kwargs
 ) -> NoReturn:
     """Import network and zone assignments.
-    File-example: {"networks": [{"network": "0.0.0.0/0", "view": "test"}]}.
+    File format:
+    {"networks": [{"network": str, "view": str}]}
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
     ctx.obj.logger.info(f"Importing networks from file: {file.name}.")

@@ -160,7 +160,11 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
 )
 @click.pass_context
 def metadata_import(ctx, dns_zone, file, replace, ignore_errors, **kwargs) -> NoReturn:
-    """Import metadata for a DNS zone from a file."""
+    """Import metadata for a DNS zone from a file.
+
+    File format:
+    [{"kind": str, "metadata": list[str,...], "type": "Metadata"},...]
+    """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     ctx.obj.logger.info(f"Importing metadata for zone: {dns_zone}.")
     settings = utils.extract_file(ctx, file)

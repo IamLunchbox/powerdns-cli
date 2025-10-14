@@ -145,6 +145,9 @@ def tsigkey_import(
     """
     Import TSIG keys from a file.
     When replacement is requested, non-matching existing keys will be deleted as well.
+    File format:
+    [{ "algorithm": str, "id": str, "key": str, "name": str, "type": "TSIGKey" }]
+
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
     settings = utils.extract_file(ctx, file)

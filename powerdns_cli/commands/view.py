@@ -126,7 +126,8 @@ def view_import(
     ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool, **kwargs
 ) -> NoReturn:
     """Imports views and their contents into the server.
-    Must be a list of dictionaries, like: [{'view1':['example.org']}].
+    File format:
+    [{"view_name":["zone_name"]}]
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
     ctx.obj.logger.info("Importing views from file.")

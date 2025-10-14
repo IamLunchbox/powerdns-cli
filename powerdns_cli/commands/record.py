@@ -436,8 +436,17 @@ def record_export(
 def record_import(ctx: click.Context, file: TextIO, replace: bool, **kwargs) -> NoReturn:
     """
     Imports a rrset into a zone.
-    Imported as a dictionary: {"id":str, "rrsets":[]}, all other keys are ignored.
-    'name' optionally substitutes 'id'. You may use - to declare the input as STDIN.
+    All keys besides name, id and rrsets are ignored.
+    'name' substitutes 'id', when 'id' is unset.
+    You may use - to declare the input as STDIN.
+    File format:
+    {"id":str,
+    "rrsets":[
+    {"comments": list[str,...], "name": str,"records": [
+    {"content": str, "disabled": bool},...],
+    "ttl": int,"type": str},...
+    ]
+    }
     """
     new_rrsets = utils.extract_file(ctx, file)
     validate_rrset_import(ctx, new_rrsets)

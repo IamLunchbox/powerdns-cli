@@ -108,7 +108,10 @@ def autoprimary_delete(ctx, ip, nameserver, **kwargs):
 @click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
 @click.pass_context
 def autoprimary_import(ctx, file, replace, ignore_errors, **kwargs):
-    """Import a list with your autoprimaries settings."""
+    """Import a list with your autoprimaries settings.
+    File format:
+    [{"ip": str, "nameserver": "str}, ...]
+    """
     ctx.obj.logger.info("Starting autoprimary import process.")
     settings = utils.extract_file(ctx, file)
     ctx.obj.logger.debug(f"Extracted {len(settings)} settings from file.")
