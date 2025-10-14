@@ -1,8 +1,6 @@
 """
 A Click-based CLI module for managing DNS resource records (RRsets) in PowerDNS.
-
 This module provides a comprehensive set of commands for managing DNS resource records.
-
 Commands:
     add: Adds a new DNS record to a zone.
     delete: Deletes a DNS record from a zone, optionally all records of a type.
@@ -24,20 +22,16 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def record():
-    """Edit resource records (RRSets) of a zone
-
-    This action enabled changing RRSets of a zone without the necessity (and danger)
+    """Edit resource records (RRSets) of a zone.
+    This action enables changing RRSets of a zone without the necessity (and danger)
     of specifying additional zone data. It is not possible to only change the ttl of a RRSet.
     To do this, it is required to remove and readd a RRSet. But facilitating the export and import
     function may prove useful.
-    By default, the add action will replace the current content of the RRSEt. For example:
-
+    By default, the add action will replace the current content of the RRSet. For example:
     www.example.com in A 127.0.0.1
     www.example.com in A 127.0.0.2
-
     will be replaced with powerdns-cli record add www example.com A 10.0.0.1 to:
-    www.example.com in A 10.0.0.1
-
+    www.example.com in A 10.0.0.1.
     """
 
 
@@ -67,7 +61,7 @@ def record():
     ),
 )
 @click.argument("value", type=click.STRING)
-@click.option("--ttl", default=86400, type=click.INT, help="Set time to live")
+@click.option("--ttl", default=86400, type=click.INT, help="Set time to live.")
 @click.pass_context
 def record_add(
     ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
@@ -85,18 +79,16 @@ def record_add(
         "changetype": "REPLACE",
         "records": [{"content": value, "disabled": False}],
     }
-
     if is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.info(f"{name} {record_type} {value} already present")
-        utils.exit_action(ctx, True, f"{name} {record_type} {value} already present")
-
+        ctx.obj.logger.info(f"{name} {record_type} {value} already present.")
+        utils.exit_action(ctx, True, f"{name} {record_type} {value} already present.")
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
-        ctx.obj.logger.info(f"{name} {record_type} {value} created")
-        utils.exit_action(ctx, True, f"{name} {record_type} {value} created", r)
+        ctx.obj.logger.info(f"{name} {record_type} {value} created.")
+        utils.exit_action(ctx, True, f"{name} {record_type} {value} created.", r)
     else:
-        ctx.obj.logger.error(f"Failed to create {name} {record_type} {value}")
-        utils.exit_action(ctx, False, f"Failed to create {name} {record_type} {value}", r)
+        ctx.obj.logger.error(f"Failed to create {name} {record_type} {value}.")
+        utils.exit_action(ctx, False, f"Failed to create {name} {record_type} {value}.", r)
 
 
 @record.command(
@@ -126,13 +118,13 @@ def record_add(
     ),
 )
 @click.argument("value", type=click.STRING)
-@click.option("--ttl", default=86400, type=click.INT, help="Set default time to live")
+@click.option("--ttl", default=86400, type=click.INT, help="Set default time to live.")
 @click.option(
     "--all",
     "delete_all",
     is_flag=True,
     default=False,
-    help="Deletes all records of the selected type",
+    help="Deletes all records of the selected type.",
 )
 def record_delete(
     ctx: click.Context,
@@ -151,7 +143,6 @@ def record_delete(
     """
     name = utils.make_dnsname(name, dns_zone)
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
-
     if delete_all:
         rrset = {
             "name": name,
@@ -161,19 +152,17 @@ def record_delete(
             "records": [],
         }
         if not is_matching_rrset_present(uri, ctx, rrset):
-            ctx.obj.logger.info(f"{record_type} records in {name} already absent")
-            utils.exit_action(ctx, True, f"{record_type} records in {name} already absent")
-
+            ctx.obj.logger.info(f"{record_type} records in {name} already absent.")
+            utils.exit_action(ctx, True, f"{record_type} records in {name} already absent.")
         r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
         if r.status_code == 204:
-            ctx.obj.logger.info(f"All {record_type} records for {name} removed")
-            utils.exit_action(ctx, True, f"All {record_type} records for {name} removed", r)
+            ctx.obj.logger.info(f"All {record_type} records for {name} removed.")
+            utils.exit_action(ctx, True, f"All {record_type} records for {name} removed.", r)
         else:
-            ctx.obj.logger.error(f"Failed to delete all {record_type} records for {name}")
+            ctx.obj.logger.error(f"Failed to delete all {record_type} records for {name}.")
             utils.exit_action(
-                ctx, False, f"Failed to delete all {record_type} records for {name}", r
+                ctx, False, f"Failed to delete all {record_type} records for {name}.", r
             )
-
     rrset = {
         "name": name,
         "type": record_type.upper(),
@@ -182,9 +171,10 @@ def record_delete(
         "records": [{"content": value, "disabled": False}],
     }
     if not is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.warning(f"{name} {record_type} {value} already absent")
-        utils.exit_action(ctx, success=True, message=f"{name} {record_type} {value} already absent")
-
+        ctx.obj.logger.warning(f"{name} {record_type} {value} already absent.")
+        utils.exit_action(
+            ctx, success=True, message=f"{name} {record_type} {value} already absent."
+        )
     matching_rrsets = is_matching_rrset_present(uri, ctx, rrset)
     indices_to_remove = [
         index
@@ -195,14 +185,13 @@ def record_delete(
     for index in indices_to_remove:
         matching_rrsets["records"].pop(index)
     rrset["records"] = matching_rrsets["records"]
-
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
-        ctx.obj.logger.info(f"{name} {record_type} {value} removed")
-        utils.exit_action(ctx, True, f"{name} {record_type} {value} removed", r)
+        ctx.obj.logger.info(f"{name} {record_type} {value} removed.")
+        utils.exit_action(ctx, True, f"{name} {record_type} {value} removed.", r)
     else:
-        ctx.obj.logger.error(f"Failed to remove {name} {record_type} {value}")
-        utils.exit_action(ctx, False, f"Failed to remove {name} {record_type} {value}", r)
+        ctx.obj.logger.error(f"Failed to remove {name} {record_type} {value}.")
+        utils.exit_action(ctx, False, f"Failed to remove {name} {record_type} {value}.", r)
 
 
 @record.command(
@@ -231,7 +220,7 @@ def record_delete(
     ),
 )
 @click.argument("value", type=click.STRING)
-@click.option("--ttl", default=86400, type=click.INT, help="Set time to live")
+@click.option("--ttl", default=86400, type=click.INT, help="Set time to live.")
 @click.pass_context
 def record_disable(
     ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
@@ -248,19 +237,17 @@ def record_disable(
         "changetype": "REPLACE",
         "records": [{"content": value, "disabled": True}],
     }
-
     if is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.warning(f"{name} IN {record_type} {value} already disabled")
-        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} already disabled")
-
+        ctx.obj.logger.warning(f"{name} IN {record_type} {value} already disabled.")
+        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} already disabled.")
     rrset["records"] = merge_rrsets(uri, ctx, rrset)
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
-        ctx.obj.logger.info(f"{name} IN {record_type} {value} disabled")
-        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} disabled", r)
+        ctx.obj.logger.info(f"{name} IN {record_type} {value} disabled.")
+        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} disabled.", r)
     else:
-        ctx.obj.logger.error(f"Failed to disable {name} IN {record_type} {value}")
-        utils.exit_action(ctx, False, f"Failed to disable {name} IN {record_type} {value}", r)
+        ctx.obj.logger.error(f"Failed to disable {name} IN {record_type} {value}.")
+        utils.exit_action(ctx, False, f"Failed to disable {name} IN {record_type} {value}.", r)
 
 
 @record.command(
@@ -289,12 +276,12 @@ def record_disable(
     ),
 )
 @click.argument("value", type=click.STRING)
-@click.option("--ttl", default=86400, type=click.INT, help="Set default time to live")
+@click.option("--ttl", default=86400, type=click.INT, help="Set default time to live.")
 @click.pass_context
 def record_enable(
     ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
 ) -> NoReturn:
-    """Enable a dns-recordset. Does not check if it was disabled beforehand"""
+    """Enable a dns-recordset. Does not check if it was disabled beforehand."""
     ctx.forward(record_add)
 
 
@@ -324,7 +311,7 @@ def record_enable(
     ),
 )
 @click.argument("value", type=click.STRING)
-@click.option("--ttl", default=86400, type=click.INT, help="Set time to live")
+@click.option("--ttl", default=86400, type=click.INT, help="Set time to live.")
 @click.pass_context
 def record_extend(
     ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
@@ -341,11 +328,9 @@ def record_extend(
         "changetype": "REPLACE",
         "records": [{"content": value, "disabled": False}],
     }
-
     if is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.info(f"{name} IN {record_type} {value} already present")
-        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} already present")
-
+        ctx.obj.logger.info(f"{name} IN {record_type} {value} already present.")
+        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} already present.")
     upstream_rrset = is_matching_rrset_present(uri, ctx, rrset)
     if upstream_rrset:
         extra_records = [
@@ -354,16 +339,15 @@ def record_extend(
             if item["content"] != rrset["records"][0]["content"]
         ]
         rrset["records"].extend(extra_records)
-
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
-        ctx.obj.logger.info(f"Successfully extended {name} IN {record_type} with {value}")
+        ctx.obj.logger.info(f"Successfully extended {name} IN {record_type} with {value}.")
         utils.exit_action(
-            ctx, True, f"Successfully extended {name} IN {record_type} with {value}", r
+            ctx, True, f"Successfully extended {name} IN {record_type} with {value}.", r
         )
     else:
-        ctx.obj.logger.error(f"Failed to extend {name} IN {record_type} {value}")
-        utils.exit_action(ctx, False, f"Failed to extend {name} IN {record_type} {value}", r)
+        ctx.obj.logger.error(f"Failed to extend {name} IN {record_type} {value}.")
+        utils.exit_action(ctx, False, f"Failed to extend {name} IN {record_type} {value}.", r)
 
 
 @record.command(
@@ -373,12 +357,12 @@ def record_extend(
     no_args_is_help=True,
 )
 @powerdns_zone
-@click.option("--bind", "-b", help="Print all records in bind format", is_flag=True)
-@click.option("--name", help="Limit output to chosen names", type=click.STRING)
+@click.option("--bind", "-b", help="Print all records in bind format.", is_flag=True)
+@click.option("--name", help="Limit output to chosen names.", type=click.STRING)
 @click.option(
     "record_type",
     "--type",
-    help="Limit output to chosen record types",
+    help="Limit output to chosen record types.",
     type=click.Choice(
         [
             "A",
@@ -400,7 +384,6 @@ def record_export(
 ) -> NoReturn:
     """
     Exports the contents of a single or all existing RRSets.
-
     """
     if bind:
         ctx.obj.logger.info(f"Exporting {dns_zone} in BIND format.")
@@ -434,7 +417,7 @@ def record_export(
         output_list = rrsets
     output_with_id = {"id": dns_zone, "rrsets": output_list}
     ctx.obj.handler.result["data"] = output_with_id
-    utils.exit_action(ctx, True, "Successfully exported records", print_data=True)
+    utils.exit_action(ctx, True, "Successfully exported records.", print_data=True)
 
 
 @record.command(
@@ -447,39 +430,33 @@ def record_export(
 @click.option(
     "--replace",
     is_flag=True,
-    help="Replace old settings with new ones",
+    help="Replace old settings with new ones.",
 )
 @click.pass_context
 def record_import(ctx: click.Context, file: TextIO, replace: bool, **kwargs) -> NoReturn:
     """
     Imports a rrset into a zone.
-
-    Imported as a dictionary: {'id':str, 'rrsets':[]}, all other keys are ignored.
+    Imported as a dictionary: {"id":str, "rrsets":[]}, all other keys are ignored.
     'name' optionally substitutes 'id'. You may use - to declare the input as STDIN.
     """
     new_rrsets = utils.extract_file(ctx, file)
     validate_rrset_import(ctx, new_rrsets)
-
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{new_rrsets['id']}"
     upstream_zone = utils.read_settings_from_upstream(uri, ctx)
-
     if not upstream_zone:
         upstream_zone["rrsets"] = []
     check_records_for_identical_content(ctx, new_rrsets, upstream_zone, replace)
-
     for rrset in new_rrsets["rrsets"]:
         rrset["changetype"] = "REPLACE"
-
     if replace:
-        ctx.obj.logger.info("Replace flag enabled; preparing final recordset")
+        ctx.obj.logger.info("Replace flag enabled; preparing final recordset.")
         final_recordset = []
         final_recordset.extend(new_rrsets["rrsets"])
         new_rrset_types = [(item["name"], item["type"]) for item in new_rrsets["rrsets"]]
         upstream_rrset_types = [(item["name"], item["type"]) for item in upstream_zone["rrsets"]]
-
         for rrset_type in upstream_rrset_types:
             if rrset_type not in new_rrset_types:
-                ctx.obj.logger.debug(f"Marking {rrset_type} for deletion")
+                ctx.obj.logger.debug(f"Marking {rrset_type} for deletion.")
                 index = [
                     upstream_zone["rrsets"].index(item)
                     for item in upstream_zone["rrsets"]
@@ -490,23 +467,20 @@ def record_import(ctx: click.Context, file: TextIO, replace: bool, **kwargs) -> 
                 del new_entry["records"]
                 del new_entry["comments"]
                 final_recordset.append(new_entry)
-
         new_rrsets["rrsets"] = final_recordset
-        ctx.obj.logger.debug(f"Final recordset prepared: {new_rrsets['rrsets']}")
-
+        ctx.obj.logger.debug(f"Final recordset prepared: {new_rrsets['rrsets']}.")
     r = utils.http_patch(uri, ctx, payload=new_rrsets)
-
     if r.status_code == 204:
-        ctx.obj.logger.info("RRset imported successfully")
-        utils.exit_action(ctx, True, "RRset imported", r)
+        ctx.obj.logger.info("RRset imported successfully.")
+        utils.exit_action(ctx, True, "RRset imported.", r)
     else:
-        ctx.obj.logger.error(f"Failed to import RRset. Status code: {r.status_code}")
-        utils.exit_action(ctx, False, "Failed to import RRset", r)
+        ctx.obj.logger.error(f"Failed to import RRset. Status code: {r.status_code}.")
+        utils.exit_action(ctx, False, "Failed to import RRset.", r)
 
 
 @record.command("spec")
 def record_spec():
-    """Open the record specification on https://redocly.github.io"""
+    """Open the record specification on https://redocly.github.io."""
     utils.open_spec("record")
 
 
@@ -521,7 +495,6 @@ def check_records_for_identical_content(
     This function compares the contents of new RRsets with those in the upstream zone,
     ignoring the 'modified_at' field. If all RRsets are already present, it logs a message
     and exits with success status.
-
     Args:
         ctx: Click context object.
         new_rrsets: A dictionary containing the new RRsets to check.
@@ -550,17 +523,15 @@ def check_records_for_identical_content(
     new_rrset_contents = [
         _normalize_rrset(item) for item in new_rrsets["rrsets"] if item["type"] != "SOA"
     ]
-    ctx.obj.logger.debug(f"Normalized new rrsets: {new_rrset_contents}")
+    ctx.obj.logger.debug(f"Normalized new rrsets: {new_rrset_contents}.")
     upstream_rrset_contents = [
         _normalize_rrset(item) for item in upstream_zone["rrsets"] if item["type"] != "SOA"
     ]
-    ctx.obj.logger.debug(f"Normalized upstream rrsets: {upstream_rrset_contents}")
-
+    ctx.obj.logger.debug(f"Normalized upstream rrsets: {upstream_rrset_contents}.")
     # Check for presence of all new RRsets in upstream
     if not replace and all(rrset in upstream_rrset_contents for rrset in new_rrset_contents):
         ctx.obj.logger.info("Requested RRsets are already present in the upstream zone.")
         utils.exit_action(ctx, success=True, message="Requested RRsets are already present.")
-
     # Check for exact match if replace is True
     if replace and (
         all(rrset in upstream_rrset_contents for rrset in new_rrset_contents)
@@ -573,106 +544,42 @@ def check_records_for_identical_content(
 def validate_rrset_import(ctx: click.Context, rrset: dict[str, Any]) -> None:
     """
     Validates the structure and content of an RRset dictionary for import.
-
     Args:
         ctx: Click context object.
         rrset: A dictionary representing the RRset to validate.
                Expected to contain 'rrsets' and either 'id' or 'name'.
     """
     ctx.obj.logger.info("Validating RRset import structure and content.")
-
     if not isinstance(rrset, dict):
         ctx.obj.logger.error("RRset must be supplied as a single dictionary.")
         utils.exit_action(
             ctx, success=False, message="You must supply rrsets as a single dictionary."
         )
-
     if not rrset.get("rrsets"):
         ctx.obj.logger.error("The key 'rrsets' must be present in the RRset dictionary.")
         utils.exit_action(ctx, success=False, message="The key 'rrsets' must be present.")
-
     utils.is_id_or_name_present(ctx, rrset)
-
     if rrset.get("name") and not rrset.get("id"):
         rrset["id"] = rrset["name"]
-
     for key in list(rrset.keys()):
         if key not in ("id", "rrsets"):
             del rrset[key]
-
     ctx.obj.logger.debug("RRset validation successful.")
-
-
-# def replace_rrset_import(
-#     uri: str,
-#     ctx: click.Context,
-#     settings: list,
-#     upstream_settings: list,
-#     setting_names: list,
-#     ignore_errors: bool,
-# ) -> None:
-#     """
-#     Replace RRset zones by removing existing ones and adding new configurations.
-#
-#     Args:
-#         uri: API endpoint URI
-#         ctx: Click context object
-#         settings: List of new zone configurations to import
-#         upstream_settings: List of existing upstream zone configurations
-#         setting_names: Set of zone names from the new settings
-#         ignore_errors: If True, continue processing despite errors
-#     """
-#     existing_upstreams = []
-#     upstreams_to_delete = []
-#     for zone_entry in upstream_settings:
-#         if zone_entry["name"] in setting_names:
-#             existing_upstreams.append(zone_entry)
-#         else:
-#             upstreams_to_delete.append(zone_entry)
-#     for zone_entry in settings:
-#         if zone_entry["name"] in [upstream["name"] for upstream in existing_upstreams]:
-#             r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
-#             if r.status_code != 204:
-#                 utils.handle_import_early_exit(
-#                     ctx,
-#                     "An error occoured deleting the zone, aborting further changes",
-#                     ignore_errors,
-#                 )
-#
-#         r = utils.http_post(uri, ctx, payload=zone_entry)
-#         if r.status_code != 201:
-#             utils.handle_import_early_exit(
-#                 ctx,
-#                 f"Failed adding rrset {zone_entry['name']}",
-#                 ignore_errors,
-#             )
-#
-#     for zone_entry in upstreams_to_delete:
-#         r = utils.http_delete(f"{uri}/{zone_entry['name']}", ctx)
-#         if r.status_code != 204:
-#             utils.handle_import_early_exit(
-#                 ctx,
-#                 f"Failed deleting rrset {zone_entry['name']}",
-#                 ignore_errors,
-#             )
 
 
 def merge_rrsets(uri: str, ctx: click.Context, new_rrset: dict) -> list[dict]:
     """
     Merge the upstream and local rrset records to create a unified and deduplicated set.
-
     Args:
         uri: The URI for the zone.
         ctx: Click context object.
         new_rrset: The new RRSet to merge.
-
     Returns:
         Merged and deduplicated list of RRSet records.
     """
-    ctx.obj.logger.info(f"Merging RRSet for {new_rrset['name']} ({new_rrset['type']})")
+    ctx.obj.logger.info(f"Merging RRSet for {new_rrset['name']} ({new_rrset['type']}).")
     zone_rrsets = query_zone_rrsets(uri, ctx)
     merged_rrsets = new_rrset["records"].copy()
-
     for upstream_rrset in zone_rrsets:
         if all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
             merged_rrsets.extend(
@@ -680,7 +587,7 @@ def merge_rrsets(uri: str, ctx: click.Context, new_rrset: dict) -> list[dict]:
                 for record_item in upstream_rrset["records"]
                 if record_item["content"] != new_rrset["records"][0]["content"]
             )
-    ctx.obj.logger.debug(f"Merged RRSet: {merged_rrsets}")
+    ctx.obj.logger.debug(f"Merged RRSet: {merged_rrsets}.")
     return merged_rrsets
 
 
@@ -688,23 +595,19 @@ def is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) -> 
     """
     Checks if an RRSet is already present in the DNS database.
     Only checks for name and type, not individual records.
-
     Args:
         uri: The URI for the zone.
         ctx: Click context object.
         new_rrset: The RRSet to check.
-
     Returns:
         The matching RRSet if found, otherwise an empty dict.
     """
-    ctx.obj.logger.info(f"Checking for existing RRSet: {new_rrset['name']} ({new_rrset['type']})")
+    ctx.obj.logger.info(f"Checking for existing RRSet: {new_rrset['name']} ({new_rrset['type']}).")
     zone_rrsets = query_zone_rrsets(uri, ctx)
-
     for upstream_rrset in zone_rrsets:
         if all(upstream_rrset[key] == new_rrset[key] for key in ("name", "type")):
             ctx.obj.logger.debug("Matching RRSet found.")
             return upstream_rrset
-
     ctx.obj.logger.debug("No matching RRSet found.")
     return {}
 
@@ -712,24 +615,19 @@ def is_matching_rrset_present(uri: str, ctx: click.Context, new_rrset: dict) -> 
 def query_zone_rrsets(uri: str, ctx: click.Context) -> list[dict]:
     """
     Queries the configuration of the given zone and returns a list of all RRSets.
-
     Args:
         uri: The URI to query for the zone's RRSets.
         ctx: Click context object.
-
     Returns:
         A list of RRSet dictionaries.
-
     Exits:
         Calls utils.exit_action with success=False if the request fails.
     """
-    ctx.obj.logger.info(f"Querying RRSets for zone at {uri}")
+    ctx.obj.logger.info(f"Querying RRSets for zone at {uri}.")
     r = utils.http_get(uri, ctx)
-
     if r.status_code != 200:
-        ctx.obj.logger.error(f"Failed to query RRSets: {r.text}")
-        utils.exit_action(ctx, False, "Failed to query RRSets", response=r)
-
+        ctx.obj.logger.error(f"Failed to query RRSets: {r.text}.")
+        utils.exit_action(ctx, False, "Failed to query RRSets.", response=r)
     ctx.obj.logger.debug("Successfully queried RRSets.")
     return r.json()["rrsets"]
 
@@ -737,17 +635,15 @@ def query_zone_rrsets(uri: str, ctx: click.Context) -> list[dict]:
 def is_value_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
     """
     Checks if a matching RRSet is present and if the new record is already present.
-
     Args:
         uri: The URI for the zone.
         ctx: Click context object.
         new_rrset: The RRSet to check.
-
     Returns:
         True if both the RRSet and all records are present, otherwise False.
     """
     ctx.obj.logger.info(
-        f"Checking if value is present for RRSet: {new_rrset['name']} ({new_rrset['type']})"
+        f"Checking if value is present for RRSet: {new_rrset['name']} ({new_rrset['type']})."
     )
     zone_rrsets = query_zone_rrsets(uri, ctx)
     # remove modified_at to enable idempotence
@@ -761,13 +657,11 @@ def is_value_present(uri: str, ctx: click.Context, new_rrset: dict) -> bool:
         }
         for entry in zone_rrsets
     ]
-
     for rrset in zone_rrsets:
         if all(rrset[key] == new_rrset[key] for key in ("name", "type", "ttl")) and all(
             record_item in rrset["records"] for record_item in new_rrset["records"]
         ):
             ctx.obj.logger.debug("Matching RRSet and records found.")
             return True
-
     ctx.obj.logger.debug("Matching RRSet or records not found.")
     return False

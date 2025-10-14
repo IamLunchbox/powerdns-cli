@@ -22,6 +22,7 @@ def test_result_handler_init(result_handler):
         "success": None,
         "http": [],
         "data": None,
+        "error_data": None,
     }
 
 
@@ -160,6 +161,13 @@ def test_get_result(result_handler):
     result_handler.set_success(True)
     result = result_handler.get_result()
     assert isinstance(result, OrderedDict)
-    assert list(result.keys()) == ["logs", "http", "data", "success", "message"]
+    assert list(result.keys()) == [
+        "logs",
+        "http",
+        "data",
+        "error_data",
+        "success",
+        "message",
+    ]
     assert result["message"] == "test message"
     assert result["success"] is True

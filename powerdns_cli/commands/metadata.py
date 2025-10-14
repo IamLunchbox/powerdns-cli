@@ -1,8 +1,6 @@
 """
 A Click-based CLI module for managing DNS zone metadata in PowerDNS.
-
 This module provides commands for managing metadata associated with DNS zones.
-
 Commands:
     add: Adds a new metadata entry to a DNS zone.
     delete: Deletes a metadata entry from a DNS zone.
@@ -23,13 +21,13 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def metadata():
-    """Configure zone metadata
-
+    """Configure zone metadata.
     Metadata has a predefined list of metadata entries, which are validated by the server.
-    If an entry does not match the list, the update will be rejected. It is possible to set
-    custom metadata, if the name starts with '-X'. SOA-EDIT-API may not be edited through the cli.
+    If an entry does not match the list, the update will be rejected.
+    It is possible to set custom metadata, if the name starts with 'X-'.
+    SOA-EDIT-API may not be edited through the CLI.
     The list of valid metadata items can be found here:
-    https://doc.powerdns.com/authoritative/domainmetadata.html
+    https://doc.powerdns.com/authoritative/domainmetadata.html.
     """
 
 
@@ -45,40 +43,39 @@ def metadata():
 @click.pass_context
 def metadata_add(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
     """
-    Adds metadata to a zone. Valid dictionary metadata-keys are not arbitrary and must conform
-    to the expected content from the PowerDNS configuration. Custom metadata must be preceded by
-    leading X- as a key
+    Adds metadata to a zone.
+    Valid dictionary metadata-keys are not arbitrary and must conform to the expected content
+    from the PowerDNS configuration.
+    Custom metadata must be preceded by leading X- as a key.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
     payload = {"kind": metadata_key, "metadata": [metadata_value], "type": "Metadata"}
-
     if is_metadata_content_present(f"{uri}/{metadata_key}", ctx, payload):
-        ctx.obj.logger.info(f"{metadata_key} {metadata_value} in {dns_zone} already present")
+        ctx.obj.logger.info(f"{metadata_key} {metadata_value} in {dns_zone} already present.")
         utils.exit_action(
             ctx,
             success=True,
-            message=f"{metadata_key}={metadata_value} in {dns_zone} already present",
+            message=f"{metadata_key}={metadata_value} in {dns_zone} already present.",
         )
-
     r = utils.http_post(uri, ctx, payload)
     if r.status_code == 201:
         ctx.obj.logger.info(
-            f"Successfully added metadata {metadata_key}={metadata_value} to {dns_zone}"
+            f"Successfully added metadata {metadata_key}={metadata_value} to {dns_zone}."
         )
         utils.exit_action(
             ctx,
             success=True,
-            message=f"Added metadata {metadata_key}={metadata_value} to {dns_zone}",
+            message=f"Added metadata {metadata_key}={metadata_value} to {dns_zone}.",
             response=r,
         )
     else:
         ctx.obj.logger.error(
-            f"Failed to add metadata {metadata_key}={metadata_value} to {dns_zone}: {r.text}"
+            f"Failed to add metadata {metadata_key}={metadata_value} to {dns_zone}."
         )
         utils.exit_action(
             ctx,
             success=False,
-            message=f"Failed to add metadata {metadata_key}={metadata_value} to {dns_zone}",
+            message=f"Failed to add metadata {metadata_key}={metadata_value} to {dns_zone}.",
             response=r,
         )
 
@@ -100,30 +97,26 @@ def metadata_delete(ctx, dns_zone, metadata_key, **kwargs):
         f"{ctx.obj.config['apihost']}/api/v1/servers/"
         f"localhost/zones/{dns_zone}/metadata/{metadata_key}"
     )
-
     if not is_metadata_entry_present(uri, ctx):
-        ctx.obj.logger.info(f"{metadata_key} for {dns_zone} already absent")
+        ctx.obj.logger.info(f"{metadata_key} for {dns_zone} already absent.")
         utils.exit_action(
-            ctx, success=True, message=f"{metadata_key} for {dns_zone} already absent"
+            ctx, success=True, message=f"{metadata_key} for {dns_zone} already absent."
         )
-
     r = utils.http_delete(uri, ctx)
     if r.status_code in (204, 200):
-        ctx.obj.logger.info(f"Deleted metadata key {metadata_key} for {dns_zone}")
+        ctx.obj.logger.info(f"Deleted metadata key {metadata_key} for {dns_zone}.")
         utils.exit_action(
             ctx,
             success=True,
-            message=f"Deleted metadata key {metadata_key} for {dns_zone}",
+            message=f"Deleted metadata key {metadata_key} for {dns_zone}.",
             response=r,
         )
     else:
-        ctx.obj.logger.error(
-            f"Failed to delete metadata key {metadata_key} for {dns_zone}: {r.text}"
-        )
+        ctx.obj.logger.error(f"Failed to delete metadata key {metadata_key} for {dns_zone}.")
         utils.exit_action(
             ctx,
             success=False,
-            message=f"Failed to delete metadata key {metadata_key} for {dns_zone}",
+            message=f"Failed to delete metadata key {metadata_key} for {dns_zone}.",
             response=r,
         )
 
@@ -140,7 +133,7 @@ def metadata_delete(ctx, dns_zone, metadata_key, **kwargs):
 @click.pass_context
 def metadata_extend(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
     """
-    Appends a new item to the list of metadata item for a zone
+    Appends a new item to the list of metadata contents for a zone.
     """
     ctx.forward(metadata_add)
 
@@ -160,18 +153,20 @@ def metadata_extend(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
     help="Replace all metadata settings with new ones",
 )
 @click.option(
-    "--ignore-errors", type=click.BOOL, is_flag=True, help="Continue import even when requests fail"
+    "--ignore-errors",
+    type=click.BOOL,
+    is_flag=True,
+    help="Continue import even when requests fail.",
 )
 @click.pass_context
 def metadata_import(ctx, dns_zone, file, replace, ignore_errors, **kwargs) -> NoReturn:
     """Import metadata for a DNS zone from a file."""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
-    ctx.obj.logger.info(f"Importing metadata for zone: {dns_zone}")
+    ctx.obj.logger.info(f"Importing metadata for zone: {dns_zone}.")
     settings = utils.extract_file(ctx, file)
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     utils.validate_simple_import(ctx, settings, upstream_settings, replace)
     metadata_remove_soa_edit_api(settings, upstream_settings)
-
     if replace and upstream_settings:
         ctx.obj.logger.info("Replacing existing metadata.")
         replace_metadata_from_import(uri, ctx, upstream_settings, settings, ignore_errors)
@@ -191,15 +186,15 @@ def metadata_import(ctx, dns_zone, file, replace, ignore_errors, **kwargs) -> No
     "-l",
     "--limit",
     type=click.STRING,
-    help="Limit metadata output to this single element",
+    help="Limit metadata output to this single element.",
 )
 @click.pass_context
 def metadata_export(ctx: click.Context, dns_zone: str, limit: str, **kwargs) -> NoReturn:
     """
-    Exports the metadata for a given zone. Can optionally be limited to a single key.
+    Exports the metadata for a given zone.
+    Can optionally be limited to a single key.
     """
-    ctx.obj.logger.info(f"Exporting metadata for zone: {dns_zone}, limit: {limit}")
-
+    ctx.obj.logger.info(f"Exporting metadata for zone: {dns_zone}, limit: {limit}.")
     if limit:
         uri = (
             f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/"
@@ -207,13 +202,12 @@ def metadata_export(ctx: click.Context, dns_zone: str, limit: str, **kwargs) -> 
         )
     else:
         uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
-
     utils.show_setting(ctx, uri, "metadata", "export")
 
 
 @metadata.command("spec")
 def metadata_spec():
-    """Open the metadata specification on https://redocly.github.io"""
+    """Open the metadata specification on https://redocly.github.io."""
     utils.open_spec("metadata")
 
 
@@ -238,7 +232,6 @@ def metadata_update(
         f"localhost/zones/{dns_zone}/metadata/{metadata_key}"
     )
     payload = {"kind": metadata_key, "metadata": [metadata_value], "type": "Metadata"}
-
     if not is_metadata_content_identical(uri, ctx, payload):
         r = utils.http_put(uri, ctx, payload)
         if r.status_code == 200:
@@ -250,11 +243,11 @@ def metadata_update(
                 response=r,
             )
         else:
-            ctx.obj.logger.error(f"Failed to update metadata for {metadata_key}")
+            ctx.obj.logger.error(f"Failed to update metadata for {metadata_key}.")
             utils.exit_action(
                 ctx,
                 success=False,
-                message=f"Failed to update metadata for {metadata_key}",
+                message=f"Failed to update metadata for {metadata_key}.",
                 response=r,
             )
     else:
@@ -269,21 +262,17 @@ def metadata_update(
 def metadata_remove_soa_edit_api(settings: dict, upstream_settings: dict) -> None:
     """
     Removes any entries with the kind 'SOA-EDIT-API' from settings and upstream_settings.
-    The function iterates through both `settings` and `upstream_settings` to find and remove
-    entries where the 'kind' key has the value 'SOA-EDIT-API'. This is done because 'SOA-EDIT-API'
-    cannot be edited through the API and should not be present in the configuration.
-
+    The function iterates through both `settings` and `upstream_settings` to find and
+    remove entries where the 'kind' key has the value 'SOA-EDIT-API'.
+    This is done because 'SOA-EDIT-API' cannot be edited through the API and
+    should not be present in the configuration.
     Args:
         settings: List of dictionaries from which 'SOA-EDIT-API' entries are removed.
         upstream_settings: List of dictionaries from which 'SOA-EDIT-API' entries are to be removed.
-
     Returns:
         None: This function modifies the input lists in place and does not return a value.
     """
-    # Remove 'SOA-EDIT-API' entries from settings
     settings[:] = [item for item in settings if item.get("kind") != "SOA-EDIT-API"]
-
-    # Remove 'SOA-EDIT-API' entries from upstream_settings
     upstream_settings[:] = [
         item for item in upstream_settings if item.get("kind") != "SOA-EDIT-API"
     ]
@@ -297,18 +286,15 @@ def replace_metadata_from_import(
     continue_on_error: bool = False,
 ) -> NoReturn:
     """Replaces metadata entries from an import, handling additions and deletions as needed.
-
     Args:
         uri: The base URI for API requests.
         ctx: Click context object for command-line operations.
         upstream_settings: List of dictionaries representing existing upstream metadata entries.
         settings: List of dictionaries representing desired metadata entries.
         continue_on_error: If True, continues execution after errors instead of aborting.
-                           Defaults to False.
     """
     existing_upstreams = []
     upstreams_to_delete = []
-
     for metadata_entry in upstream_settings:
         if metadata_entry["kind"] == "SOA-EDIT-API":
             continue
@@ -316,25 +302,22 @@ def replace_metadata_from_import(
             existing_upstreams.append(metadata_entry)
         else:
             upstreams_to_delete.append(metadata_entry)
-
     for metadata_entry in settings:
         if metadata_entry not in existing_upstreams:
-            ctx.obj.logger.info(f"Adding metadata entry: {metadata_entry['kind']}")
+            ctx.obj.logger.info(f"Adding metadata entry: {metadata_entry['kind']}.")
             r = utils.http_post(uri, ctx, payload=metadata_entry)
             if r.status_code != 201:
-                ctx.obj.logger.error(f"Failed adding {metadata_entry['kind']}")
+                ctx.obj.logger.error(f"Failed adding {metadata_entry['kind']}.")
                 if not continue_on_error:
-                    utils.exit_action(ctx, False, f"Failed adding {metadata_entry['kind']}", r)
-
+                    utils.exit_action(ctx, False, f"Failed adding {metadata_entry['kind']}.", r)
     for metadata_entry in upstreams_to_delete:
-        ctx.obj.logger.info(f"Deleting metadata entry: {metadata_entry['kind']}")
+        ctx.obj.logger.info(f"Deleting metadata entry: {metadata_entry['kind']}.")
         r = utils.http_delete(f"{uri}/{metadata_entry['kind']}", ctx)
         if r.status_code != 204:
-            ctx.obj.logger.error(f"Failed deleting {metadata_entry['kind']}")
+            ctx.obj.logger.error(f"Failed deleting {metadata_entry['kind']}.")
             if not continue_on_error:
-                utils.exit_action(ctx, False, f"Failed deleting {metadata_entry['kind']}", r)
-
-    utils.exit_action(ctx, True, "Successfully replaced metadata from file")
+                utils.exit_action(ctx, False, f"Failed deleting {metadata_entry['kind']}.", r)
+    utils.exit_action(ctx, True, "Successfully replaced metadata from file.")
 
 
 def add_metadata_from_import(
@@ -345,39 +328,34 @@ def add_metadata_from_import(
     continue_on_error: bool = False,
 ) -> NoReturn:
     """Adds metadata entries from an import, updating existing entries if necessary.
-    This function iterates through the provided settings, checks for existing metadata entries
-    in `upstream_settings`, and either updates or adds them via an API call.
+    This function iterates through the provided settings, checks for existing metadata entries in
+     `upstream_settings`, and either updates or adds them via an API call.
     Args:
         uri: The base URI for API requests.
         ctx: Click context object for command-line operations.
         upstream_settings: List of dictionaries representing existing upstream metadata entries.
         settings: List of dictionaries representing desired metadata entries to add or update.
         continue_on_error: If True, continues execution after errors instead of aborting.
-                           Defaults to False.
     """
     for metadata_entry in settings:
         if metadata_entry["kind"] == "SOA-EDIT-API":
             continue
-
         payload = None
         for existing_metadata in upstream_settings:
             if metadata_entry["kind"] == existing_metadata["kind"]:
                 payload = existing_metadata | metadata_entry
                 break
-
         if not payload:
             payload = metadata_entry.copy()
-
-        ctx.obj.logger.info(f"Adding/updating metadata entry: {payload['kind']}")
+        ctx.obj.logger.info(f"Adding/updating metadata entry: {payload['kind']}.")
         r = utils.http_post(uri, ctx, payload=payload)
-
         if r.status_code == 201:
-            ctx.obj.logger.info(f"Successfully added/updated {payload['kind']}")
+            ctx.obj.logger.info(f"Successfully added/updated {payload['kind']}.")
         else:
-            ctx.obj.logger.error(f"Failed adding/updating {payload['kind']}")
+            ctx.obj.logger.error(f"Failed adding/updating {payload['kind']}.")
             if not continue_on_error:
-                utils.exit_action(ctx, False, f"Failed adding/updating {payload['kind']}", r)
-    utils.exit_action(ctx, True, "Successfully added metadata from file", r)
+                utils.exit_action(ctx, False, f"Failed adding/updating {payload['kind']}.", r)
+    utils.exit_action(ctx, True, "Successfully added metadata from file.")
 
 
 def is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) -> bool:
@@ -390,25 +368,22 @@ def is_metadata_content_present(uri: str, ctx: click.Context, new_data: dict) ->
     Returns:
         bool: True if the metadata entry is present, False otherwise.
     """
-    ctx.obj.logger.info(f"Checking if metadata entry {new_data['kind']} is present")
+    ctx.obj.logger.info(f"Checking if metadata entry {new_data['kind']} is present.")
     zone_metadata = utils.http_get(uri, ctx)
-
     if zone_metadata.status_code != 200:
-        ctx.obj.logger.error("Failed to fetch zone metadata")
+        ctx.obj.logger.error("Failed to fetch zone metadata.")
         return False
-
     try:
         if (
             new_data["kind"] == zone_metadata.json()["kind"]
             and new_data["metadata"][0] in zone_metadata.json()["metadata"]
         ):
-            ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is already present")
+            ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is already present.")
             return True
     except (KeyError, IndexError) as e:
-        ctx.obj.logger.error(f"Error checking metadata: {e}")
+        ctx.obj.logger.error(f"Error checking metadata: {e}.")
         return False
-
-    ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is not present")
+    ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is not present.")
     return False
 
 
@@ -421,18 +396,15 @@ def is_metadata_content_identical(uri: str, ctx: click.Context, new_data: dict) 
     Returns:
         bool: True if the metadata entry is identical, False otherwise.
     """
-    ctx.obj.logger.info(f"Checking if metadata entry is identical to {new_data['kind']}")
+    ctx.obj.logger.info(f"Checking if metadata entry is identical to {new_data['kind']}.")
     zone_metadata = utils.http_get(uri, ctx)
-
     if zone_metadata.status_code != 200:
-        ctx.obj.logger.error("Failed to fetch zone metadata")
+        ctx.obj.logger.error("Failed to fetch zone metadata.")
         return False
-
     if new_data == zone_metadata.json():
-        ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is identical")
+        ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is identical.")
         return True
-
-    ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is not identical")
+    ctx.obj.logger.info(f"Metadata entry {new_data['kind']} is not identical.")
     return False
 
 
@@ -444,12 +416,10 @@ def is_metadata_entry_present(uri: str, ctx: click.Context) -> bool:
     Returns:
         bool: True if metadata entries exist, False otherwise.
     """
-    ctx.obj.logger.info("Checking if any metadata entry exists")
+    ctx.obj.logger.info("Checking if any metadata entry exists.")
     zone_metadata = utils.http_get(uri, ctx)
-
     if zone_metadata.status_code == 200 and zone_metadata.json().get("metadata"):
-        ctx.obj.logger.info("Metadata entries exist")
+        ctx.obj.logger.info("Metadata entries exist.")
         return True
-
-    ctx.obj.logger.info("No metadata entries exist")
+    ctx.obj.logger.info("No metadata entries exist.")
     return False

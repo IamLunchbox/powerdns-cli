@@ -27,7 +27,7 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def cryptokey():
-    """Manage DNSSEC-Keys
+    """Manage DNSSEC-Keys.
 
     This action allows configuring DNSSEC-Keys for a single zone. Keys can be published and active.
     Simply creating or importing an active key does activate DNSSEC automatically.
@@ -112,7 +112,6 @@ def cryptokey_add(
         )
     else:
         ctx.obj.logger.error(f"Failed to create the DNSSEC key for zone '{dns_zone}'.")
-        ctx.obj.handler.set_data(r)
         utils.exit_action(
             ctx,
             success=False,
@@ -243,7 +242,7 @@ def cryptokey_enable(
     ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
 ) -> NoReturn:
     """
-    Enables an already existing cryptokey.
+    Enables a cryptokey.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
@@ -304,7 +303,7 @@ def cryptokey_export(
     ctx: click.Context, dns_zone: str, cryptokey_id: str, **kwargs: dict
 ) -> NoReturn:
     """
-    Exports a cryptokey - including the private key.
+    Exports a cryptokey, including the private key.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
@@ -351,28 +350,20 @@ def cryptokey_export(
 @click.argument("key-type", type=click.Choice(["ksk", "zsk"]))
 @powerdns_zone
 @click.argument("private-key", type=click.File())
-@click.option(
-    "--active",
-    is_flag=True,
-    default=False,
-    help="Sets the key to active immediately",
-)
-@click.option("-p", "--publish", is_flag=True, default=False, help="Sets the key to published")
 def cryptokey_import(
     ctx: click.Context,
     key_type: str,
     dns_zone: str,
     private_key: TextIO,
-    active: bool,
-    publish: bool,
     **kwargs: dict,
 ) -> NoReturn:
     """
     Imports a cryptokey secret to the zone.
 
-    The imported cryptokey is disabled and not published by default. Can be read from stdin
-    if - is specified.
-    File format: {"privatekey": "Yourprivatekey", ...} - all other keys are ignored.
+    The imported cryptokey is disabled and not published by default.
+    Can be read from stdin when '-' is used instead of a file path.
+    Only privatekey is required, powerdns defaults to published: True and active: False.
+    File format: {"privatekey": "Yourprivatekey", "active": bool, "published": bool}.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
     secret = utils.extract_file(ctx, private_key)
@@ -383,11 +374,11 @@ def cryptokey_import(
             success=False,
             message="Failed importing the file, dict key 'privatekey' is missing.",
         )
-    secret = secret["privatekey"].replace("\\n", "\n")
+    key = secret["privatekey"].replace("\\n", "\n")
     payload = {
-        "active": active,
-        "published": publish,
-        "privatekey": secret,
+        "active": secret.get("active"),
+        "published": secret.get("published"),
+        "privatekey": key,
         "keytype": key_type,
     }
 
@@ -395,7 +386,7 @@ def cryptokey_import(
         f"Attempting to import cryptokey of type '{key_type}' for zone '{dns_zone}'."
     )
 
-    if is_dnssec_key_present(uri, secret, ctx):
+    if is_dnssec_key_present(uri, key, ctx):
         ctx.obj.logger.info("The provided DNSSEC key is already present at the backend.")
         utils.exit_action(
             ctx,
@@ -432,7 +423,7 @@ def cryptokey_import(
 @powerdns_zone
 def cryptokey_list(ctx: click.Context, dns_zone: str, **kwargs: dict) -> NoReturn:
     """
-    Lists all currently configured cryptokeys for this zone without displaying secrets.
+    Lists all cryptokeys without displaying secrets.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
 
@@ -471,7 +462,7 @@ def cryptokey_publish(
     ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
 ) -> NoReturn:
     """
-    Publishes an already existing cryptokey. Implies activating it as well.
+    Publishes a cryptokey.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
@@ -539,7 +530,7 @@ def cryptokey_unpublish(
     ctx: click.Context, dns_zone: str, cryptokey_id: int, **kwargs: dict
 ) -> NoReturn:
     """
-    Unpublishes an already existing cryptokey.
+    Unpublishes a cryptokey.
     """
     uri = (
         f"{ctx.obj.config['apihost']}"

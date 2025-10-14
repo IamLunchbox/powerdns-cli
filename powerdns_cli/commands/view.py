@@ -1,9 +1,7 @@
 """
 A Click-based CLI module for managing DNS views in PowerDNS.
-
 This module provides commands for managing DNS views,
 which allow for zone access control and segmentation.
-
 Commands:
     add: Adds a DNS zone to a view, creating the view if it does not exist.
     delete: Removes a DNS zone from a view.
@@ -24,7 +22,7 @@ from ..utils.validation import DefaultCommand, powerdns_zone
 
 @click.group()
 def view():
-    """Configure views, who limit zone access based on IPs"""
+    """Configure views, which limit zone access based on IPs."""
 
 
 @view.command(
@@ -37,18 +35,16 @@ def view():
 @powerdns_zone
 @click.pass_context
 def view_add(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoReturn:
-    """Add a zone to a view, creates the view if it did not exist beforehand."""
+    """Add a zone to a view, creates the view if it does not exist."""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
-
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone in view_content.json()["zones"]:
         ctx.obj.logger.info(f"{dns_zone} is already in {view_id}.")
         utils.exit_action(ctx, success=True, message=f"{dns_zone} already in {view_id}.")
     else:
-        ctx.obj.logger.info(f"Adding {dns_zone} to {view_id}")
+        ctx.obj.logger.info(f"Adding {dns_zone} to {view_id}.")
         payload = {"name": f"{dns_zone}"}
         r = utils.http_post(uri, ctx, payload=payload)
-
         if r.status_code == 204:
             ctx.obj.logger.info(f"Successfully added {dns_zone} to {view_id}.")
             utils.exit_action(
@@ -73,19 +69,16 @@ def view_add(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoRet
 def view_delete(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoReturn:
     """Deletes a DNS zone from a view."""
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
-
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone not in view_content.json()["zones"]:
-        ctx.obj.logger.info(f"Zone {dns_zone} is not in {view_id}")
+        ctx.obj.logger.info(f"Zone {dns_zone} is not in {view_id}.")
         utils.exit_action(ctx, success=True, message=f"Zone {dns_zone} is not in {view_id}.")
     elif view_content.status_code == 404:
-        ctx.obj.logger.info(f"View {view_id} is absent")
+        ctx.obj.logger.info(f"View {view_id} is absent.")
         utils.exit_action(ctx, success=True, message=f"View {view_id} is already absent.")
-
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
     ctx.obj.logger.info(f"Attempting to delete {dns_zone} from {view_id} at {uri}.")
     r = utils.http_delete(uri, ctx)
-
     if r.status_code == 204:
         ctx.obj.logger.info(f"Successfully deleted {dns_zone} from {view_id}.")
         utils.exit_action(
@@ -108,7 +101,7 @@ def view_delete(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> No
 @click.pass_context
 def view_export(ctx, view_id, **kwargs):
     """
-    Exports a single view for its configured zones
+    Exports a single view for its configured zones.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
     utils.show_setting(ctx, uri, "view", "export")
@@ -125,35 +118,31 @@ def view_export(ctx, view_id, **kwargs):
     "--replace",
     type=click.BOOL,
     is_flag=True,
-    help="Replace all view settings with new ones",
+    help="Replace all view settings with new ones.",
 )
-@click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail")
+@click.option("--ignore-errors", is_flag=True, help="Continue import even when requests fail.")
 @click.pass_context
 def view_import(
     ctx: click.Context, file: TextIO, replace: bool, ignore_errors: bool, **kwargs
 ) -> NoReturn:
     """Imports views and their contents into the server.
-    Must be a list of dictionaries, like: [{'view1':['example.org']}]
+    Must be a list of dictionaries, like: [{'view1':['example.org']}].
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
     ctx.obj.logger.info("Importing views from file.")
-
     settings = utils.extract_file(ctx, file)
     if not validate_view_import(ctx, settings):
         ctx.obj.logger.error("Invalid view structure provided.")
         utils.exit_action(
             ctx,
             success=False,
-            message="Views must be adhere to the following structure: [{'view1':['example.org']}].",
+            message="Views must adhere to the following structure: [{'view1':['example.org']}].",
         )
-
     restructured_settings = reformat_view_imports(ctx, settings)
     upstream_settings = get_upstream_views(ctx, uri)
-
     if replace and upstream_settings == restructured_settings:
-        ctx.obj.logger.info("Requested views are already present")
+        ctx.obj.logger.info("Requested views are already present.")
         utils.exit_action(ctx, success=True, message="Requested views are already present.")
-
     if not replace and all(
         is_zone_in_view(ctx, view_item, upstream_settings) for view_item in restructured_settings
     ):
@@ -163,9 +152,9 @@ def view_import(
         ctx.obj.logger.info("Replacing existing views with new settings.")
         replace_view_import(uri, ctx, restructured_settings, upstream_settings, ignore_errors)
     else:
-        ctx.obj.logger.info("Adding new views")
+        ctx.obj.logger.info("Adding new views.")
         add_view_import(uri, ctx, restructured_settings, ignore_errors)
-    ctx.obj.logger.info("Successfully imported view from file.")
+    ctx.obj.logger.info("Successfully imported views from file.")
     utils.exit_action(ctx, success=True, message="Successfully imported views from file.")
 
 
@@ -177,7 +166,7 @@ def view_import(
 @click.pass_context
 def view_list(ctx, **kwargs):
     """
-    Shows all views and their configuration as a list
+    Shows all views and their configuration as a list.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
     utils.show_setting(ctx, uri, "view", "list")
@@ -185,8 +174,7 @@ def view_list(ctx, **kwargs):
 
 @view.command("spec")
 def view_spec():
-    """Open the view specification on https://redocly.github.io"""
-
+    """Open the view specification on https://redocly.github.io."""
     utils.open_spec("view")
 
 
@@ -200,7 +188,7 @@ def view_spec():
 @click.argument("view_id", type=click.STRING, metavar="view")
 @powerdns_zone
 def view_update(ctx: click.Context, view_id: str, dns_zone: str, **kwargs):
-    """Update a view to contain the given zone"""
+    """Update a view to contain the given zone."""
     ctx.forward(view_add)
 
 
@@ -209,12 +197,10 @@ def add_view_import(
 ) -> None:
     """
     Import views from settings configuration.
-
     Args:
         uri: The connection string.
         ctx: Click context object for CLI operations.
-        settings: List of view configuration dictionaries, each containing
-                 'name' and 'views' keys.
+        settings: List of view configuration dictionaries, each containing 'name' and 'views' keys.
         ignore_errors: Whether to continue processing if errors occur.
     """
     views_to_add = [
@@ -222,12 +208,10 @@ def add_view_import(
         for view_entry in settings
         for view_item in view_entry["views"]
     ]
-
     if not views_to_add:
         ctx.obj.logger.info("No views to add.")
         return
-
-    ctx.obj.logger.info(f"Adding {len(views_to_add)} view(s)")
+    ctx.obj.logger.info(f"Adding {len(views_to_add)} view(s).")
     add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)
     ctx.obj.logger.info("Successfully added views.")
 
@@ -245,7 +229,6 @@ def replace_view_import(
     - Deletes views that exist in upstream but not in current settings.
     - Adds new views that exist in current but not in upstream settings.
     - For matching view names, adds/removes individual views based on set difference.
-
     Args:
         uri: Database URI or connection string.
         ctx: Click context object for CLI operations.
@@ -255,41 +238,29 @@ def replace_view_import(
     """
     views_to_add = []
     views_to_delete = []
-
     ctx.obj.logger.info("Calculating view differences for replacement.")
-
     for old_view in upstream_settings:
-        # If a view name is not in the new settings, delete it and its contents.
         if old_view["name"] not in [viewset["name"] for viewset in settings]:
             for item in old_view["views"]:
                 views_to_delete.append({"name": old_view["name"], "view": item})
             ctx.obj.logger.info(f"View {old_view['name']} marked for complete deletion.")
             continue
-
-        # The new view name is present; intersect the content.
         for new_view in settings:
             if old_view["name"] == new_view["name"]:
-                # Add views present in new but not in old.
                 for item in new_view["views"].difference(old_view["views"]):
                     views_to_add.append({"name": old_view["name"], "view": item})
                     ctx.obj.logger.info(f"View {item} in {old_view['name']} marked for addition.")
-
-                # Delete views present in old but not in new.
                 for item in old_view["views"].difference(new_view["views"]):
                     views_to_delete.append({"name": old_view["name"], "view": item})
                     ctx.obj.logger.info(f"View {item} in {old_view['name']} marked for deletion.")
-
-    # Add views present in new settings but not in upstream.
     for new_view in settings:
         if new_view["name"] not in [viewset["name"] for viewset in upstream_settings]:
             for item in new_view["views"]:
                 views_to_add.append({"name": new_view["name"], "view": item})
                 ctx.obj.logger.info(f"View {item} in {new_view['name']} marked for addition.")
-
     if views_to_add:
         ctx.obj.logger.info(f"Adding {len(views_to_add)} view(s).")
         add_views(views_to_add, uri, ctx, continue_on_error=ignore_errors)
-
     if views_to_delete:
         ctx.obj.logger.info(f"Deleting {len(views_to_delete)} view(s).")
         delete_views(views_to_delete, uri, ctx, continue_on_error=ignore_errors)
@@ -304,7 +275,6 @@ def delete_views(
 ) -> None:
     """
     Delete views from a specified URI, handling errors according to the continue_on_error flag.
-
     Args:
         views_to_delete: List of dictionaries, each containing 'name' and 'view' keys.
         uri: Base URI for the delete requests.
@@ -315,7 +285,6 @@ def delete_views(
         name, view_item = item["name"], item["view"]
         delete_uri = f"{uri}/{name}/{view_item}"
         ctx.obj.logger.info(f"Deleting view '{view_item}' from '{name}'.")
-
         r = utils.http_delete(delete_uri, ctx)
         if r.status_code == 204:
             ctx.obj.logger.info(f"Successfully deleted view '{view_item}' from '{name}'.")
@@ -334,7 +303,6 @@ def add_views(
 ) -> None:
     """
     Add views to a specified URI, handling errors according to the continue_on_error flag.
-
     Args:
         views_to_add: List of dictionaries, each containing 'name' and 'view' keys.
         uri: Base URI for the POST requests.
@@ -345,7 +313,6 @@ def add_views(
         name, view_item = item["name"], item["view"]
         add_uri = f"{uri}/{name}"
         ctx.obj.logger.info(f"Adding view '{view_item}' to '{name}'.")
-
         r = utils.http_post(add_uri, ctx, payload={"name": view_item})
         if r.status_code == 204:
             ctx.obj.logger.info(f"Successfully added view '{view_item}' to '{name}'.")
@@ -359,7 +326,6 @@ def add_views(
 def get_upstream_views(ctx: click.Context, uri: str) -> list[dict]:
     """
     Get and reformat upstream view settings.
-
     Args:
         ctx: Click context for HTTP requests and logging.
         uri: Base URI for upstream API requests.
@@ -368,14 +334,12 @@ def get_upstream_views(ctx: click.Context, uri: str) -> list[dict]:
     """
     ctx.obj.logger.debug(f"Fetching upstream views from {uri}.")
     upstream_views = utils.read_settings_from_upstream(uri, ctx)["views"]
-
     upstream_settings = []
     for key in upstream_views:
         zone_uri = f"{uri}/{key}"
         ctx.obj.logger.debug(f"Fetching zones for view '{key}' from {zone_uri}.")
         zones = utils.read_settings_from_upstream(zone_uri, ctx)["zones"]
         upstream_settings.append({"name": key, "views": set(zones)})
-
     ctx.obj.logger.info(f"Successfully fetched {len(upstream_settings)} upstream view settings.")
     return upstream_settings
 
@@ -383,7 +347,6 @@ def get_upstream_views(ctx: click.Context, uri: str) -> list[dict]:
 def reformat_view_imports(ctx: click.Context, local_views: list[dict]) -> list[dict]:
     """
     Reformat local view settings for comparison with upstream settings.
-
     Args:
         local_views: List of local view configurations.
     Returns:
@@ -396,7 +359,6 @@ def reformat_view_imports(ctx: click.Context, local_views: list[dict]) -> list[d
         canonical_zones = {make_canonical(view_item) for view_item in view_zones}
         restructured_settings.append({"name": view_name, "views": canonical_zones})
         ctx.obj.logger.debug(f"Reformatted view '{view_name}' with zones: {canonical_zones}.")
-
     ctx.obj.logger.info(f"Reformatted {len(restructured_settings)} local view settings.")
     return restructured_settings
 
@@ -404,7 +366,6 @@ def reformat_view_imports(ctx: click.Context, local_views: list[dict]) -> list[d
 def validate_view_import(ctx: click.Context, settings: list) -> bool:
     """
     Validate the structure of view import settings.
-
     Args:
         settings: A list of dictionaries, each with a single key-value pair.
                  The value should be a list of views.
@@ -414,28 +375,23 @@ def validate_view_import(ctx: click.Context, settings: list) -> bool:
     if not isinstance(settings, list):
         ctx.obj.logger.error("Settings must be a list of dictionaries.")
         return False
-
     for item in settings:
         if not isinstance(item, dict) or len(item) != 1:
             ctx.obj.logger.error("Each setting must be a dictionary with a single key-value pair.")
             return False
-
         value = next(iter(item.values()))
         if not isinstance(value, list):
             ctx.obj.logger.error("Each view's value must be a list of zones.")
             return False
-
     ctx.obj.logger.info("View import settings are valid.")
     return True
 
 
 def is_zone_in_view(ctx: click.Context, new_view: dict, upstream: list[dict]) -> bool:
     """Check if all zones in a new view are present in an upstream view of the same name.
-
     Args:
         new_view: Dictionary with 'name' and 'views' (set or list of zones).
         upstream: List of dictionaries, each with 'name' and 'views' (set or list of zones).
-
     Returns:
         bool: True if an upstream view with the same name contains all zones, False otherwise.
     """
@@ -455,10 +411,8 @@ def is_zone_in_view(ctx: click.Context, new_view: dict, upstream: list[dict]) ->
 
 def make_canonical(zone: str) -> str:
     """Ensure a DNS zone name ends with a trailing dot.
-
     Args:
         zone: The DNS zone name (e.g., "example.com").
-
     Returns:
         The zone name with a trailing dot if not already present.
     """

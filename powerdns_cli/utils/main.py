@@ -52,7 +52,9 @@ def exit_action(
     ctx.obj.handler.set_message(message)
     if response:
         ctx.obj.handler.set_data(response)
-    ctx.obj.handler.set_success(success)
+    # pass response to set success as well to enable the handler to set debug data from the response
+    # body
+    ctx.obj.handler.set_success(success, response)
     exit_cli(ctx, print_data=print_data)
 
 
@@ -63,7 +65,7 @@ def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.R
         ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
-        exit_action(ctx, False, f"Request error: {e}")
+        exit_action(ctx, False, f"Request error: {e}.")
 
 
 def http_get(
@@ -75,7 +77,7 @@ def http_get(
         ctx.obj.handler.log_http_data(ctx, request, log_body)
         return request
     except requests.RequestException as e:
-        exit_action(ctx, False, f"Request error: {e}")
+        exit_action(ctx, False, f"Request error: {e}.")
 
 
 def http_patch(
@@ -87,7 +89,7 @@ def http_patch(
         ctx.obj.handler.log_http_data(ctx, request, log_body)
         return request
     except requests.RequestException as e:
-        exit_action(ctx, False, f"Request error: {e}")
+        exit_action(ctx, False, f"Request error: {e}.")
 
 
 def http_post(
@@ -99,7 +101,7 @@ def http_post(
         ctx.obj.handler.log_http_data(ctx, request, log_body)
         return request
     except requests.RequestException as e:
-        exit_action(ctx, False, f"Request error: {e}")
+        exit_action(ctx, False, f"Request error: {e}.")
 
 
 def http_put(
@@ -111,7 +113,7 @@ def http_put(
         ctx.obj.handler.log_http_data(ctx, request, log_body)
         return request
     except requests.RequestException as e:
-        exit_action(ctx, False, f"Request error: {e}")
+        exit_action(ctx, False, f"Request error: {e}.")
 
 
 def make_dnsname(name: str, zone: str) -> str:
@@ -185,8 +187,8 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
     response = http_get(uri, ctx)
 
     if response.status_code not in (200, 404):
-        ctx.obj.handler.set_message(f"Fetching the settings failed with {response.status_code}")
-        ctx.obj.handler.set_failed()
+        ctx.obj.handler.set_message("Fetching the settings failed.")
+        ctx.obj.handler.set_success(False)
         exit_cli(ctx)
 
     if response.status_code == 404:
@@ -195,9 +197,9 @@ def read_settings_from_upstream(uri: str, ctx: click.Context) -> dict | list:
     try:
         return response.json()
     except json.JSONDecodeError as e:
-        ctx.obj.logger.error(f"An exception ocurred while decoding upstream JSON:  {e}")
-        ctx.obj.handler.set_message("A valid JSON-file could not be obtained from upstream")
-        ctx.obj.handler.set_failed()
+        ctx.obj.logger.error(f"An exception ocurred while decoding upstream JSON:  {e}.")
+        ctx.obj.handler.set_message("A valid JSON-file could not be obtained from upstream.")
+        ctx.obj.handler.set_success(False)
         exit_cli(ctx)
 
 
@@ -222,15 +224,15 @@ def validate_simple_import(
                    Exits with code 0 if data is already present.
     """
     if not isinstance(settings, list):
-        ctx.obj.handler.set_message("Data must be provided as a list")
+        ctx.obj.handler.set_message("Data must be provided as a list.")
         ctx.obj.handler.set_failed()
         exit_cli(ctx)
     if replace and upstream_settings == settings:
-        ctx.obj.handler.set_message("Requested data is already present")
+        ctx.obj.handler.set_message("Requested data is already present.")
         ctx.obj.handler.set_success()
         exit_cli(ctx)
     if not replace and all(item in upstream_settings for item in settings):
-        ctx.obj.handler.set_message("Requested data is already present")
+        ctx.obj.handler.set_message("Requested data is already present.")
         ctx.obj.handler.set_success()
         exit_cli(ctx)
 
@@ -256,28 +258,28 @@ def show_setting(
     """
     r = http_get(uri, ctx)
     if r.status_code == 200:
-        ctx.obj.logger.info(f"Successfully {action}ed {setting_name}")
+        ctx.obj.logger.info(f"Successfully {action}ed {setting_name}.")
         exit_action(
             ctx,
             success=True,
-            message=f"Successfully {action}ed {setting_name}",
+            message=f"Successfully {action}ed {setting_name}.",
             response=r,
             print_data=True,
         )
     elif r.status_code == 404:
-        ctx.obj.logger.warning(f"Failed {action}ing, {setting_name} not found")
+        ctx.obj.logger.warning(f"Failed {action}ing, {setting_name} not found.")
         exit_action(
             ctx,
             success=False,
             response=r,
-            message=f"Failed {action}ing, {setting_name} not found",
+            message=f"Failed {action}ing, {setting_name} not found.",
         )
     else:
-        ctx.obj.logger.error(f"Failed {action}ing {setting_name} with status code: {r.status_code}")
+        ctx.obj.logger.error(f"Failed {action}ing {setting_name}.")
         exit_action(
             ctx,
             success=False,
-            message=f"Failed {action}ing {setting_name} with status code: {r.status_code}",
+            message=f"Failed {action}ing {setting_name} with status code.",
             response=r,
         )
 
