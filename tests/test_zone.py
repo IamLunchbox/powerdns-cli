@@ -1,7 +1,6 @@
 import copy
 import json
 from unittest.mock import MagicMock
-
 import pytest
 import requests
 from click.testing import CliRunner
@@ -18,6 +17,7 @@ from powerdns_cli.commands.zone import (
     zone_notify,
     zone_rectify,
     zone_search,
+    zone_config,
 )
 
 example_com_zone_dict = {
@@ -227,6 +227,68 @@ def test_zone_add_failed(mock_utils, testobject, conditional_mock_utils, example
     post.assert_called()
     get.assert_called_once()
 
+def test_zone_config_apply_settings_successfully(mocker, mock_utils, testobject, example_zone_list):
+    changed_zone = copy.deepcopy(example_zone_list)
+    changed_zone[0]["kind"] = "Native"
+    changed_zone[0]["account"] = "test"
+    mock_put = mock_utils.mock_http_put(204, json_output={})
+    get_response = mocker.MagicMock()
+    # json() gets called 4 times now,
+    get_response.json.side_effect = (example_zone_list,example_zone_list,changed_zone, changed_zone)
+    get_response.status_code = 200
+    mocker.patch("powerdns_cli.utils.main.http_get",return_value=get_response)
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_config,
+        ["--kind", "native", "--account", "test", "--api-rectify", "false", "example.com."],
+        obj=testobject,
+        env=testutils.testenvironment,
+    )
+    assert result.exit_code == 0
+    assert "Successfully applied settings" in json.loads(result.output)["message"]
+    mock_put.assert_called_once()
+
+
+def test_zone_config_apply_settings_server_error(mock_utils, testobject, example_zone_list):
+    mock_utils.mock_http_get(200, example_zone_list)
+    mock_put = mock_utils.mock_http_put(500, json_output={})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_config,
+        ["--kind", "secondary", "example.com."],
+        obj=testobject,
+        env=testutils.testenvironment,
+    )
+    assert result.exit_code == 1
+    assert "Failed to set" in json.loads(result.output)["message"]
+    mock_put.assert_called()
+
+def test_zone_config_apply_settings_did_not_apply(mock_utils, testobject, example_zone_list):
+    get = mock_utils.mock_http_get(200, example_zone_list)
+    mock_put = mock_utils.mock_http_put(204, json_output={})
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_config,
+        ["--kind", "secondary", "--api-rectify", "false", "example.com."],
+        obj=testobject,
+        env=testutils.testenvironment,
+    )
+    assert result.exit_code == 1
+    assert "Failed to" in json.loads(result.output)["message"]
+    mock_put.assert_called_once()
+    assert get.call_count == 2
+
+def test_zone_config_settings_idempotence(mock_utils, testobject, example_zone_list):
+    mock_utils.mock_http_get(200, example_zone_list)
+    runner = CliRunner()
+    result = runner.invoke(
+        zone_config,
+        ["--kind", "primary", "--api-rectify", "false", "example.com."],
+        obj=testobject,
+        env=testutils.testenvironment,
+    )
+    assert result.exit_code == 0
+    assert "already present" in json.loads(result.output)["message"]
 
 def test_zone_delete_success(mock_utils, testobject, conditional_mock_utils, example_org):
     get = conditional_mock_utils.mock_http_get()

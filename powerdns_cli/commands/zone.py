@@ -231,11 +231,13 @@ def zone_config(
             ctx, success=True, message=f"Successfully applied settings to {dns_zone}.", response=r
         )
     elif r.status_code == 204:
-        ctx.obj.logger.error("Server accepted update but did not change all settings.")
+        ctx.obj.logger.error(
+            "Failed to apply settings: Server accepted but did not apply all items."
+        )
         utils.exit_action(
             ctx,
             success=False,
-            message="Server accepted update but did not change all settings.",
+            message="Failed to apply settings: Server accepted but did not apply all items.",
             response=r,
         )
     else:
@@ -639,8 +641,10 @@ def parse_settings(
     setting = {}
     if kind == "primary":
         setting["kind"] = "Master"
-    if kind == "secondary":
+    elif kind == "secondary":
         setting["kind"] = "Slave"
+    else:
+        setting["kind"] = kind.capitalize()
     if primaries:
         setting["masters"] = list(primaries)
     for item in (
