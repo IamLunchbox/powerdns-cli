@@ -165,4 +165,3 @@ def test_parse_options_missing_required_params(mock_ctx):
     mock_ctx.params["url"] = None
     with pytest.raises(SystemExit):
         DefaultCommand.parse_options(mock_ctx, [])
-        breakpoint()
