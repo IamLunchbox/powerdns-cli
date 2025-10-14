@@ -331,7 +331,8 @@ def zone_import(
         f"!!!! WARNING !!!!!\nYou are deleting and reconfiguring {settings['id']}!\n"
         "Are you sure?"
     )
-    if not force and not click.confirm(warning):
+
+    if upstream_settings and not force and not click.confirm(warning):
         ctx.obj.logger.error("Zone import aborted by user.")
         utils.exit_action(ctx, success=False, message="Zone import aborted by user.")
     ctx.obj.logger.info(f"Importing zone {settings['id']}.")
@@ -507,9 +508,9 @@ def import_zone_settings(
     )
     r = utils.http_post(uri.removesuffix(f"/{payload['id']}"), ctx, payload=payload)
     if r.status_code == 201:
-        ctx.obj.logger.info(f"Successfully re-added {payload['id']}.")
+        ctx.obj.logger.info(f"Successfully added {payload['id']}.")
         utils.exit_action(
-            ctx, success=True, message=f"Successfully re-added {payload['id']}.", response=r
+            ctx, success=True, message=f"Successfully added {payload['id']}.", response=r
         )
     ctx.obj.logger.error(f"Failed adding zone {payload['id']}.")
     utils.exit_action(

@@ -28,7 +28,6 @@ class ResultHandler(logging.Handler):
             "success": None,
             "http": [],
             "data": None,
-            "error_data": None,
         }
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -90,11 +89,6 @@ class ResultHandler(logging.Handler):
             success: A boolean indicating the success status.
             response: An optional requests.Response object for error data.
         """
-        if not success and response:
-            try:
-                self.result["error_data"] = response.json()
-            except JSONDecodeError:
-                self.result["error_data"] = response.text
         self.result["success"] = success
 
     def get_result(self) -> dict[str, Any]:

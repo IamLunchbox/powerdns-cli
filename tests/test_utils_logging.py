@@ -22,7 +22,6 @@ def test_result_handler_init(result_handler):
         "success": None,
         "http": [],
         "data": None,
-        "error_data": None,
     }
 
 
@@ -165,7 +164,6 @@ def test_get_result(result_handler):
         "logs",
         "http",
         "data",
-        "error_data",
         "success",
         "message",
     ]

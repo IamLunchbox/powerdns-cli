@@ -21,12 +21,7 @@ from .commands.zone import zone
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.pass_context
 def cli(ctx):
-    """Manage PowerDNS Authoritative Nameservers and their Zones/Records
-
-    Your target server api must be specified through the corresponding cli-flags.
-    You can also export them with the prefix POWERDNS_CLI_, for example:
-    export POWERDNS_CLI_APIKEY=foobar
-    """
+    """Manage PowerDNS Authoritative Nameservers."""
     ctx.ensure_object(ContextObj)
 
 
