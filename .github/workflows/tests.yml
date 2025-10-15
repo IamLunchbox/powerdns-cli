@@ -27,6 +27,7 @@ jobs:
     - run: tox run
 
   common-integration-test:
+    needs: advanced-integration-test
     services:
       powerdns:
         image: ${{ matrix.powerdns_container }}
@@ -206,7 +207,9 @@ jobs:
         run: powerdns-cli cryptokey publish example.org 2
       - name: Unpublish cryptokey
         run: powerdns-cli cryptokey unpublish example.org 2
+
   advanced-integration-test:
+    needs: unit-tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
