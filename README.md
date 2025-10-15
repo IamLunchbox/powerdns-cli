@@ -1,7 +1,6 @@
 [![PyPi version](https://badgen.net/pypi/v/powerdns-cli/)](ttps://pypi.org/project/powerdns-cli/)
 [![GitHub latest commit](https://badgen.net/github/last-commit/IamLunchbox/powerdns-cli)](https://github.com/IamLunchbox/powerdns-cli/commits)
-![Integration Tests](https://github.com/IamLunchbox/powerdns-cli/actions/workflows/integration.yml/badge.svg)
-![Unit Tests](https://github.com/IamLunchbox/powerdns-cli/actions/workflows/unit.yml/badge.svg)
+![Tests](https://github.com/IamLunchbox/powerdns-cli/actions/workflows/tests.yml/badge.svg)
 
 # powerdns-cli
 PowerDNS-CLI is a cli tool to interact with the
