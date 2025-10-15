@@ -37,15 +37,17 @@ $ powerdns-cli zone add example.com PRIMARY
 ```
 
 It is also possible to set the common configuration items in `$HOME/.powerdns-cli.conf` or 
-`$HOME/.config/powerdns-cli/configuration.toml`. This is the required structure:  
+`$HOME/.config/powerdns-cli/configuration.toml`. The file format is `toml`, so you have to
+explicitly use quotes for strings.  
+This is the required structure and the defaults:  
 
 ```toml
-apikey = "str"
-api-version = 4|5
-debug = false|true
-insecure = false|true
-json = false|true
-url = "str"
+apikey = ""
+api-version = 4
+debug = false
+insecure = false
+json = false
+url = ""
 ```
 
 ## Features
