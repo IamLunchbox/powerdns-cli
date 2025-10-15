@@ -4,7 +4,8 @@ on:
     tags-ignore: # tags are tested in release.yml
       - "**"
     branches:
-      - "**"
+      - main
+
   workflow_call:
   pull_request:
 
