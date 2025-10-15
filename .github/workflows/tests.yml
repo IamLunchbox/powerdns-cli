@@ -1,17 +1,31 @@
-name: Integration test
+name: tests
 on:
+  pull_request:
   push:
     tags-ignore: # tags are tested in release.yml
       - "**"
     branches:
-      - main
+    - main
 
   workflow_call:
-  pull_request:
-
 
 jobs:
-  # Label of the container job
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v6
+      with:
+        cache: 'pip'
+        python-version: |
+          3.10
+          3.11
+          3.12
+          3.13
+          3.14
+    - run: pip install .[dev]
+    - run: tox run
+
   common-integration-test:
     services:
       powerdns:
