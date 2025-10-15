@@ -211,7 +211,7 @@ jobs:
 # This does only work if job.container.network is defined
       - uses: actions/setup-python@v6
         with:
-          python-version: 3.13.7
+          python-version: 3.14.0
           cache: pip
       - name: Build cli
         run: pip install .
