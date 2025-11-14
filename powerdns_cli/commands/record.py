@@ -67,11 +67,10 @@ def record_add(
     ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
 ) -> NoReturn:
     """
-    Adds a new DNS record of your given type. Use @ if you want to enter a
-    record for the top level name / zone name.
+    Creates or extends a record of an existing RRSET.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     name = utils.make_dnsname(name, dns_zone)
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
     rrset = {
         "name": name,
         "type": record_type.upper(),
@@ -80,15 +79,23 @@ def record_add(
         "records": [{"content": value, "disabled": False}],
     }
     if is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.info(f"{name} {record_type} {value} already present.")
-        utils.exit_action(ctx, True, f"{name} {record_type} {value} already present.")
+        ctx.obj.logger.info(f"{name} IN {record_type} {value} already present.")
+        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} already present.")
+    upstream_rrset = is_matching_rrset_present(uri, ctx, rrset)
+    if upstream_rrset:
+        extra_records = [
+            item
+            for item in upstream_rrset["records"]
+            if item["content"] != rrset["records"][0]["content"]
+        ]
+        rrset["records"].extend(extra_records)
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
-        ctx.obj.logger.info(f"{name} {record_type} {value} created.")
-        utils.exit_action(ctx, True, f"{name} {record_type} {value} created.", r)
+        ctx.obj.logger.info(f"Successfully added {name} IN {record_type} with {value}.")
+        utils.exit_action(ctx, True, f"Successfully added {name} IN {record_type} with {value}.", r)
     else:
-        ctx.obj.logger.error(f"Failed to create {name} {record_type} {value}.")
-        utils.exit_action(ctx, False, f"Failed to create {name} {record_type} {value}.", r)
+        ctx.obj.logger.error(f"Failed to add {name} IN {record_type} {value}.")
+        utils.exit_action(ctx, False, f"Failed to add {name} IN {record_type} {value}.", r)
 
 
 @record.command(
@@ -286,7 +293,7 @@ def record_enable(
 
 
 @record.command(
-    "extend",
+    "replace",
     cls=DefaultCommand,
     context_settings={"auto_envvar_prefix": "POWERDNS_CLI"},
     no_args_is_help=True,
@@ -313,14 +320,15 @@ def record_enable(
 @click.argument("value", type=click.STRING)
 @click.option("--ttl", default=86400, type=click.INT, help="Set time to live.")
 @click.pass_context
-def record_extend(
+def record_replace(
     ctx: click.Context, name: str, dns_zone: str, record_type: str, value: str, ttl: int, **kwargs
 ) -> NoReturn:
     """
-    Extends records of an existing RRSET. Will create a new RRSET, if it did not exist beforehand.
+    Adds or replaces a RRSet and its contents. Use @ if you want to enter a
+    record for the top level name / zone name.
     """
-    name = utils.make_dnsname(name, dns_zone)
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    name = utils.make_dnsname(name, dns_zone)
     rrset = {
         "name": name,
         "type": record_type.upper(),
@@ -328,26 +336,17 @@ def record_extend(
         "changetype": "REPLACE",
         "records": [{"content": value, "disabled": False}],
     }
+    # This will match on a subset
     if is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.info(f"{name} IN {record_type} {value} already present.")
-        utils.exit_action(ctx, True, f"{name} IN {record_type} {value} already present.")
-    upstream_rrset = is_matching_rrset_present(uri, ctx, rrset)
-    if upstream_rrset:
-        extra_records = [
-            item
-            for item in upstream_rrset["records"]
-            if item["content"] != rrset["records"][0]["content"]
-        ]
-        rrset["records"].extend(extra_records)
+        ctx.obj.logger.info(f"{name} {record_type} {value} already present.")
+        utils.exit_action(ctx, True, f"{name} {record_type} {value} already present.")
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
-        ctx.obj.logger.info(f"Successfully extended {name} IN {record_type} with {value}.")
-        utils.exit_action(
-            ctx, True, f"Successfully extended {name} IN {record_type} with {value}.", r
-        )
+        ctx.obj.logger.info(f"{name} {record_type} {value} set.")
+        utils.exit_action(ctx, True, f"{name} {record_type} {value} set.", r)
     else:
-        ctx.obj.logger.error(f"Failed to extend {name} IN {record_type} {value}.")
-        utils.exit_action(ctx, False, f"Failed to extend {name} IN {record_type} {value}.", r)
+        ctx.obj.logger.error(f"Failed to create {name} {record_type} {value}.")
+        utils.exit_action(ctx, False, f"Failed to create {name} {record_type} {value}.", r)
 
 
 @record.command(

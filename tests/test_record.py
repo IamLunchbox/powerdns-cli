@@ -14,7 +14,7 @@ from powerdns_cli.commands.record import (
     record_disable,
     record_enable,
     record_export,
-    record_extend,
+    record_replace,
     record_import,
 )
 
