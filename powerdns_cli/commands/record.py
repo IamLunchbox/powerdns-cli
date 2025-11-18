@@ -71,9 +71,10 @@ def record_add(
     """
     name = utils.make_dnsname(name, dns_zone)
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    record_type = record_type.upper()
     rrset = {
         "name": name,
-        "type": record_type.upper(),
+        "type": record_type,
         "ttl": ttl,
         "changetype": "REPLACE",
         "records": [{"content": value, "disabled": False}],
@@ -178,7 +179,7 @@ def record_delete(
         "records": [{"content": value, "disabled": False}],
     }
     if not is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.warning(f"{name} {record_type} {value} already absent.")
+        ctx.obj.logger.info(f"{name} {record_type} {value} already absent.")
         utils.exit_action(
             ctx, success=True, message=f"{name} {record_type} {value} already absent."
         )
