@@ -328,18 +328,21 @@ def record_replace(
     record for the top level name / zone name.
     """
     uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    record_type = record_type.upper()
     name = utils.make_dnsname(name, dns_zone)
     rrset = {
         "name": name,
-        "type": record_type.upper(),
+        "type": record_type,
         "ttl": ttl,
         "changetype": "REPLACE",
         "records": [{"content": value, "disabled": False}],
     }
-    # This will match on a subset
-    if is_value_present(uri, ctx, rrset):
-        ctx.obj.logger.info(f"{name} {record_type} {value} already present.")
-        utils.exit_action(ctx, True, f"{name} {record_type} {value} already present.")
+    ctx.obj.logger.info(f"Checking if RRSet {name} {record_type} has the required content.")
+    zone_rrsets = query_zone_rrsets(uri, ctx)
+    for existing_rrset in zone_rrsets:
+        if all(existing_rrset[key] == rrset[key] for key in ("name", "type", "ttl", "records")):
+            ctx.obj.logger.info(f"{name} {record_type} {value} already present.")
+            utils.exit_action(ctx, True, f"{name} {record_type} {value} already present.")
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
         ctx.obj.logger.info(f"{name} {record_type} {value} set.")
