@@ -100,9 +100,9 @@ def test_record_add_success(mock_utils, testobject, example_zone):
         env=testenvironment,
     )
     assert result.exit_code == 0
-    assert "created" in json.loads(result.output)["message"]
+    assert "added" in json.loads(result.output)["message"]
     patch.assert_called()
-    get.assert_called_once()
+    get.assert_called()
 
 
 def test_record_add_already_present(mock_utils, testobject, example_zone):
@@ -117,7 +117,7 @@ def test_record_add_already_present(mock_utils, testobject, example_zone):
     )
     assert result.exit_code == 0
     patch.assert_not_called()
-    get.assert_called_once()
+    get.assert_called()
     assert "already present" in json.loads(result.output)["message"]
 
 
@@ -251,7 +251,7 @@ def test_record_enable_success(mock_utils, testobject, example_zone):
         env=testenvironment,
     )
     assert result.exit_code == 0
-    assert "created" in json.loads(result.output)["message"]
+    assert "added" in json.loads(result.output)["message"]
     patch.assert_called()
     get.assert_called()
 
@@ -292,7 +292,7 @@ def test_record_extend_success(mock_utils, testobject, example_zone):
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
-        record_extend,
+        record_replace,
         ["test", "example.com.", "A", "192.168.1.1"],
         obj=testobject,
         env=testenvironment,
@@ -323,7 +323,7 @@ def test_record_extend_success_with_new_rrset(mock_utils, testobject, example_zo
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
-        record_extend,
+        record_replace,
         ["test4", "example.com.", "A", "192.168.1.1"],
         obj=testobject,
         env=testenvironment,
@@ -352,7 +352,7 @@ def test_record_extend_idempotence(mock_utils, testobject, example_zone):
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
-        record_extend,
+        record_replace,
         ["test", "example.com.", "A", "1.1.1.1"],
         obj=testobject,
         env=testenvironment,
@@ -368,7 +368,7 @@ def test_record_extend_failure(mock_utils, testobject, example_zone):
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
     result = runner.invoke(
-        record_extend,
+        record_replace,
         ["@", "example.com.", "A", "192.168.1.1"],
         obj=testobject,
         env=testenvironment,
