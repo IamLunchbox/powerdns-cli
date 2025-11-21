@@ -14,8 +14,8 @@ from powerdns_cli.commands.record import (
     record_disable,
     record_enable,
     record_export,
-    record_replace,
     record_import,
+    record_replace,
 )
 
 example_com_bind = """example.com.    3600    IN      SOA     a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025082405 10800 3600 604800 3600
