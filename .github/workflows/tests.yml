@@ -100,18 +100,16 @@ jobs:
         run: powerdns-cli record add add example.org A 10.0.0.2 | grep "already"
       - name: Add CNAME record with different ttl
         run: powerdns-cli record add --ttl 60 cname example.org CNAME "example.org."
-      - name: Run extend on no preexisting record
-        run: powerdns-cli record extend extend example.org A 10.0.0.1
-      - name: Extend existing record
-        run: powerdns-cli record extend extend example.org A 10.0.0.2
+      - name: Run replace on not preexisting record
+        run: powerdns-cli record replace replaceme example.org A 10.0.0.1
+      - name: Replace existing record
+        run: powerdns-cli record replace replaceme example.org A 10.0.0.2
       - name: Create a record to delete
         run: powerdns-cli record add delete example.org A 10.0.0.1
-      - name: Extend a record to delete
-        run: powerdns-cli record extend delete example.org A 10.0.0.2
       - name: Delete part of a record
-        run: powerdns-cli record delete delete example.org A 10.0.0.2
+        run: powerdns-cli record delete add example.org A 10.0.0.2
       - name: Delete full record
-        run: powerdns-cli record delete --all delete example.org A 192.168.0.1
+        run: powerdns-cli record delete --all replaceme example.org A 192.168.0.1
       - name: Create a record to disable
         run: powerdns-cli record add disable example.org A 10.0.0.1
       - name: Disable record
