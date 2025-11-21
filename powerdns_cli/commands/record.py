@@ -346,11 +346,11 @@ def record_replace(
             utils.exit_action(ctx, True, f"{name} {record_type} {value} already present.")
     r = utils.http_patch(uri, ctx, {"rrsets": [rrset]})
     if r.status_code == 204:
-        ctx.obj.logger.info(f"{name} {record_type} {value} set.")
-        utils.exit_action(ctx, True, f"{name} {record_type} {value} set.", r)
+        ctx.obj.logger.info(f"{name} {record_type} replaced with {value}.")
+        utils.exit_action(ctx, True, f"{name} {record_type} replaced with {value}.", r)
     else:
-        ctx.obj.logger.error(f"Failed to create {name} {record_type} {value}.")
-        utils.exit_action(ctx, False, f"Failed to create {name} {record_type} {value}.", r)
+        ctx.obj.logger.error(f"Failed to replace {name} {record_type} with {value}.")
+        utils.exit_action(ctx, False, f"Failed to create {name} {record_type} with {value}.", r)
 
 
 @record.command(

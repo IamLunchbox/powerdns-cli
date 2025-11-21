@@ -89,13 +89,21 @@ def file_mock(mocker):
     return testutils.MockFile(mocker)
 
 
-def test_record_add_success(mock_utils, testobject, example_zone):
+@pytest.mark.parametrize(
+    "input_content",
+    (
+        ["@", "example.com.", "A", "192.168.1.1"],
+        ["test", "example.com.", "A", "1.1.1.3"],
+        ["--ttl", 3600, "test", "example.com.", "A", "1.1.1.3"],
+    ),
+)
+def test_record_add_success(mock_utils, testobject, example_zone, input_content):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         record_add,
-        ["@", "example.com.", "A", "192.168.1.1"],
+        input_content,
         obj=testobject,
         env=testenvironment,
     )
@@ -287,30 +295,71 @@ def test_record_enabled_failure(mock_utils, testobject, example_zone):
     get.assert_called()
 
 
-def test_record_extend_success(mock_utils, testobject, example_zone):
+@pytest.mark.parametrize(
+    "cli_input,name,rrset_type,records,ttl",
+    (
+        (  # Replace 3 A records with a single one, having the same ttl
+            ["test", "example.com.", "A", "192.168.1.1"],
+            "test.example.com.",
+            "A",
+            {"content": "192.168.1.1", "disabled": False},
+            86400,
+        ),
+        (  # replace a disabled record
+            ["test2", "example.com.", "A", "2.2.2.2"],
+            "test2.example.com.",
+            "A",
+            {"content": "2.2.2.2", "disabled": False},
+            86400,
+        ),
+        (  # create a new record
+            ["test4", "example.com.", "TXT", "A test"],
+            "test4.example.com.",
+            "TXT",
+            {"content": "A test", "disabled": False},
+            86400,
+        ),
+        (  # replace an identical existing record with a new ttl
+            [
+                "@",
+                "example.com.",
+                "SOA",
+                "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+            ],
+            "example.com.",
+            "SOA",
+            {
+                "content": "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+                "disabled": False,
+            },
+            86400,
+        ),
+    ),
+)
+def test_record_replace_success(
+    mock_utils, testobject, example_zone, cli_input, name, rrset_type, records, ttl
+):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         record_replace,
-        ["test", "example.com.", "A", "192.168.1.1"],
+        cli_input,
         obj=testobject,
         env=testenvironment,
     )
     assert result.exit_code == 0
-    assert "extended" in json.loads(result.output)["message"]
+    assert "replaced" in json.loads(result.output)["message"]
     patch.assert_called()
     assert patch.call_args_list[0][0][2] == {
         "rrsets": [
             {
-                "name": "test.example.com.",
-                "type": "A",
-                "ttl": 86400,
+                "name": name,
+                "type": rrset_type,
+                "ttl": ttl,
                 "changetype": "REPLACE",
                 "records": [
-                    {"content": "192.168.1.1", "disabled": False},
-                    {"content": "1.1.1.1", "disabled": False},
-                    {"content": "1.1.1.2", "disabled": True},
+                    records,
                 ],
             }
         ]
@@ -318,42 +367,20 @@ def test_record_extend_success(mock_utils, testobject, example_zone):
     get.assert_called()
 
 
-def test_record_extend_success_with_new_rrset(mock_utils, testobject, example_zone):
+def test_record_replace_idempotence(mock_utils, testobject, example_zone):
     get = mock_utils.mock_http_get(200, example_zone)
     patch = mock_utils.mock_http_patch(204, text_output="")
     runner = CliRunner()
     result = runner.invoke(
         record_replace,
-        ["test4", "example.com.", "A", "192.168.1.1"],
-        obj=testobject,
-        env=testenvironment,
-    )
-    assert result.exit_code == 0
-    assert "extended" in json.loads(result.output)["message"]
-    patch.assert_called()
-    assert patch.call_args_list[0][0][2] == {
-        "rrsets": [
-            {
-                "name": "test4.example.com.",
-                "type": "A",
-                "ttl": 86400,
-                "changetype": "REPLACE",
-                "records": [
-                    {"content": "192.168.1.1", "disabled": False},
-                ],
-            }
-        ]
-    }
-    get.assert_called()
-
-
-def test_record_extend_idempotence(mock_utils, testobject, example_zone):
-    get = mock_utils.mock_http_get(200, example_zone)
-    patch = mock_utils.mock_http_patch(204, text_output="")
-    runner = CliRunner()
-    result = runner.invoke(
-        record_replace,
-        ["test", "example.com.", "A", "1.1.1.1"],
+        [
+            "--ttl",
+            "3600",
+            "@",
+            "example.com.",
+            "SOA",
+            "a.misconfigured.dns.server.invalid. hostmaster.example.com. 2025080203 10800 3600 604800 3600",
+        ],
         obj=testobject,
         env=testenvironment,
     )
@@ -363,7 +390,7 @@ def test_record_extend_idempotence(mock_utils, testobject, example_zone):
     get.assert_called()
 
 
-def test_record_extend_failure(mock_utils, testobject, example_zone):
+def test_record_replace_failure(mock_utils, testobject, example_zone):
     mock_utils.mock_http_get(404, {"error": "Not found"})
     patch = mock_utils.mock_http_patch(500, {"error": "Internal server error"})
     runner = CliRunner()
