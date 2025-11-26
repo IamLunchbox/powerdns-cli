@@ -7,7 +7,7 @@
     {
       customType: 'regex',
       managerFilePatterns: [
-        '/integration.yml/',
+        '/tests.yml/',
       ],
       matchStrings: [
         '"(?<packageName>docker\\.io/.*):(?<currentValue>.*)"',
