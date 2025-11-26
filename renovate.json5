@@ -1,16 +1,18 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
   ],
   customManagers: [
-  {
-    customType: 'regex',
-    fileMatch: ['integration.yml'],
-    matchStrings: [
-      '"(?<packageName>docker\\.io/.*):(?<currentValue>.*)"'
-    ],
-    "datasourceTemplate": "docker"
-  }
-  ]
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/integration.yml/',
+      ],
+      matchStrings: [
+        '"(?<packageName>docker\\.io/.*):(?<currentValue>.*)"',
+      ],
+      datasourceTemplate: 'docker',
+    },
+  ],
 }
