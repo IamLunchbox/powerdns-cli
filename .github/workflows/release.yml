@@ -70,7 +70,7 @@ jobs:
           python -m pip install build
           python -m build
       - name: Upload distributions
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: release-dists
           path: dist/
@@ -90,7 +90,7 @@ jobs:
       url: https://pypi.org/p/powerdns-cli/
     steps:
       - name: Retrieve release distributions
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: release-dists
           path: dist/
