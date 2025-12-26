@@ -8,7 +8,7 @@ authors = [
     {name = "Raphael Grieger", email = "r.grieger@hotmail.com"},
 ]
 readme = "README.md"
-requires-python = ">3.6"
+requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -17,8 +17,8 @@ version = "1.1.0"
 dependencies = [
     "requests>=2.3.0",
     "click>=8.3.0",
-    "platformdirs==4.5.1",
-    "tomli==2.3.0; python_version < '3.11'"
+    "platformdirs>=4.5.0",
+    "tomli>=2.3.0; python_version < '3.11'"
 ]
 description="PowerDNS Authoritative API client"
 
