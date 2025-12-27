@@ -30,7 +30,8 @@ def mock_ctx():
         "insecure": False,
         "debug": None,
         "api_version": None,
-        "server_id": None
+        "server_id": None,
+        "timeout": None
     }
     ctx.obj = MagicMock()
     ctx.obj.logger = MagicMock()
@@ -58,7 +59,8 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
         "insecure": None,
         "debug": None,
         "api_version": None,
-        "server_id": None
+        "server_id": None,
+        "timeout": None
     }
     if dirname:
         os.makedirs(tmp_path / ".config" / dirname, exist_ok=True)
