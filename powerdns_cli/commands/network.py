@@ -42,7 +42,9 @@ def network_add(ctx: click.Context, cidr: str, view_id: str, **kwargs) -> NoRetu
     """
     Add a view of a zone to a specific network.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/networks/{cidr}"
+    )
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 200 and current_network.json()["view"] == view_id:
         ctx.obj.logger.info(f"Network {cidr} is already assigned to view {view_id}.")
@@ -75,7 +77,7 @@ def network_list(ctx: click.Context, **kwargs):
     """
     List all registered networks and views.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/networks"
     utils.show_setting(ctx, uri, "network", "list")
 
 
@@ -91,7 +93,9 @@ def network_delete(ctx: click.Context, cidr: str, **kwargs) -> NoReturn:
     """
     Remove a view association from a specific network.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/networks/{cidr}"
+    )
     ctx.obj.logger.info(f"Attempting to delete view association for network: {cidr}.")
     current_network = utils.http_get(uri, ctx)
     if current_network.status_code == 404:
@@ -127,7 +131,9 @@ def network_export(ctx: click.Context, cidr: str, **kwargs):
     Show the network and its associated views.
     When not netmask is provided, it defaults to /32 or /128.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks/{cidr}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/networks/{cidr}"
+    )
     ctx.obj.logger.info(f"Exporting network: {cidr}.")
     utils.show_setting(ctx, uri, "network", "export")
 
@@ -159,7 +165,7 @@ def network_import(
     File format:
     {"networks": [{"network": str, "view": str}]}
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/networks"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/networks"
     ctx.obj.logger.info(f"Importing networks from file: {file.name}.")
     nested_settings = utils.extract_file(ctx, file)
     if not isinstance(nested_settings, dict) or not isinstance(

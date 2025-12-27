@@ -75,7 +75,10 @@ def cryptokey_add(
     publish / active with the appropriate id to change the setting later on.
     If an RSA key is requested, the size of the rsa-key must be specified as well.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}/cryptokeys"
+    )
     payload = {"active": active, "published": publish, "keytype": key_type, "algorithm": algorithm}
     if bits:
         payload["bits"] = bits
@@ -137,7 +140,7 @@ def cryptokey_delete(
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
-        f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
+        f"/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     ctx.obj.logger.info(
         f"Attempting to delete cryptokey with id '{cryptokey_id}' for zone '{dns_zone}'."
@@ -185,7 +188,7 @@ def cryptokey_disable(
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
-        f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
+        f"/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {"id": cryptokey_id, "active": False}
 
@@ -246,7 +249,7 @@ def cryptokey_enable(
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
-        f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
+        f"/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {"id": cryptokey_id, "active": True}
 
@@ -307,7 +310,7 @@ def cryptokey_export(
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
-        f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
+        f"/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
 
     ctx.obj.logger.info(
@@ -366,7 +369,10 @@ def cryptokey_import(
     File format:
     {"privatekey": "Yourprivatekey", "active": bool, "published": bool}
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}/cryptokeys"
+    )
     secret = utils.extract_file(ctx, private_key)
     if not secret.get("privatekey"):
         ctx.obj.logger.error("Failed importing the file, dict key 'privatekey' is missing.")
@@ -426,7 +432,10 @@ def cryptokey_list(ctx: click.Context, dns_zone: str, **kwargs: dict) -> NoRetur
     """
     Lists all cryptokeys without displaying secrets.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}/cryptokeys"
+    )
 
     ctx.obj.logger.info(f"Attempting to list cryptokeys for zone '{dns_zone}'.")
 
@@ -467,7 +476,7 @@ def cryptokey_publish(
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
-        f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
+        f"/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {"id": cryptokey_id, "published": True}
 
@@ -535,7 +544,7 @@ def cryptokey_unpublish(
     """
     uri = (
         f"{ctx.obj.config['apihost']}"
-        f"/api/v1/servers/localhost/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
+        f"/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}/cryptokeys/{cryptokey_id}"
     )
     payload = {"id": cryptokey_id, "published": False}
 

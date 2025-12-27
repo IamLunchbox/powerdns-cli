@@ -59,7 +59,7 @@ def zone_add(
     """
     Adds a new zone.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones"
     payload = {
         "name": dns_zone,
         "kind": zonetype.capitalize(),
@@ -112,7 +112,9 @@ def zone_delete(
     if dns_zone not in [single_zone["name"] for single_zone in upstream_zones]:
         ctx.obj.logger.info(f"Zone {dns_zone} already absent.")
         utils.exit_action(ctx, success=True, message=f"Zone {dns_zone} already absent.")
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}"
+    )
     warning = f"!!!! WARNING !!!!!\nYou are attempting to delete {dns_zone}\nAre you sure?"
     if not force and not click.confirm(warning):
         ctx.obj.logger.info(f"Aborted deleting {dns_zone}.")
@@ -215,7 +217,10 @@ def zone_config(
     ctx.obj.logger.info(f"Adding {setting} to {dns_zone}.")
     payload = {"id": dns_zone, **setting}
     r = utils.http_put(
-        f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}", ctx, payload
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}",
+        ctx,
+        payload,
     )
     if r.status_code == 204 and check_if_settings_are_present(ctx, dns_zone, setting):
         ctx.obj.logger.info(f"Successfully applied settings to {dns_zone}.")
@@ -256,7 +261,9 @@ def zone_export(
     Export the whole zone configuration.
     """
     ctx.obj.logger.info(f"Exporting {dns_zone}.")
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}"
+    )
     utils.show_setting(ctx, uri, "zone", "export")
 
 
@@ -274,7 +281,7 @@ def zone_flush_cache(
     **kwargs,
 ) -> NoReturn:
     """Flushes the cache of the given zone."""
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/cache/flush"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/cache/flush"
     ctx.obj.logger.info(f"Flushing cache for zone: {dns_zone}.")
     r = utils.http_put(uri, ctx, params={"domain": dns_zone})
     if r.status_code == 200:
@@ -324,7 +331,10 @@ def zone_import(
     ctx.obj.logger.info("Importing zone configuration from file.")
     settings = utils.extract_file(ctx, file)
     validate_zone_import(ctx, settings)
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{settings['id']}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{settings['id']}"
+    )
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     check_zones_for_identical_content(ctx, settings, upstream_settings)
     warning = (
@@ -358,7 +368,10 @@ def zone_notify(
     disabled in the configuration.
     Only works for secondaries when all preconditions are met.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/notify"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}/notify"
+    )
     ctx.obj.logger.info(f"Sending notify request for zone: {dns_zone}.")
     r = utils.http_put(uri, ctx)
     if r.status_code == 200:
@@ -386,7 +399,10 @@ def zone_rectify(
     Rectifies a given zone.
     Will fail on slave zones and zones without DNSSEC.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/rectify"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}/rectify"
+    )
     ctx.obj.logger.info(f"Attempting to rectify zone: {dns_zone}.")
     r = utils.http_put(uri, ctx)
     if r.status_code == 200:
@@ -422,7 +438,7 @@ def zone_search(
     Do full-text search in the RRSET database.
     Use wildcards in your string to ignore leading or trailing characters.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/search-data"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/search-data"
     ctx.obj.logger.info(f"Searching for '{search_string}' with max output {max_output}.")
     r = utils.http_get(uri, ctx, params={"q": search_string, "max": max_output})
     if r.status_code == 200:
@@ -445,7 +461,7 @@ def zone_list(
     Shows all configured zones on this DNS server, omits RRSets.
     If the RRSets are required, export a single zone.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones"
     utils.show_setting(ctx, uri, "zone", "list")
 
 
@@ -528,7 +544,7 @@ def query_zones(ctx: click.Context) -> list[dict]:
     Returns:
         list[dict]: A list of zones.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones"
     ctx.obj.logger.info("Fetching zones.")
     r = utils.http_get(uri, ctx)
     if r.status_code == 200:

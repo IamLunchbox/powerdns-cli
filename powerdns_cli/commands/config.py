@@ -34,7 +34,7 @@ def config_export(ctx: click.Context, **kwargs: dict) -> NoReturn:
     """
     Exports the configuration of this PowerDNS instance.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/config"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/config"
 
     ctx.obj.logger.info("Attempting to export PowerDNS configuration.")
 
@@ -102,7 +102,7 @@ def config_stats(ctx: click.Context, **kwargs: dict) -> NoReturn:
     """
     Displays operational statistics of the DNS server.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/statistics"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/statistics"
 
     ctx.obj.logger.info("Attempting to query DNS server statistics.")
 
