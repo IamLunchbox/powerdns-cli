@@ -50,6 +50,7 @@ DEFAULT_ARGS = {
     DefaultDictKey(ctx_key="insecure", cli_key="insecure"),
     DefaultDictKey(ctx_key="api_version", cli_key="api-version"),
     DefaultDictKey(ctx_key="server_id", cli_key="server-id"),
+    DefaultDictKey(ctx_key="timeout", cli_key="timeout"),
 }
 
 
@@ -231,6 +232,15 @@ class DefaultCommand(click.Command):
                 show_default=False,
             )
         )
+        kwargs["params"].append(
+            click.Option(
+                ["--timeout"],
+                help="Specifies a custom timeout for http requests.",
+                type=click.INT,
+                default=5,
+                show_default=True,
+            )
+        )
         super().__init__(*args, **kwargs)
 
     def invoke(self, ctx: click.Context) -> None:
@@ -315,6 +325,7 @@ class DefaultCommand(click.Command):
             "insecure": ctx.params["insecure"],
             "json": ctx.params["json_output"],
             "server_id": ctx.params["server_id"],
+            "timeout": ctx.params["timeout"],
         }
         configuration_file = identify_config_file()
         if configuration_file:

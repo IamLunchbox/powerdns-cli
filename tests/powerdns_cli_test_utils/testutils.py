@@ -29,6 +29,7 @@ def testobject():
     obj.config["json"] = True
     obj.config["pytest"] = True
     obj.config['server_id'] = "localhost"
+    obj.config['timeout'] = 5
     return obj
 
 
