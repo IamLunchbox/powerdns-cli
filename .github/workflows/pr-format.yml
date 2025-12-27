@@ -1,0 +1,15 @@
+name: pr-format.yml
+on:
+  pull_request:
+
+jobs:
+  pr_title:
+    runs-on: ubuntu-latest
+    name: Validate PR Title
+    steps:
+      - run: |
+          PR_TITLE="$(jq -r '.pull_request.title' ${{ github.event_path }})"
+          if [[ ! $PR_TITLE =~ ^(feat|fix|docs|style|refactor|perf|test|chore)\(.*\)!?:\s.*$ ]]; then
+            echo "PR title does not follow conventional format: $PR_TITLE"
+            exit 1
+          fi
