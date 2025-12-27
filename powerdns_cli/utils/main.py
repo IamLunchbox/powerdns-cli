@@ -61,7 +61,7 @@ def exit_action(
 def http_delete(uri: str, ctx: click.Context, params: dict = None) -> requests.Response:
     """HTTP DELETE request"""
     try:
-        request = ctx.obj.session.delete(uri, params=params, timeout=0)
+        request = ctx.obj.session.delete(uri, params=params, timeout=30)
         ctx.obj.handler.log_http_data(ctx, request)
         return request
     except requests.RequestException as e:
