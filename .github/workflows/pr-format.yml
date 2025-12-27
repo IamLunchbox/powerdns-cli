@@ -8,6 +8,7 @@ jobs:
     name: Validate PR Title
     steps:
       - run: |
+          shopt -s nocasematch
           PR_TITLE="$(jq -r '.pull_request.title' ${{ github.event_path }})"
           if [[ ! $PR_TITLE =~ ^(feat|fix|docs|refactor|ci|test|chore|style|build):\s.*$ ]]; then
             echo "PR title does not follow conventional format: $PR_TITLE"
