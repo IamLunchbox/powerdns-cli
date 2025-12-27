@@ -19,9 +19,12 @@ permissions:
 jobs:
   tests:
     uses: ./.github/workflows/tests.yml
+  pr_check:
+    uses: ./.github/workflows/pr-format.yml
   release:
     needs:
       - tests
+      - pr_check
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -51,9 +54,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.git_tag.outputs.tag }}
         run: >
+          LAST_TAG=$(git describe --tags --abbrev=0) &&
           gh release create "$tag"
           --title="$tag"
-          --notes "$(git tag --format='%(body)' -l $tag)"
+          --notes "$(git log $LAST_TAG..HEAD --pretty=format:'- %s (%an)' --reverse)"
   build:
     needs:
       - release

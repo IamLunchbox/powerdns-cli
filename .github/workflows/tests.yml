@@ -223,8 +223,8 @@ jobs:
           -e PDNS_AUTH_API_KEY=1FooBarBaz2
           -v ${{ github.workspace }}/integration/pdns.conf:/etc/powerdns/pdns.conf
           "${{ matrix.powerdns_container }}"
-#          --network "${{ job.container.network }}"
-# This does only work if job.container.network is defined
+# This would be the COMMAND if gh actions would support custom COMMANDS and/or entrpyoints...
+#--launch=lmdb --local-port=5353 --lmdb-filename=/tmp/test.lmdp --api=yes --api-key=Hallo123 --views=yes --webserver=yes --webserver-address=0.0.0.0 --webserver-port=8081 --loglevel=7 --config-dir=/etc --webserver-allow-from=0.0.0.0/0
       - uses: actions/setup-python@v6
         with:
           python-version: 3.14.2
