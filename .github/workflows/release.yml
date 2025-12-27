@@ -51,9 +51,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.git_tag.outputs.tag }}
         run: >
+          LAST_TAG=$(git describe --tags --abbrev=0) &&
           gh release create "$tag"
           --title="$tag"
-          --notes "$(git tag --format='%(body)' -l $tag)"
+          --notes "$(git log $LAST_TAG..HEAD --pretty=format:'- %s (%an)' --reverse)"
   build:
     needs:
       - release
