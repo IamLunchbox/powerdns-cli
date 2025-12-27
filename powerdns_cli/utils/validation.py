@@ -49,6 +49,7 @@ DEFAULT_ARGS = {
     DefaultDictKey(ctx_key="debug", cli_key="debug"),
     DefaultDictKey(ctx_key="insecure", cli_key="insecure"),
     DefaultDictKey(ctx_key="api_version", cli_key="api-version"),
+    DefaultDictKey(ctx_key="server_id", cli_key="server-id"),
 }
 
 
@@ -192,10 +193,21 @@ class DefaultCommand(click.Command):
             )
         )
         kwargs["params"].append(
+            click.Option(["-d", "--debug"], help="Emit debug logs.", is_flag=True)
+        )
+        kwargs["params"].append(
             click.Option(
                 ["json_output", "-j", "--json"],
                 help="Use JSON output.",
                 is_flag=True,
+            )
+        )
+        kwargs["params"].append(
+            click.Option(
+                ["-k", "--insecure"],
+                help="Accept untrusted certificates.",
+                is_flag=True,
+                show_default=True,
             )
         )
         kwargs["params"].append(
@@ -207,19 +219,17 @@ class DefaultCommand(click.Command):
         )
         kwargs["params"].append(
             click.Option(
-                ["-k", "--insecure"],
-                help="Accept unsigned or otherwise untrustworthy certificates.",
-                is_flag=True,
-                show_default=True,
-            )
-        )
-        kwargs["params"].append(
-            click.Option(
                 ["--api-version"], help="Manually set the API version.", type=click.Choice([4, 5])
             )
         )
         kwargs["params"].append(
-            click.Option(["-d", "--debug"], help="Emit debug logs.", is_flag=True)
+            click.Option(
+                ["--server-id"],
+                help="Set an alternate server id instead of localhost.",
+                type=click.STRING,
+                default="localhost",
+                show_default=False,
+            )
         )
         super().__init__(*args, **kwargs)
 
@@ -304,6 +314,7 @@ class DefaultCommand(click.Command):
             "key": ctx.params["apikey"],
             "insecure": ctx.params["insecure"],
             "json": ctx.params["json_output"],
+            "server_id": ctx.params["server_id"],
         }
         configuration_file = identify_config_file()
         if configuration_file:

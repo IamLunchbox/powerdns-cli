@@ -39,7 +39,7 @@ def autoprimary_add(ctx, ip, nameserver, account, **kwargs):
     """
     Adds an autoprimary upstream DNS server.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/autoprimaries"
     payload = {"ip": ip, "nameserver": nameserver, "account": account}
     ctx.obj.logger.info(f"Attempting to add autoprimary {ip}/{nameserver}.")
     if is_autoprimary_present(uri, ctx, ip, nameserver):
@@ -72,11 +72,12 @@ def autoprimary_delete(ctx, ip, nameserver, **kwargs):
     """
     Deletes an autoprimary from the DNS server configuration.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/autoprimaries"
     ctx.obj.logger.info(f"Attempting to delete autoprimary {ip}/{nameserver}.")
     if is_autoprimary_present(uri, ctx, ip, nameserver):
         uri = (
-            f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries/{ip}/{nameserver}"
+            f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+            f"/autoprimaries/{ip}/{nameserver}"
         )
         ctx.obj.logger.debug(f"Sending delete request for {ip}/{nameserver}.")
         r = utils.http_delete(uri, ctx)
@@ -115,7 +116,7 @@ def autoprimary_import(ctx, file, replace, ignore_errors, **kwargs):
     ctx.obj.logger.info("Starting autoprimary import process.")
     settings = utils.extract_file(ctx, file)
     ctx.obj.logger.debug(f"Extracted {len(settings)} settings from file.")
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/autoprimaries"
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
     ctx.obj.logger.debug(f"Fetched {len(upstream_settings)} upstream settings.")
     utils.validate_simple_import(ctx, settings, upstream_settings, replace)
@@ -147,7 +148,7 @@ def autoprimary_list(ctx, **kwargs):
     """
     Lists all currently configured autoprimary servers.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/autoprimaries"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/autoprimaries"
     utils.show_setting(ctx, uri, "autoprimary", "list")
 
 

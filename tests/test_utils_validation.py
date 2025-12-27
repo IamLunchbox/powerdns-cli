@@ -30,6 +30,7 @@ def mock_ctx():
         "insecure": False,
         "debug": None,
         "api_version": None,
+        "server_id": None
     }
     ctx.obj = MagicMock()
     ctx.obj.logger = MagicMock()
@@ -57,6 +58,7 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
         "insecure": None,
         "debug": None,
         "api_version": None,
+        "server_id": None
     }
     if dirname:
         os.makedirs(tmp_path / ".config" / dirname, exist_ok=True)
@@ -69,6 +71,7 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
                 insecure=true
                 debug=true
                 api-version=5
+                server-id="mydnshost"
                 """
             )
     else:
@@ -81,6 +84,7 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
                 insecure=true
                 debug=true
                 api-version=5
+                server-id="mydnshost"
                 """
             )
     mock_ctx.params["apikey"] = None
@@ -100,6 +104,7 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
         "json": True,
         "api_version": 5,
         "insecure": True,
+        "server_id": "mydnshost"
     }
     for key, val in expected_values.items():
         assert mock_ctx.obj.config[key] == val
@@ -117,6 +122,7 @@ def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
             insecure=true
             debug=true
             api-version=5
+            server-id="mydnshost"
             """
         )
     mock_ctx.params["apikey"] = None
@@ -136,6 +142,7 @@ def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
         "json": False,
         "api_version": 5,
         "insecure": False,
+        "server_id": "mydnshost"
     }
     for key, val in expected_values.items():
         if not mock_ctx.obj.config[key] == val:

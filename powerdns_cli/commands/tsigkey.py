@@ -52,7 +52,7 @@ def tsigkey_add(ctx: click.Context, name: str, algorithm: str, secret: str, **kw
     """
     Adds a TSIGKey to the server to sign DNS transfer messages.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/tsigkeys"
     payload = {"name": name, "algorithm": algorithm}
     if secret:
         payload["key"] = secret
@@ -88,7 +88,9 @@ def tsigkey_delete(ctx: click.Context, name: str, **kwargs) -> NoReturn:
     """
     Deletes the TSIG-Key with the given name.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/tsigkeys/{name}"
+    )
     r = utils.http_get(uri, ctx)
     if r.status_code != 200:
         ctx.obj.logger.info(f"TSIGKey for '{name}' is already absent.")
@@ -117,7 +119,10 @@ def tsigkey_export(ctx: click.Context, key_id: str, **kwargs):
     """
     Exports a single tsigkey with the given id and its secret key.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys/{key_id}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/tsigkeys/{key_id}"
+    )
     utils.show_setting(ctx, uri, "tsigkey", "export")
 
 
@@ -149,7 +154,7 @@ def tsigkey_import(
     [{ "algorithm": str, "id": str, "key": str, "name": str, "type": "TSIGKey" }]
 
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/tsigkeys"
     settings = utils.extract_file(ctx, file)
     upstream_settings = get_tsigkey_settings(uri, ctx)
     utils.validate_simple_import(ctx, settings, upstream_settings, replace)
@@ -171,7 +176,7 @@ def tsigkey_list(ctx: click.Context, **kwargs) -> NoReturn:
     """
     Shows the TSIGKeys for this server.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/tsigkeys"
     utils.show_setting(ctx, uri, "tsigkey", "list")
 
 
@@ -210,7 +215,9 @@ def tsigkey_update(
     """
     Updates or renames an existing TSIGKey.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys/{name}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/tsigkeys/{name}"
+    )
     tsigkey_settings = {
         k: v
         for k, v in {"algorithm": algorithm, "key": secret, "name": new_name}.items()
@@ -224,7 +231,10 @@ def tsigkey_update(
         ctx.obj.logger.info(f"Settings for TSIGKey '{name}' are already up to date.")
         utils.exit_action(ctx, True, f"Settings for TSIGKey '{name}' are already up to date.")
     if new_name:
-        r = utils.http_get(f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/tsigkeys", ctx)
+        r = utils.http_get(
+            f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/tsigkeys",
+            ctx,
+        )
         if new_name in (key["name"] for key in r.json()):
             ctx.obj.logger.error(f"TSIGKey '{new_name}' already exists. Refusing to overwrite.")
             utils.exit_action(

@@ -70,7 +70,9 @@ def record_add(
     Creates or extends a record of an existing RRSET.
     """
     name = utils.make_dnsname(name, dns_zone)
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}"
+    )
     record_type = record_type.upper()
     rrset = {
         "name": name,
@@ -150,7 +152,9 @@ def record_delete(
     unless --all is provided.
     """
     name = utils.make_dnsname(name, dns_zone)
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}"
+    )
     if delete_all:
         rrset = {
             "name": name,
@@ -237,7 +241,9 @@ def record_disable(
     Disables an existing DNS record. Use @ to target the zone name itself.
     """
     name = utils.make_dnsname(name, dns_zone)
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}"
+    )
     rrset = {
         "name": name,
         "type": record_type.upper(),
@@ -328,7 +334,9 @@ def record_replace(
     Adds or replaces a RRSet and its contents. Use @ if you want to enter a
     record for the top level name / zone name.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}"
+    )
     record_type = record_type.upper()
     name = utils.make_dnsname(name, dns_zone)
     rrset = {
@@ -390,7 +398,10 @@ def record_export(
     """
     if bind:
         ctx.obj.logger.info(f"Exporting {dns_zone} in BIND format.")
-        uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/export"
+        uri = (
+            f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+            f"/zones/{dns_zone}/export"
+        )
         r = utils.http_get(uri, ctx)
         if r.status_code == 200:
             ctx.obj.handler.set_message(r.text)
@@ -404,7 +415,9 @@ def record_export(
         ctx.obj.handler.set_message(f"Failed exporting {dns_zone}, unknown error.")
         ctx.obj.handler.set_success(False)
         utils.exit_cli(ctx)
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/zones/{dns_zone}"
+    )
     if name:
         name = utils.make_dnsname(name, dns_zone)
     rrsets = query_zone_rrsets(uri, ctx)
@@ -453,7 +466,10 @@ def record_import(ctx: click.Context, file: TextIO, replace: bool, **kwargs) -> 
     """
     new_rrsets = utils.extract_file(ctx, file)
     validate_rrset_import(ctx, new_rrsets)
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{new_rrsets['id']}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{new_rrsets['id']}"
+    )
     upstream_zone = utils.read_settings_from_upstream(uri, ctx)
     if not upstream_zone:
         upstream_zone["rrsets"] = []

@@ -48,7 +48,10 @@ def metadata_add(ctx, dns_zone, metadata_key, metadata_value, **kwargs):
     from the PowerDNS configuration.
     Custom metadata must be preceded by leading X- as a key.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}/metadata"
+    )
     payload = {"kind": metadata_key, "metadata": [metadata_value], "type": "Metadata"}
     if is_metadata_content_present(f"{uri}/{metadata_key}", ctx, payload):
         ctx.obj.logger.info(f"{metadata_key} {metadata_value} in {dns_zone} already present.")
@@ -95,7 +98,7 @@ def metadata_delete(ctx, dns_zone, metadata_key, **kwargs):
     """
     uri = (
         f"{ctx.obj.config['apihost']}/api/v1/servers/"
-        f"localhost/zones/{dns_zone}/metadata/{metadata_key}"
+        f"{ctx.obj.config['server_id']}/zones/{dns_zone}/metadata/{metadata_key}"
     )
     if not is_metadata_entry_present(uri, ctx):
         ctx.obj.logger.info(f"{metadata_key} for {dns_zone} already absent.")
@@ -165,7 +168,10 @@ def metadata_import(ctx, dns_zone, file, replace, ignore_errors, **kwargs) -> No
     File format:
     [{"kind": str, "metadata": list[str,...], "type": "Metadata"},...]
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/zones/{dns_zone}/metadata"
+    )
     ctx.obj.logger.info(f"Importing metadata for zone: {dns_zone}.")
     settings = utils.extract_file(ctx, file)
     upstream_settings = utils.read_settings_from_upstream(uri, ctx)
@@ -201,11 +207,14 @@ def metadata_export(ctx: click.Context, dns_zone: str, limit: str, **kwargs) -> 
     ctx.obj.logger.info(f"Exporting metadata for zone: {dns_zone}, limit: {limit}.")
     if limit:
         uri = (
-            f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/"
+            f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/"
             f"zones/{dns_zone}/metadata/{limit}"
         )
     else:
-        uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/zones/{dns_zone}/metadata"
+        uri = (
+            f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+            f"/zones/{dns_zone}/metadata"
+        )
     utils.show_setting(ctx, uri, "metadata", "export")
 
 
@@ -233,7 +242,7 @@ def metadata_update(
     """
     uri = (
         f"{ctx.obj.config['apihost']}/api/v1/servers/"
-        f"localhost/zones/{dns_zone}/metadata/{metadata_key}"
+        f"{ctx.obj.config['server_id']}/zones/{dns_zone}/metadata/{metadata_key}"
     )
     payload = {"kind": metadata_key, "metadata": [metadata_value], "type": "Metadata"}
     if not is_metadata_content_identical(uri, ctx, payload):

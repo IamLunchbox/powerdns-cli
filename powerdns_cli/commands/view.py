@@ -36,7 +36,9 @@ def view():
 @click.pass_context
 def view_add(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoReturn:
     """Add a zone to a view, creates the view if it does not exist."""
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/views/{view_id}"
+    )
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone in view_content.json()["zones"]:
         ctx.obj.logger.info(f"{dns_zone} is already in {view_id}.")
@@ -68,7 +70,9 @@ def view_add(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoRet
 @click.pass_context
 def view_delete(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> NoReturn:
     """Deletes a DNS zone from a view."""
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/views/{view_id}"
+    )
     view_content = utils.http_get(uri, ctx)
     if view_content.status_code == 200 and dns_zone not in view_content.json()["zones"]:
         ctx.obj.logger.info(f"Zone {dns_zone} is not in {view_id}.")
@@ -76,7 +80,10 @@ def view_delete(ctx: click.Context, view_id: str, dns_zone: str, **kwargs) -> No
     elif view_content.status_code == 404:
         ctx.obj.logger.info(f"View {view_id} is absent.")
         utils.exit_action(ctx, success=True, message=f"View {view_id} is already absent.")
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}/{dns_zone}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
+        f"/views/{view_id}/{dns_zone}"
+    )
     ctx.obj.logger.info(f"Attempting to delete {dns_zone} from {view_id} at {uri}.")
     r = utils.http_delete(uri, ctx)
     if r.status_code == 204:
@@ -103,7 +110,9 @@ def view_export(ctx, view_id, **kwargs):
     """
     Exports a single view for its configured zones.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views/{view_id}"
+    uri = (
+        f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/views/{view_id}"
+    )
     utils.show_setting(ctx, uri, "view", "export")
 
 
@@ -129,7 +138,7 @@ def view_import(
     File format:
     [{"view_name":["zone_name"]}]
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/views"
     ctx.obj.logger.info("Importing views from file.")
     settings = utils.extract_file(ctx, file)
     if not validate_view_import(ctx, settings):
@@ -169,7 +178,7 @@ def view_list(ctx, **kwargs):
     """
     Shows all views and their configuration as a list.
     """
-    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/localhost/views"
+    uri = f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}/views"
     utils.show_setting(ctx, uri, "view", "list")
 
 
