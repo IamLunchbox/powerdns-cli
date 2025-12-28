@@ -19,12 +19,9 @@ permissions:
 jobs:
   tests:
     uses: ./.github/workflows/tests.yml
-  pr_check:
-    uses: ./.github/workflows/pr-format.yml
   release:
     needs:
       - tests
-      - pr_check
     runs-on: ubuntu-latest
     permissions:
       contents: write
