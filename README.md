@@ -3,11 +3,10 @@
 ![Tests](https://github.com/IamLunchbox/powerdns-cli/actions/workflows/tests.yml/badge.svg)
 
 # powerdns-cli
-PowerDNS-CLI is a cli tool to interact with the
+PowerDNS-CLI is a cli to interact with the
 [PowerDNS Authoritative Nameserver](https://doc.powerdns.com/authoritative/). 
 PowerDNS itself does only offer an API to interact with remotely and
-its `pdns_util` does only work on the PowerDNS-Host, not remotely from another machine.
-So, you may use this tool to work with your PowerDNS Authoritative Nameserver.
+its `pdns_util` does only work on the PowerDNS-Host, not from another machine.
 
 ## Installation
 Installation is available through pypi.org:
@@ -17,17 +16,15 @@ Installation is available through pypi.org:
 Or as an oci container:  
 `podman run --rm -it ghcr.io/IamLunchbox/powerdns-cli:latest powerdns-cli`
 
-If you want to clone from git, checkout the git tags and run `pip install .`.
+To work with from git, checkout the repository and run `pip install .`.
 
 ## Configuration
 `powerdns-cli` is built with the click framework and uses keyword-based actions. Flags may 
-only follow after the last action.  
-
-To get things going you may, for example, add a zone:  
+only follow after the last action keyword. To get things going, for example, add a zone:  
 `$ powerdns-cli zone add -a MyApiKey -u http://localhost example.com PRIMARY`
 
-You may provide all flags through environment variables as well. Use the long
-flag name in upper-case and prefix it with `POWERDNS_CLI_`. For example:
+All flags may alternatively be provided as environment variables. Each option must be prefixed
+with `POWERDNS_CLI_` and the upper case setting. For example:
 
 ```shell
 $ export POWERDNS_CLI_APIKEY="MyApiKey"
@@ -35,19 +32,29 @@ $ export POWERDNS_CLI_URL="http://localhost"
 $ powerdns-cli zone add example.com PRIMARY
 ```
 
-It is also possible to set the common configuration items in `$HOME/.powerdns-cli.conf` or 
-`$HOME/.config/powerdns-cli/configuration.toml`. The file format is `toml`, so you have to
-explicitly use quotes for strings.  
-This is the required structure and the defaults:  
+It is also possible to set the common configuration items in `./.powerdns-cli.conf`,
+`$HOME/.powerdns-cli.conf` or `$HOME/.config/powerdns-cli/configuration.toml`. 
+The file format is `toml`, so string have to explicitly quoted.
+This is the required structure and their defaults, the option keys are not case sensitive:  
 
 ```toml
-apikey = ""
-api-version = 4
+apikey = "mytestkey" # default is None
+api-version = 4 # default is None
 debug = false
 insecure = false
 json = false
-url = ""
+server-id = "localhost"
+timeout = 5
+url = "http://example.com" # default is None
 ```
+
+Only these settings can be accessed through the configuration file.
+
+Depending on the context, for example editing records, further options may be available. Instead
+of the flag, the corresponding env variable may be used. Since this cli directly accesses the 
+default command class from click, **all** options reside under 
+`POWERDNS_CLI_*`. So to set the TTL through the environment of `record add`, use 
+`export POWERDNS_CLI_TTL=60`.
 
 ## Features
 - Access to all API-Endpoints PowerDNS Auth exposes.
@@ -104,10 +111,7 @@ $ powerdns-cli zone delete example.com -f
 Successfully deleted example.com..
 ```
 
-If something goes wrong or does not work, use the `-j`-switch to get a more verbose json output.
-This outputs includes some logging and a http-log, which might give you a hint what happened.  
-
-For example:
+If something goes wrong or does not work, the `-j`-switch provides more verbose output in json:
 ```shell
 $ powerdns-cli record add  @ example.org MX "10 mail.test.de"  -j
 [...]
@@ -132,25 +136,24 @@ $ powerdns-cli record add  @ example.org MX "10 mail.test.de"  -j
 }
 ```
 
-For scripting purposes: It is always guaranteed, that `message` and `success` is set. If your
-action requests data, as do `list` and `export`, it resides in `data`. Otherwise, `data` should be null.
+The [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml) uses all common cli options to test for api compatibility.
 
-When JSON is not requested, the stdout message will be the export contents.
+### Scripting
+- `message` and `success` are guaranteed to be set.
+- `message` is emitted on stdout. It contains human readable output, except:
+- If an action requests data, as do `list` and `export`, it resides in `data`. Otherwise, `data` is `null`.
+- If an action requests data, `message` == `data` - so stdout will emit `data` as well.
 
-If you are in need of all the possible cli options, you may also take a look
-at the [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml).
-It uses all common cli options to test for api compatibility.
 
 ### Caveats
-1. It is not possible to simply create a RRSet with several entries. Instead, you have to
-   use `powerdns-cli record extend` or import a file.
-2. There are no guardrails for removing records from a zone, only for removing a zone altogether.
+1. It is not possible to simply create a RRSet with several entries. Instead, `powerdns-cli record add` needs to be used repeatedly.
+2. Use `record replace` to ensure a RRSet has only a single value.
+3. There are no guardrails for removing records from a zone, only for removing a zone altogether.
 
 ## Version Support
 All the PowerDNS authoritative nameserver versions, which receive
-patches / security updates, are covered by integration tests. You can check if
-your version gets updates [here](https://doc.powerdns.com/authoritative/appendices/EOL.html).
-And you can check [here](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml) which versions are actually tested.
+patches / security updates, are covered by integration tests. Suported versions are documented [here](https://doc.powerdns.com/authoritative/appendices/EOL.html).
+The integration tests cover the specified docker images [here](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml).
 
 If the PowerDNS-Team does not apply releases and changes to their publicly
 released docker images (see [here](https://hub.docker.com/r/powerdns/)), they
