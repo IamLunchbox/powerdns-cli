@@ -189,7 +189,7 @@ class DefaultCommand(click.Command):
         kwargs["params"].append(
             click.Option(
                 ["-a", "--apikey"],
-                help="Provide your apikey manually.",
+                help="Provide your apikey.",
                 type=click.STRING,
             )
         )
@@ -201,6 +201,7 @@ class DefaultCommand(click.Command):
                 ["json_output", "-j", "--json"],
                 help="Use JSON output.",
                 is_flag=True,
+                envvar="POWERDNS_CLI_JSON",
             )
         )
         kwargs["params"].append(
