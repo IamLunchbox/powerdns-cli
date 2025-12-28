@@ -11,7 +11,7 @@ jobs:
           if ! command -v jq; then echo "jq not found" && exit 1; fi
           shopt -s nocasematch
           PR_TITLE="$(jq -r '.pull_request.title' ${{ github.event_path }})"
-          if [[ ! $PR_TITLE =~ ^(feat|fix|docs|refactor|ci|test|chore|style|build)(\(.+\))?:\ .*$ ]]; then
+          if [[ ! $PR_TITLE =~ ^(feat|fix|docs|release|refactor|ci|test|chore|style|build)(\(.+\))?:\ .*$ ]]; then
             echo "PR title does not follow conventional format: $PR_TITLE"
             exit 1
           fi
