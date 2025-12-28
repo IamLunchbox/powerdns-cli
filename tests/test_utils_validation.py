@@ -31,7 +31,7 @@ def mock_ctx():
         "debug": None,
         "api_version": None,
         "server_id": None,
-        "timeout": None
+        "timeout": None,
     }
     ctx.obj = MagicMock()
     ctx.obj.logger = MagicMock()
@@ -40,17 +40,21 @@ def mock_ctx():
 
 
 @pytest.mark.parametrize(
-    "dirname,filename",
+    "dirname,filename,patch_home",
     (
-        ("powerdns_cli", "config.toml"),
-        ("powerdns-cli", "config.toml"),
-        ("powerdns_cli", "configuration.toml"),
-        ("powerdns-cli", "configuration.toml"),
-        ("", ".powerdns-cli.conf"),
-        ("", ".powerdns-cli.conf"),
+        ("powerdns_cli", "config.toml", True),  # patch_home since config_dir is derived from $HOME
+        ("powerdns-cli", "config.toml", True),
+        ("powerdns_cli", "configuration.toml", True),
+        ("powerdns-cli", "configuration.toml", True),
+        ("", ".powerdns-cli.conf", True),
+        ("", ".powerdns-cli.conf", True),
+        ("", ".powerdns-cli.conf", False),
+        ("", ".powerdns-cli.conf", False),
     ),
 )
-def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str, filename: str):
+def test_parse_options_with_toml_config(
+    tmp_path, mock_ctx, patch_home, dirname: str, filename: str, monkeypatch
+):
     # Create a temporary TOML config file
     mock_ctx.params = {
         "url": None,
@@ -60,7 +64,7 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
         "debug": None,
         "api_version": None,
         "server_id": None,
-        "timeout": None
+        "timeout": None,
     }
     if dirname:
         os.makedirs(tmp_path / ".config" / dirname, exist_ok=True)
@@ -94,7 +98,10 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
 
     # patching user_config_path did not work at all,
     # but it derives the location from HOME
-    mocker.patch.dict(os.environ, {"HOME": str(tmp_path)})
+    if patch_home:
+        monkeypatch.setenv("HOME", str(tmp_path))
+    elif not patch_home and not dirname:
+        monkeypatch.chdir(tmp_path)
 
     DefaultCommand.parse_options(mock_ctx, [])
 
@@ -106,13 +113,13 @@ def test_parse_options_with_toml_config(tmp_path, mock_ctx, mocker, dirname: str
         "json": True,
         "api_version": 5,
         "insecure": True,
-        "server_id": "mydnshost"
+        "server_id": "mydnshost",
     }
     for key, val in expected_values.items():
         assert mock_ctx.obj.config[key] == val
 
 
-def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
+def test_partial_override_from_config(tmp_path, mock_ctx, monkeypatch):
     # Create a temporary TOML config file
     os.makedirs(tmp_path / ".config" / "powerdns_cli", exist_ok=True)
     with open(tmp_path / ".config" / "powerdns_cli" / "config.toml", "w") as f:
@@ -132,7 +139,7 @@ def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
 
     # patching user_config_path did not work at all,
     # but it derives the location from HOME
-    mocker.patch.dict(os.environ, {"HOME": str(tmp_path)})
+    monkeypatch.setenv("HOME", str(tmp_path))
 
     DefaultCommand.parse_options(mock_ctx, [])
 
@@ -144,7 +151,7 @@ def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
         "json": False,
         "api_version": 5,
         "insecure": False,
-        "server_id": "mydnshost"
+        "server_id": "mydnshost",
     }
     for key, val in expected_values.items():
         if not mock_ctx.obj.config[key] == val:
@@ -153,9 +160,9 @@ def test_partial_override_from_config(tmp_path, mock_ctx, mocker):
             )
 
 
-def test_parse_options_without_toml_config(mock_ctx, mocker, tmp_path):
+def test_parse_options_without_toml_config(mock_ctx, monkeypatch, tmp_path):
     # Mock user_config_path to return a non-existent file
-    mocker.patch.dict(os.environ, {"HOME": str(tmp_path)})
+    monkeypatch.setenv("HOME", str(tmp_path))
     DefaultCommand.parse_options(mock_ctx, [])
 
     # Assert that the config was set from CLI params
