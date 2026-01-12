@@ -281,7 +281,7 @@ def show_setting(
         exit_action(
             ctx,
             success=False,
-            message=f"Failed {action}ing {setting_name} with status code.",
+            message=f"Failed {action}ing {setting_name}.",
             response=r,
         )
 

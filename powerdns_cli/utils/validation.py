@@ -292,8 +292,15 @@ class DefaultCommand(click.Command):
             ctx.obj.logger.debug("API version unset, performing version detection.")
             uri = f"{ctx.obj.config['apihost']}/api/v1/servers"
             preflight_request = http_get(uri, ctx, log_body=False)
+            if preflight_request.status_code == 401:
+                exit_action(ctx, False, "Authentication error while performing version detection.")
             if preflight_request.status_code != 200:
-                exit_action(ctx, False, "Failed to reach server for version detection.")
+                exit_action(
+                    ctx,
+                    False,
+                    "Failed to reach server for version detection, "
+                    f"status code was {preflight_request.status_code}.",
+                )
             ctx.obj.config["api_version"] = int(
                 next(
                     server["version"].split(".")[0]
