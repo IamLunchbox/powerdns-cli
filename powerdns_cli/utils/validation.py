@@ -22,6 +22,7 @@ from typing import Any, Callable, NamedTuple
 
 import click
 import requests
+import urllib3
 from platformdirs import user_config_path
 
 from . import logger
@@ -364,6 +365,8 @@ class DefaultCommand(click.Command):
         ctx.obj.logger.debug("Creating session object.")
         session = requests.session()
         session.verify = not ctx.obj.config["insecure"]
+        if ctx.obj.config["insecure"]:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         session.headers = {"X-API-Key": ctx.obj.config["key"]}
         ctx.obj.session = session
 
