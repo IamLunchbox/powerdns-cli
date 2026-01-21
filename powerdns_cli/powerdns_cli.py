@@ -2,6 +2,7 @@
 """
 powerdns-cli: Manage PowerDNS Zones/Records
 """
+
 import click
 
 from powerdns_cli.utils.validation import ContextObj
