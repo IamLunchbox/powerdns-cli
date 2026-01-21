@@ -136,7 +136,7 @@ $ powerdns-cli record add  @ example.org MX "10 mail.test.de"  -j
 }
 ```
 
-The [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml) uses all common cli options to test for api compatibility.
+The [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/tests.yml) uses all common cli options to test for api compatibility.
 
 ### Scripting
 - `message` and `success` are guaranteed to be set.
@@ -153,7 +153,7 @@ The [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.gi
 ## Version Support
 All the PowerDNS authoritative nameserver versions, which receive
 patches / security updates, are covered by integration tests. Suported versions are documented [here](https://doc.powerdns.com/authoritative/appendices/EOL.html).
-The integration tests cover the specified docker images [here](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/integration.yml).
+The integration tests cover the specified docker images [here](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/tests.yml).
 
 If the PowerDNS-Team does not apply releases and changes to their publicly
 released docker images (see [here](https://hub.docker.com/r/powerdns/)), they
