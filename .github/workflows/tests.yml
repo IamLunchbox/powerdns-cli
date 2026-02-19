@@ -42,7 +42,7 @@ jobs:
       matrix:
         powerdns_container:
           - "docker.io/powerdns/pdns-auth-50:5.0.3"
-          - "docker.io/powerdns/pdns-auth-49:4.9.12"
+          - "docker.io/powerdns/pdns-auth-49:4.9.13"
           - "docker.io/powerdns/pdns-auth-48:4.8.5"
           - "docker.io/powerdns/pdns-auth-47:4.7.5"
     env:
