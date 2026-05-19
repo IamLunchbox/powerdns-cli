@@ -44,7 +44,6 @@ jobs:
           - "docker.io/powerdns/pdns-auth-50:5.0.4"
           - "docker.io/powerdns/pdns-auth-49:4.9.14"
           - "docker.io/powerdns/pdns-auth-48:4.8.5"
-          - "docker.io/powerdns/pdns-auth-47:4.7.5"
     env:
       POWERDNS_CLI_APIKEY: 1FooBarBaz2!
       POWERDNS_CLI_URL: http://localhost:8081
