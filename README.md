@@ -16,15 +16,15 @@ Installation is available through pypi.org:
 Or as an oci container:  
 `podman run --rm -it ghcr.io/IamLunchbox/powerdns-cli:latest powerdns-cli`
 
-To work with from git, checkout the repository and run `pip install .`.
+To manually install the package from git, checkout the repository and run `pip install .` in the git repository.
 
 ## Configuration
-`powerdns-cli` is built with the click framework and uses keyword-based actions. Flags may 
-only follow after the last action keyword. To get things going, for example, add a zone:  
+`powerdns-cli` uses keyword-based actions. Flags may only follow after the last action keyword.   
+To get things going, for example, add a zone:  
 `$ powerdns-cli zone add -a MyApiKey -u http://localhost example.com PRIMARY`
 
 All flags may alternatively be provided as environment variables. Each option must be prefixed
-with `POWERDNS_CLI_` and the upper case setting. For example:
+with `POWERDNS_CLI_` and the settings title in upper case. For example:
 
 ```shell
 $ export POWERDNS_CLI_APIKEY="MyApiKey"
@@ -32,9 +32,9 @@ $ export POWERDNS_CLI_URL="http://localhost"
 $ powerdns-cli zone add example.com PRIMARY
 ```
 
-It is also possible to set the common configuration items in `./.powerdns-cli.conf`,
-`$HOME/.powerdns-cli.conf` or `$HOME/.config/powerdns-cli/configuration.toml`. 
-The file format is `toml`, so string have to explicitly quoted.
+It is also possible to set the common configuration options in `./.powerdns-cli.conf`,
+`$HOME/.powerdns-cli.conf` or `$HOME/.config/powerdns-cli/configuration.toml`.
+The file format is `toml`, strings will need to be quoted explicitly.
 This is the required structure and their defaults, the option keys are not case sensitive:  
 
 ```toml
@@ -51,9 +51,8 @@ url = "http://example.com" # default is None
 Only these settings can be accessed through the configuration file.
 
 Depending on the context, for example editing records, further options may be available. Instead
-of the flag, the corresponding env variable may be used. Since this cli directly accesses the 
-default command class from click, **all** options reside under 
-`POWERDNS_CLI_*`. So to set the TTL through the environment of `record add`, use 
+of the flag, the corresponding env variable may be used. **All** options reside under 
+`POWERDNS_CLI_*`. To set the TTL through the environment of `record add`, use 
 `export POWERDNS_CLI_TTL=60`.
 
 ## Features
@@ -62,7 +61,7 @@ default command class from click, **all** options reside under
 - Exporting and importing data in JSON.
 - Exporting RRSets in BIND.
 - Idempotence.
-- "Builtin" access to the current api-specification
+- "Builtin" access to the current api-specification.
 
 ## Usage
 ```shell
@@ -111,7 +110,7 @@ $ powerdns-cli zone delete example.com -f
 Successfully deleted example.com..
 ```
 
-If something goes wrong or does not work, the `-j`-switch provides more verbose output in json:
+If something goes wrong or does not work, the `-j`-switch provides more verbose output as json:
 ```shell
 $ powerdns-cli record add  @ example.org MX "10 mail.test.de"  -j
 [...]
@@ -153,7 +152,7 @@ The [integration test](https://github.com/IamLunchbox/powerdns-cli/blob/main/.gi
 ## Version Support
 All the PowerDNS authoritative nameserver versions, which receive
 patches / security updates, are covered by integration tests. Suported versions are documented [here](https://doc.powerdns.com/authoritative/appendices/EOL.html).
-The integration tests cover the specified docker images [here](https://github.com/IamLunchbox/powerdns-cli/blob/main/.github/workflows/tests.yml).
+Therefore, PowerDNS Authoritative Nameserver versions 4.8+ are part of the testing right now.
 
 If the PowerDNS-Team does not apply releases and changes to their publicly
 released docker images (see [here](https://hub.docker.com/r/powerdns/)), they
