@@ -396,7 +396,7 @@ def record_export(
     """
     Exports the contents of a single or all existing RRSets.
     """
-    if any(map(lambda x: x in argv, ('-b','--bind'):
+    if any(map(lambda x: x in argv, ('-b','--bind'))):
         ctx.obj.logger.warning("The -b and --bind flags are misleading are set for deprecation.")
     if axfr:
         ctx.obj.logger.info(f"Exporting {dns_zone} in BIND format.")
