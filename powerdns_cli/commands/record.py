@@ -12,6 +12,7 @@ Commands:
     spec: Opens the DNS record API specification in the browser.
 """
 
+from sys import argv
 from typing import Any, NoReturn, TextIO
 
 import click
@@ -368,7 +369,7 @@ def record_replace(
     no_args_is_help=True,
 )
 @powerdns_zone
-@click.option("--bind", "-b", help="Print all records in bind format.", is_flag=True)
+@click.option("--axfr", "--bind", "-b", help="Print all records in bind format.", is_flag=True)
 @click.option("--name", help="Limit output to chosen names.", type=click.STRING)
 @click.option(
     "record_type",
@@ -391,12 +392,16 @@ def record_replace(
 )
 @click.pass_context
 def record_export(
-    ctx: click.Context, dns_zone: str, bind: bool, name: str, record_type: str, **kwargs
+    ctx: click.Context, dns_zone: str, axfr: bool, name: str, record_type: str, **kwargs
 ) -> NoReturn:
     """
     Exports the contents of a single or all existing RRSets.
     """
-    if bind:
+    if any(map(lambda x: x in argv, ("-b", "--bind"))):
+        ctx.obj.logger.warning(
+            "The -b and --bind flags are misleading and are set for deprecation."
+        )
+    if axfr:
         ctx.obj.logger.info(f"Exporting {dns_zone} in BIND format.")
         uri = (
             f"{ctx.obj.config['apihost']}/api/v1/servers/{ctx.obj.config['server_id']}"
