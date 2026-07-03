@@ -11,6 +11,7 @@ Commands:
     import: Imports DNS records from a file into a zone.
     spec: Opens the DNS record API specification in the browser.
 """
+
 from sys import argv
 from typing import Any, NoReturn, TextIO
 
@@ -396,8 +397,10 @@ def record_export(
     """
     Exports the contents of a single or all existing RRSets.
     """
-    if any(map(lambda x: x in argv, ('-b','--bind'))):
-        ctx.obj.logger.warning("The -b and --bind flags are misleading are set for deprecation.")
+    if any(map(lambda x: x in argv, ("-b", "--bind"))):
+        ctx.obj.logger.warning(
+            "The -b and --bind flags are misleading and are set for deprecation."
+        )
     if axfr:
         ctx.obj.logger.info(f"Exporting {dns_zone} in BIND format.")
         uri = (
